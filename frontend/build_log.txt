@@ -1,0 +1,24 @@
+
+> frontend@0.1.0 build
+> next build
+
+▲ Next.js 16.1.4 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 9.7s
+  Running TypeScript ...
+Failed to compile.
+
+./src/pages/admin/users/index.tsx:42:18
+Type error: Argument of type 'any[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+  Type 'any[]' is not assignable to type 'never[]'.
+    Type 'any' is not assignable to type 'never'.
+
+[0m [90m 40 |[39m       [36mif[39m (res[33m.[39mok) {
+ [90m 41 |[39m         [36mconst[39m data [33m=[39m [36mawait[39m res[33m.[39mjson()[33m;[39m
+[31m[1m>[22m[39m[90m 42 |[39m         setUsers([33mArray[39m[33m.[39misArray(data) [33m?[39m data [33m:[39m [])[33m;[39m
+ [90m    |[39m                  [31m[1m^[22m[39m
+ [90m 43 |[39m       }
+ [90m 44 |[39m     } [36mcatch[39m (e) { console[33m.[39merror(e)[33m;[39m }
+ [90m 45 |[39m     [36mfinally[39m { setLoading([36mfalse[39m)[33m;[39m }[0m
+Next.js build worker exited with code: 1 and signal: null

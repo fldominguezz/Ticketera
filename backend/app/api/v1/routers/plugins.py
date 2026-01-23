@@ -1,0 +1,51 @@
+from typing import Annotated, List
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+
+from app.api.deps import get_db, get_current_superuser
+from app.db.models.plugin import Plugin as PluginModel
+from app.schemas.plugin import Plugin, PluginCreate, PluginUpdate
+
+router = APIRouter()
+
+@router.get("/", response_model=List[Plugin])
+async def read_plugins(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[any, Depends(get_current_superuser)],
+):
+    result = await db.execute(select(PluginModel))
+    return result.scalars().all()
+
+@router.post("/", response_model=Plugin)
+async def create_plugin(
+    plugin_in: PluginCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[any, Depends(get_current_superuser)],
+):
+    plugin = PluginModel(**plugin_in.model_dump())
+    db.add(plugin)
+    await db.commit()
+    await db.refresh(plugin)
+    return plugin
+
+@router.patch("/{plugin_id}", response_model=Plugin)
+async def update_plugin(
+    plugin_id: str,
+    plugin_in: PluginUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[any, Depends(get_current_superuser)],
+):
+    result = await db.execute(select(PluginModel).filter(PluginModel.id == plugin_id))
+    plugin = result.scalar_one_or_none()
+    if not plugin:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    
+    update_data = plugin_in.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(plugin, key, value)
+    
+    db.add(plugin)
+    await db.commit()
+    await db.refresh(plugin)
+    return plugin
