@@ -34,10 +34,12 @@ class User(Base):
 
     # Relaciones
     group = relationship("Group", back_populates="users")
+    
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
     audit_logs = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan")
     roles = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
     endpoints = relationship("Endpoint", back_populates="responsible_technician")
+    assets = relationship("Asset", back_populates="responsible_user")
     # forms = relationship("Form", back_populates="created_by")
     # form_versions = relationship("FormVersion", back_populates="created_by")
     # form_submissions = relationship("FormSubmission", back_populates="submitted_by")

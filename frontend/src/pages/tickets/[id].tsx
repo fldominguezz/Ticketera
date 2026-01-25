@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import AppNavbar from '../../components/AppNavbar';
-import { Container, Breadcrumb, Button, Alert } from 'react-bootstrap';
+
+import { Container, Breadcrumb, Button, Alert, Spinner } from 'react-bootstrap';
 import TicketDetail from '../../components/tickets/TicketDetail';
+import Layout from '../../components/Layout';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '../../context/AuthContext';
 
 export default function TicketPage() {
   const router = useRouter();
   const { id } = router.query;
+  const { user: currentUser } = useAuth();
   
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isSuperuser, setIsSuperuser] = useState(false);
@@ -18,13 +21,14 @@ export default function TicketPage() {
   const [relations, setRelations] = useState<any[]>([]);
   const [attachments, setAttachments] = useState<any[]>([]);
   const [subtasks, setSubtasks] = useState<any[]>([]);
+  const [watchers, setWatchers] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
     if (!token) {
       router.push('/login');
     } else if (id) {
@@ -36,36 +40,52 @@ export default function TicketPage() {
   const fetchData = async (token: string, ticketId: string) => {
     try {
       setLoading(true);
-      const [ticketRes, commentsRes, relationsRes, attachmentsRes, userRes, auditRes, subtasksRes, usersRes] = await Promise.all([
+      const [ticketRes, commentsRes, relationsRes, attachmentsRes, userRes, auditRes, subtasksRes, usersRes, watchersRes] = await Promise.all([
         fetch(`/api/v1/tickets/${ticketId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch(`/api/v1/tickets/${ticketId}/comments`, { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch(`/api/v1/tickets/${ticketId}/relations`, { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch(`/api/v1/attachments/${ticketId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch(`/api/v1/users/me`, { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch(`/api/v1/audit/?ticket_id=${ticketId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`/api/v1/audit?ticket_id=${ticketId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch(`/api/v1/tickets/${ticketId}/subtasks`, { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch(`/api/v1/users/`, { headers: { 'Authorization': `Bearer ${token}` } })
+        fetch(`/api/v1/users`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`/api/v1/tickets/${ticketId}/watchers`, { headers: { 'Authorization': `Bearer ${token}` } })
       ]);
 
-      if (ticketRes.ok && commentsRes.ok) {
+      if (ticketRes.ok) {
         setTicket(await ticketRes.json());
-        setComments(await commentsRes.json());
-        setRelations(relationsRes.ok ? await relationsRes.json() : []);
-        setAttachments(attachmentsRes.ok ? await attachmentsRes.json() : []);
-        setHistory(auditRes.ok ? await auditRes.json() : []);
-        setSubtasks(subtasksRes.ok ? await subtasksRes.json() : []);
-        setUsers(usersRes.ok ? await usersRes.json() : []);
+        
+        const commentsData = commentsRes.ok ? await commentsRes.json() : [];
+        setComments(Array.isArray(commentsData) ? commentsData : []);
+        
+        const relationsData = relationsRes.ok ? await relationsRes.json() : [];
+        setRelations(Array.isArray(relationsData) ? relationsData : []);
+        
+        const attachmentsData = attachmentsRes.ok ? await attachmentsRes.json() : [];
+        setAttachments(Array.isArray(attachmentsData) ? attachmentsData : []);
+        
+        const auditData = auditRes.ok ? await auditRes.json() : [];
+        setHistory(Array.isArray(auditData) ? auditData : []);
+        
+        const subtasksData = subtasksRes.ok ? await subtasksRes.json() : [];
+        setSubtasks(Array.isArray(subtasksData) ? subtasksData : []);
+        
+        const usersData = usersRes.ok ? await usersRes.json() : [];
+        setUsers(Array.isArray(usersData) ? usersData : []);
+        
+        const watchersData = watchersRes.ok ? await watchersRes.json() : [];
+        setWatchers(Array.isArray(watchersData) ? watchersData : []);
         
         if (userRes.ok) {
           const userData = await userRes.json();
           setIsSuperuser(userData.is_superuser);
         }
       } else {
-        setError('Failed to fetch ticket data');
+        setError('Ticket no encontrado');
       }
     } catch (e) {
       console.error(e);
-      setError('An error occurred');
+      setError('Error al cargar el ticket');
     } finally {
       setLoading(false);
     }
@@ -83,11 +103,11 @@ export default function TicketPage() {
         const newComment = await res.json();
         setComments([...comments, newComment]);
       }
-    } catch (e) { alert(e); }
+    } catch (e) { console.error(e); }
   };
 
   const handleAddRelation = async (targetId: string, type: string) => {
-    // Logic for adding relations...
+    // Implementación opcional
   };
 
   const handleUploadFile = async (file: File) => {
@@ -107,6 +127,25 @@ export default function TicketPage() {
     } catch (e) { console.error(e); }
   };
 
+  const handleDownloadFile = async (attachmentId: string, filename: string) => {
+    const token = localStorage.getItem('access_token');
+    try {
+      const response = await fetch(`/api/v1/attachments/download/${attachmentId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (e) { console.error("Download failed", e); }
+  };
+
   const handleToggleSubtask = async (subtaskId: string, completed: boolean) => {
     const token = localStorage.getItem('access_token');
     try {
@@ -116,7 +155,7 @@ export default function TicketPage() {
         body: JSON.stringify({ is_completed: completed })
       });
       if (res.ok) {
-        setSubtasks(subtasks?.map(st => st.id === subtaskId ? {...st, is_completed: completed} : st));
+        setSubtasks(subtasks.map(st => st.id === subtaskId ? {...st, is_completed: completed} : st));
       }
     } catch (e) { console.error(e); }
   };
@@ -144,7 +183,26 @@ export default function TicketPage() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        setSubtasks(subtasks?.filter(st => st.id !== subtaskId));
+        setSubtasks(subtasks.filter(st => st.id !== subtaskId));
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const handleToggleWatch = async () => {
+    if (!currentUser) return;
+    const token = localStorage.getItem('access_token');
+    const isWatching = watchers.some(w => w.user_id === currentUser.id);
+    const method = isWatching ? 'DELETE' : 'POST';
+    
+    try {
+      const res = await fetch(`/api/v1/tickets/${id}/watchers`, {
+        method: method,
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        // Refresh watchers
+        const watchersRes = await fetch(`/api/v1/tickets/${id}/watchers`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (watchersRes.ok) setWatchers(await watchersRes.json());
       }
     } catch (e) { console.error(e); }
   };
@@ -163,20 +221,61 @@ export default function TicketPage() {
       }
     } catch (e) { console.error(e); }
   };
-// ... skip
-          <TicketDetail 
-            ticket={ticket} 
-            comments={comments} 
-            relations={relations}
-            attachments={attachments}
-            subtasks={subtasks}
-            history={history}
-            users={users}
-            onAddComment={handleAddComment} 
-            onAddRelation={handleAddRelation}
-            onUploadFile={handleUploadFile}
-            onToggleSubtask={handleToggleSubtask}
-            onAddSubtask={handleAddSubtask}
-            onDeleteSubtask={handleDeleteSubtask}
-            onUpdateTicket={handleUpdateTicket}
-          />}
+
+  if (loading) {
+    return (
+      <Layout title="Cargando...">
+        <Container className="text-center py-5">
+          <Spinner animation="border" variant="primary" />
+        </Container>
+      </Layout>
+    );
+  }
+
+  if (error || !ticket) {
+    return (
+      <Layout title="Error">
+        <Container className="py-5">
+          <Alert variant="danger">{error || 'Ticket no encontrado'}</Alert>
+          <Button variant="primary" onClick={() => router.push('/tickets')}>Volver a la lista</Button>
+        </Container>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout title={`Ticket: ${ticket.title}`}>
+      <Container fluid className="px-0">
+        <div className="mb-4 d-flex align-items-center">
+          <Button variant="link" className="text-dark p-0 me-3" onClick={() => router.push('/tickets')}>
+            <ChevronLeft size={24} />
+          </Button>
+          <Breadcrumb className="mb-0">
+            <Breadcrumb.Item href="/tickets">Tickets</Breadcrumb.Item>
+            <Breadcrumb.Item active>#{ticket.id?.substring(0,8)}</Breadcrumb.Item>
+          </Breadcrumb>
+        </div>
+
+        <TicketDetail 
+          ticket={ticket} 
+          comments={comments} 
+          relations={relations}
+          attachments={attachments}
+          subtasks={subtasks}
+          watchers={watchers}
+          history={history}
+          users={users}
+          onAddComment={handleAddComment} 
+          onAddRelation={handleAddRelation}
+          onUploadFile={handleUploadFile}
+          onDownloadFile={handleDownloadFile}
+          onToggleWatch={handleToggleWatch}
+          onToggleSubtask={handleToggleSubtask}
+          onAddSubtask={handleAddSubtask}
+          onDeleteSubtask={handleDeleteSubtask}
+          onUpdateTicket={handleUpdateTicket}
+        />
+      </Container>
+    </Layout>
+  );
+}

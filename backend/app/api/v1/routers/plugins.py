@@ -5,11 +5,33 @@ from sqlalchemy.future import select
 
 from app.api.deps import get_db, get_current_superuser
 from app.db.models.plugin import Plugin as PluginModel
-from app.schemas.plugin import Plugin, PluginCreate, PluginUpdate
+from app.schemas.plugin import Plugin, PluginCreate, PluginUpdate, UpdateCheck
 
 router = APIRouter()
 
-@router.get("/", response_model=List[Plugin])
+@router.get("/check-updates", response_model=UpdateCheck)
+async def check_updates(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[any, Depends(get_current_superuser)],
+):
+    result = await db.execute(select(PluginModel).filter(PluginModel.name == "System Core"))
+    core = result.scalar_one_or_none()
+    
+    current_version = core.version if core else "1.2.6"
+    latest_version = "1.2.7" # Mocking latest version
+    
+    return {
+        "update_available": current_version < latest_version,
+        "current_version": current_version,
+        "latest_version": latest_version,
+        "changelog": [
+            "Mejoras en el motor de SLA",
+            "Nuevas transiciones de Workflow",
+            "Corrección de errores en reportes PDF"
+        ]
+    }
+
+@router.get("", response_model=List[Plugin])
 async def read_plugins(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[any, Depends(get_current_superuser)],
@@ -17,7 +39,7 @@ async def read_plugins(
     result = await db.execute(select(PluginModel))
     return result.scalars().all()
 
-@router.post("/", response_model=Plugin)
+@router.post("", response_model=Plugin)
 async def create_plugin(
     plugin_in: PluginCreate,
     db: Annotated[AsyncSession, Depends(get_db)],

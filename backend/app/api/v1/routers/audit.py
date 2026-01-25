@@ -20,14 +20,22 @@ class AuditLogSchema(BaseModel):
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
 
-@router.get("/", response_model=List[AuditLogSchema])
+@router.get("", response_model=List[AuditLogSchema])
 async def read_audit_logs(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_superuser)],
+    ticket_id: Optional[UUID] = None,
     skip: int = 0,
     limit: int = 100,
 ):
+    query = select(AuditLog)
+    
+    if ticket_id:
+        # Filtrar logs donde el ticket_id esté dentro del campo JSONB details
+        from sqlalchemy import cast, String
+        query = query.filter(AuditLog.details["ticket_id"].astext == str(ticket_id))
+    
     result = await db.execute(
-        select(AuditLog).order_by(AuditLog.created_at.desc()).offset(skip).limit(limit)
+        query.order_by(AuditLog.created_at.desc()).offset(skip).limit(limit)
     )
     return result.scalars().all()

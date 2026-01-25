@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import AppNavbar from '../../components/AppNavbar';
+
 import { Container, Row, Col, Card, Badge, ListGroup, Table, Button } from 'react-bootstrap';
 import { Monitor, Shield, Activity, FileText, ChevronLeft, Clock } from 'lucide-react';
 import Link from 'next/link';
@@ -25,7 +25,7 @@ export default function Endpoint360Page() {
       const res = await fetch(`/api/v1/endpoints/${epId}`, { headers: { 'Authorization': `Bearer ${token}` } });
       if (res.ok) setEndpoint(await res.json());
       
-      const tRes = await fetch(`/api/v1/tickets/?endpoint_id=${epId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const tRes = await fetch(`/api/v1/tickets?endpoint_id=${epId}`, { headers: { 'Authorization': `Bearer ${token}` } });
       if (tRes.ok) setTickets(await tRes.json());
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -36,7 +36,7 @@ export default function Endpoint360Page() {
   return (
     <>
       <Head><title>Endpoint 360 - {endpoint.hostname}</title></Head>
-      <AppNavbar />
+      
       <Container className="mt-4 mb-5">
         <Link href="/endpoints" passHref>
           <Button variant="link" className="p-0 text-decoration-none mb-4 d-flex align-items-center">
@@ -103,13 +103,13 @@ export default function Endpoint360Page() {
                     </tr>
                   </thead>
                   <tbody>
-                    {tickets.length > 0 ? tickets?.map((t: any) => (
-                      <tr key={t.id} className="align-middle">
-                        <td className="ps-4 py-3 fw-bold">{t.title}</td>
-                        <td><Badge bg="secondary">{t.status}</Badge></td>
-                        <td className="text-muted">{new Date(t.created_at).toLocaleDateString()}</td>
+                    {tickets.length > 0 ? tickets?.map((ticket: any) => (
+                      <tr key={ticket.id} className="align-middle">
+                        <td className="ps-4 py-3 fw-bold">{ticket.title}</td>
+                        <td><Badge bg="secondary">{ticket.status}</Badge></td>
+                        <td className="text-muted">{new Date(ticket.created_at).toLocaleDateString()}</td>
                         <td className="text-end pe-4">
-                          <Link href={`/tickets/${t.id}`} passHref><Button variant="outline-primary" size="sm">View</Button></Link>
+                          <Link href={`/tickets/${ticket.id}`} passHref><Button variant="outline-primary" size="sm">View</Button></Link>
                         </td>
                       </tr>
                     )) : (

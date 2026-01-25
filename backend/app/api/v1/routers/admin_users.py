@@ -2,6 +2,7 @@ from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 from uuid import UUID
 
 from app.schemas.user import User as UserSchema, UserCreate, UserUpdate
@@ -13,7 +14,9 @@ from fastapi import Request
 
 router = APIRouter()
 
-@router.get("/", response_model=List[UserSchema])
+from app.db.models.group import Group
+
+@router.get("", response_model=List[UserSchema])
 async def list_users(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_superuser)],
@@ -23,10 +26,23 @@ async def list_users(
     """
     List all users. (Superuser only)
     """
-    result = await db.execute(select(User).offset(skip).limit(limit))
-    return result.scalars().all()
+    query = (
+        select(User, Group.name.label("group_name"))
+        .outerjoin(Group, User.group_id == Group.id)
+        .offset(skip)
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    
+    users_data = []
+    for user_obj, group_name in result.all():
+        u_dict = UserSchema.model_validate(user_obj).model_dump()
+        u_dict["group_name"] = group_name
+        users_data.append(UserSchema(**u_dict))
+        
+    return users_data
 
-@router.post("/", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
 async def create_user_admin(
     request: Request,
     user_in: UserCreate,
@@ -46,6 +62,12 @@ async def create_user_admin(
 
     new_user = await crud_user.create(db, obj_in=user_in)
     
+    # Load group for response
+    result = await db.execute(
+        select(User).where(User.id == new_user.id).options(selectinload(User.group))
+    )
+    new_user = result.scalar_one()
+
     await crud_audit.audit_log.create_log(
         db,
         user_id=current_user.id,
@@ -72,6 +94,12 @@ async def update_user_admin(
     
     updated_user = await crud_user.update(db, db_obj=db_user, obj_in=user_in)
     
+    # Load group for response
+    result = await db.execute(
+        select(User).where(User.id == updated_user.id).options(selectinload(User.group))
+    )
+    updated_user = result.scalar_one()
+
     await crud_audit.audit_log.create_log(
         db,
         user_id=current_user.id,

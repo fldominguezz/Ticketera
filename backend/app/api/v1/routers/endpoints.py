@@ -12,7 +12,7 @@ from app.services.group_service import group_service
 
 router = APIRouter()
 
-@router.get("/", response_model=List[Endpoint])
+@router.get("", response_model=List[Endpoint])
 async def read_endpoints(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_active_user)],
@@ -29,6 +29,8 @@ async def read_endpoints(
         )
     else:
         # Get all child group IDs including current group
+        if not current_user.group_id:
+            return []
         group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
         
         # We need to modify get_multi to accept a list of group_ids
@@ -44,7 +46,7 @@ async def read_endpoints(
         
     return endpoints
 
-@router.post("/", response_model=Endpoint, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=Endpoint, status_code=status.HTTP_201_CREATED)
 async def create_endpoint(
     request: Request,
     *,
@@ -81,6 +83,8 @@ async def read_endpoint(
     
     # Check access
     if not current_user.is_superuser:
+        if not current_user.group_id:
+            raise HTTPException(status_code=403, detail="User not assigned to any group")
         group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
         if endpoint.group_id not in group_ids:
             raise HTTPException(status_code=403, detail="Not enough permissions")

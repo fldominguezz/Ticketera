@@ -9,7 +9,9 @@ class UserBase(BaseModel):
     last_name: str
     is_active: bool = True
     is_superuser: bool = False
+    is_2fa_enabled: bool = False
     group_id: Optional[UUID] = None 
+    group_name: Optional[str] = None
     preferred_language: Optional[str] = "es" # Hago group_id opcional por ahora para la creación inicial
 
 class UserCreate(UserBase):

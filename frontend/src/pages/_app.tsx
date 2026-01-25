@@ -1,28 +1,49 @@
-import 'bootstrap/dist/css/bootstrap.min.css';
-import '../styles/globals.css';
-import '../i18n';
+import React, { useEffect, useState } from 'react';
 import type { AppProps } from 'next/app';
-import { AuthProvider } from '../context/AuthContext';
+import { AuthProvider, useAuth } from '../context/AuthContext';
+import { ThemeProvider } from '../context/ThemeContext';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '../i18n';
-import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
-export default function App({ Component, pageProps }: AppProps) {
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
 
-  return (
+  useEffect(() => {
+    if (!loading) {
+      if (!user && router.pathname !== '/login') {
+        setAuthorized(false);
+        router.push('/login');
+      } else {
+        setAuthorized(true);
+      }
+    }
+  }, [user, loading, router.pathname]);
 
-    <I18nextProvider i18n={i18n}>
+  if (!authorized && router.pathname !== '/login') {
+    return (
+      <div style={{ background: '#05070a', height: '100vh', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center' }}>
+        <div className="spinner-border text-primary" role="status"></div>
+      </div>
+    );
+  }
 
-      <AuthProvider>
-
-        <Component {...pageProps} />
-
-      </AuthProvider>
-
-    </I18nextProvider>
-
-  );
-
+  return <>{children}</>;
 }
 
-
+export default function App({ Component, pageProps }: AppProps) {
+  return (
+    <I18nextProvider i18n={i18n}>
+      <AuthProvider>
+        <ThemeProvider>
+          <AuthGuard>
+            <Component {...pageProps} />
+          </AuthGuard>
+        </ThemeProvider>
+      </AuthProvider>
+    </I18nextProvider>
+  );
+}

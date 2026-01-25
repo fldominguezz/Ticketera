@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import AppNavbar from '../../components/AppNavbar';
+
 import { Container, Card, Table, Button, Badge, Form, Row, Col } from 'react-bootstrap';
 import { GitBranch, Plus, Trash2, ArrowRight } from 'lucide-react';
+import Layout from '../../components/Layout';
 
 export default function AdminWorkflowPage() {
   const router = useRouter();
@@ -18,9 +19,7 @@ export default function AdminWorkflowPage() {
   const statusOptions = ['open', 'in_progress', 'pending', 'resolved', 'closed'];
 
   return (
-    <>
-      <Head><title>Workflow Designer - Ticketera</title></Head>
-      <AppNavbar />
+    <Layout title="Workflow Designer">
       <Container className="mt-4">
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
@@ -79,6 +78,6 @@ export default function AdminWorkflowPage() {
           </Col>
         </Row>
       </Container>
-    </>
+    </Layout>
   );
 }

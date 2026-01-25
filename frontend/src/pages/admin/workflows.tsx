@@ -5,7 +5,7 @@ import { Settings, Plus, Play } from 'lucide-react';
 import axios from 'axios';
 
 const WorkflowsAdmin = () => {
-    const [workflows, setWorkflows] = useState([]);
+    const [workflows, setWorkflows] = useState<any[]>([]);
     const [showModal, setShowModal] = useState(false);
 
     useEffect(() => {
@@ -65,9 +65,9 @@ const WorkflowsAdmin = () => {
                 <Modal.Body>
                     <p className="text-muted">El editor visual de flujos (vía React Flow) estará disponible en el siguiente parche de la v1.2.6.</p>
                     <Form>
-                        <Form.Group className="mb-3">
+                        <Form.Group className="mb-3" controlId="workflow-name-input">
                             <Form.Label>Nombre del Workflow</Form.Label>
-                            <Form.Control type="text" placeholder="Ej: Atención Incidentes" />
+                            <Form.Control type="text" name="wf_name" placeholder="Ej: Atención Incidentes" />
                         </Form.Group>
                     </Form>
                 </Modal.Body>

@@ -14,7 +14,7 @@ from app.db.models import User, Group # Use SQLAlchemy User directly
 
 router = APIRouter()
 
-@router.post("/", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
 async def create_user(
     user_in: UserCreate,
     db: Annotated[AsyncSession, Depends(get_db)]
@@ -38,7 +38,7 @@ async def create_user(
     user = await crud_user.create(db, user_in)
     return user
 
-@router.get("/", response_model=List[UserSchema])
+@router.get("", response_model=List[UserSchema])
 async def read_users(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_active_user)],
@@ -48,8 +48,21 @@ async def read_users(
     """
     Retrieve users.
     """
-    result = await db.execute(select(User).offset(skip).limit(limit))
-    return result.scalars().all()
+    query = (
+        select(User, Group.name.label("group_name"))
+        .outerjoin(Group, User.group_id == Group.id)
+        .offset(skip)
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    
+    users_data = []
+    for user_obj, group_name in result.all():
+        u = UserSchema.model_validate(user_obj)
+        u.group_name = group_name
+        users_data.append(u)
+        
+    return users_data
 
 @router.get("/me", response_model=UserSchema)
 async def read_users_me(

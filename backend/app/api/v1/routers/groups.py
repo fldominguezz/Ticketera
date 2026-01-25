@@ -2,6 +2,7 @@ from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 from uuid import UUID
 
 from app.api.deps import get_db, get_current_active_user, get_current_superuser
@@ -10,7 +11,7 @@ from app.schemas.group import Group as GroupSchema, GroupCreate, GroupUpdate # C
 
 router = APIRouter()
 
-@router.get("/", response_model=List[GroupSchema])
+@router.get("", response_model=List[GroupSchema])
 async def read_groups(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_active_user)],
@@ -18,13 +19,28 @@ async def read_groups(
     limit: int = 100,
 ):
     """
-    List all groups (hierarchical view handled by frontend usually, or we return flat list).
+    List all groups with their parent group loaded.
     """
-    query = select(Group).filter(Group.deleted_at == None).offset(skip).limit(limit)
+    query = (
+        select(Group)
+        .options(selectinload(Group.parent_group))
+        .filter(Group.deleted_at == None)
+        .offset(skip)
+        .limit(limit)
+    )
     result = await db.execute(query)
-    return result.scalars().all()
+    groups_objs = result.scalars().all()
+    
+    groups_data = []
+    for g in groups_objs:
+        g_schema = GroupSchema.model_validate(g)
+        if g.parent_group:
+            g_schema.parent_name = g.parent_group.name
+        groups_data.append(g_schema)
+        
+    return groups_data
 
-@router.post("/", response_model=GroupSchema, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=GroupSchema, status_code=status.HTTP_201_CREATED)
 async def create_group(
     group_in: GroupCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -36,7 +52,12 @@ async def create_group(
     db_group = Group(**group_in.model_dump())
     db.add(db_group)
     await db.commit()
-    await db.refresh(db_group)
+    
+    # Load parent for response
+    result = await db.execute(
+        select(Group).where(Group.id == db_group.id).options(selectinload(Group.parent_group))
+    )
+    db_group = result.scalar_one()
     return db_group
 
 @router.put("/{group_id}", response_model=GroupSchema)
@@ -58,5 +79,10 @@ async def update_group(
 
     db.add(group)
     await db.commit()
-    await db.refresh(group)
+    
+    # Load parent for response
+    result = await db.execute(
+        select(Group).where(Group.id == group.id).options(selectinload(Group.parent_group))
+    )
+    group = result.scalar_one()
     return group

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import AppNavbar from '../../components/AppNavbar';
+
 import { Container, Card, Form, Button, Alert, Row, Col } from 'react-bootstrap';
 import { Send, CheckCircle } from 'lucide-react';
 
@@ -26,7 +26,7 @@ export default function FormRenderPage() {
 
   const fetchForm = async (token: string, formId: string) => {
     try {
-      const res = await fetch(`/api/v1/forms/`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch(`/api/v1/forms`, { headers: { 'Authorization': `Bearer ${token}` } });
       if (res.ok) {
         const allForms = await res.json();
         const found = allForms.find((f: any) => f.id === formId);
@@ -73,7 +73,7 @@ export default function FormRenderPage() {
   return (
     <>
       <Head><title>{formDef?.name || 'Form'} - Ticketera</title></Head>
-      <AppNavbar />
+      
       <Container className="mt-4 mb-5">
         <Row className="justify-content-center">
           <Col lg={8}>
@@ -86,8 +86,8 @@ export default function FormRenderPage() {
                 {error && <Alert variant="danger">{error}</Alert>}
                 
                 <Form onSubmit={handleSubmit}>
-                  {formDef?.schema?.fields?.map((field: any) => (
-                    <Form.Group key={field.id} className="mb-4">
+                  {Array.isArray(formDef?.schema?.fields) && formDef.schema.fields.map((field: any) => (
+                    <Form.Group key={field.id} className="mb-4" controlId={`dynamic-field-${field.id}`}>
                       <Form.Label className="fw-bold small">
                         {field.label} {field.required && <span className="text-danger">*</span>}
                       </Form.Label>
@@ -95,20 +95,23 @@ export default function FormRenderPage() {
                       {field.type === 'textarea' ? (
                         <Form.Control 
                           as="textarea" rows={3} 
+                          name={`field_${field.id}`}
                           required={field.required}
                           onChange={e => handleInputChange(field.id, e.target.value)}
                         />
                       ) : field.type === 'select' ? (
                         <Form.Select 
+                          name={`field_${field.id}`}
                           required={field.required}
                           onChange={e => handleInputChange(field.id, e.target.value)}
                         >
                           <option value="">Select an option...</option>
-                          {field.options?.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+                          {Array.isArray(field.options) && field.options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
                         </Form.Select>
                       ) : (
                         <Form.Control 
                           type={field.type} 
+                          name={`field_${field.id}`}
                           required={field.required}
                           onChange={e => handleInputChange(field.id, e.target.value)}
                         />

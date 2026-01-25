@@ -84,6 +84,10 @@ const resources = {
       "advanced_settings_desc": "Las configuraciones de SLA, diseñadores de flujo de trabajo y claves de integración se gestionan en módulos individuales.",
       "no_audit_logs": "No se encontraron registros de auditoría.",
       "new_ticket": "Nuevo Ticket",
+      "create_ticket": "Crear Ticket",
+      "title": "Título",
+      "description": "Descripción",
+      "type": "Tipo",
       "no_data": "No se encontraron datos disponibles."
     }
   },
@@ -168,6 +172,10 @@ const resources = {
       "advanced_settings_desc": "SLA configurations, workflow designers and system integration keys are managed in individual modules.",
       "no_audit_logs": "No audit logs found.",
       "new_ticket": "New Ticket",
+      "create_ticket": "Create Ticket",
+      "title": "Title",
+      "description": "Description",
+      "type": "Type",
       "no_data": "No data available."
     }
   }

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from uuid import UUID
-from typing import Optional, Any, List
+from typing import Optional, Any, List, Dict
 from datetime import datetime
 
 class TicketBase(BaseModel):
@@ -10,10 +10,10 @@ class TicketBase(BaseModel):
     priority: Optional[str] = "medium"
     ticket_type_id: UUID
     group_id: UUID
-    assigned_to_id: Optional[UUID] = None
+    asset_id: Optional[UUID] = None
     parent_ticket_id: Optional[UUID] = None
     sla_deadline: Optional[datetime] = None
-    extra_data: Optional[Any] = None
+    extra_data: Optional[Dict[str, Any]] = None
 
 class TicketCreate(TicketBase):
     pass

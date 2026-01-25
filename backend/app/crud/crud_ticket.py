@@ -14,13 +14,20 @@ class CRUDTicket:
         return result.scalar_one_or_none()
 
     async def get_multi(self, db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Ticket]:
-        result = await db.execute(select(Ticket).filter(Ticket.deleted_at == None).offset(skip).limit(limit))
+        result = await db.execute(
+            select(Ticket)
+            .filter(Ticket.deleted_at == None)
+            .order_by(Ticket.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
         return result.scalars().all()
 
     async def get_multi_by_group_ids(self, db: AsyncSession, group_ids: List[UUID], skip: int = 0, limit: int = 100) -> List[Ticket]:
         result = await db.execute(
             select(Ticket)
             .filter(Ticket.deleted_at == None, Ticket.group_id.in_(group_ids))
+            .order_by(Ticket.created_at.desc())
             .offset(skip)
             .limit(limit)
         )
@@ -82,16 +89,30 @@ class CRUDTicket:
 
     async def get_comments(self, db: AsyncSession, ticket_id: UUID, include_internal: bool = False) -> List[TicketComment]:
         from app.db.models.user import User
-        query = select(TicketComment, User.username, User.full_name).join(User, TicketComment.user_id == User.id).filter(TicketComment.ticket_id == ticket_id)
-        if not include_internal:
-            query = query.filter(TicketComment.is_internal == False)
-        result = await db.execute(query.order_by(TicketComment.created_at.asc()))
-        
-        comments = []
-        for row, username, full_name in result.all():
-            row.user_name = full_name or username
-            comments.append(row)
-        return comments
+        try:
+            query = select(TicketComment).filter(TicketComment.ticket_id == ticket_id)
+            if not include_internal:
+                query = query.filter(TicketComment.is_internal == False)
+            
+            result = await db.execute(query.order_by(TicketComment.created_at.asc()))
+            comments = result.scalars().all()
+            
+            # Manually load usernames to avoid JOIN tuple issues in async
+            for comment in comments:
+                try:
+                    user_res = await db.execute(select(User).filter(User.id == comment.user_id))
+                    user = user_res.scalar_one_or_none()
+                    if user:
+                        comment.user_name = user.full_name or user.username or "User"
+                    else:
+                        comment.user_name = "System/Deleted"
+                except Exception:
+                    comment.user_name = "User"
+                    
+            return comments
+        except Exception as e:
+            logger.error(f"Error in get_comments: {e}")
+            return []
 
     async def get_subtasks(self, db: AsyncSession, ticket_id: UUID) -> List[TicketSubtask]:
         result = await db.execute(select(TicketSubtask).filter(TicketSubtask.ticket_id == ticket_id).order_by(TicketSubtask.created_at.asc()))

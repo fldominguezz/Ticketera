@@ -16,6 +16,7 @@ class GroupUpdate(GroupBase):
 
 class GroupInDBBase(GroupBase):
     id: UUID
+    parent_name: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None

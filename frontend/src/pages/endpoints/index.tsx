@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
-import AppNavbar from '../../components/AppNavbar';
+
 import { Container, Table, Button, Badge, Modal, Form, Spinner, Card } from 'react-bootstrap';
 import { useTranslation } from 'react-i18next';
 import { Plus, Monitor } from 'lucide-react';
@@ -18,7 +18,7 @@ export default function EndpointsPage() {
   const fetchEndpoints = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch('/api/v1/endpoints/', { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch('/api/v1/endpoints', { headers: { 'Authorization': `Bearer ${token}` } });
       if (res.ok) {
         const data = await res.json();
         setEndpoints(Array.isArray(data) ? data : []);
@@ -30,7 +30,7 @@ export default function EndpointsPage() {
   return (
     <>
       <Head><title>{t('endpoints')} - Ticketera</title></Head>
-      <AppNavbar />
+      
       <Container className="mt-4">
         <div className="d-flex justify-content-between align-items-center mb-4">
             <h1 className="fw-bold mb-0">{t('endpoints')}</h1>

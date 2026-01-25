@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from uuid import UUID
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 
 class PluginBase(BaseModel):
@@ -20,3 +20,9 @@ class Plugin(PluginBase):
     id: UUID
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+class UpdateCheck(BaseModel):
+    update_available: bool
+    current_version: str
+    latest_version: str
+    changelog: Optional[List[str]] = None

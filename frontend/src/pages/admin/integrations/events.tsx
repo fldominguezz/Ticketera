@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import AppNavbar from '../../../components/AppNavbar';
+
 import { Container, Card, Table, Badge, Button } from 'react-bootstrap';
 import { Shield, Eye, CheckCircle, AlertTriangle } from 'lucide-react';
+import Layout from '../../../components/Layout';
 
 export default function SIEMEventsPage() {
   const router = useRouter();
@@ -27,9 +28,7 @@ export default function SIEMEventsPage() {
   };
 
   return (
-    <>
-      <Head><title>SIEM Raw Events - Ticketera</title></Head>
-      <AppNavbar />
+    <Layout title="SIEM Raw Events">
       <Container className="mt-4">
         <div className="mb-4">
           <h1 className="fw-bold mb-0">SIEM Raw Events</h1>
@@ -79,6 +78,6 @@ export default function SIEMEventsPage() {
           </Card.Body>
         </Card>
       </Container>
-    </>
+    </Layout>
   );
 }

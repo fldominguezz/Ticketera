@@ -1,132 +1,175 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import AppNavbar from '../components/AppNavbar';
-import { Container, Card, Row, Col, Button, Badge, ListGroup, Tabs, Tab, Form, Spinner, Alert } from 'react-bootstrap';
+import Layout from '../components/Layout';
+import { Container, Card, Row, Col, Button, Badge, ListGroup, Tabs, Tab, Form, Spinner, Alert, Modal } from 'react-bootstrap';
 import { Shield, Monitor, Globe, Clock, User as UserIcon, Mail, AlertTriangle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 
 export default function ProfilePage() {
+  const { t } = useTranslation();
+  const { user, refreshUser } = useAuth();
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [sessions, setSessions] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [showPasswordModal, setShowModal] = useState(false);
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handleDisable2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
     const token = localStorage.getItem('access_token');
-    if (!token) {
-      router.push('/login');
-    } else {
-      fetchData(token);
-    }
-  }, [router]);
-
-  const fetchData = async (token: string) => {
     try {
-      setLoading(true);
-      const [userRes, sessionsRes] = await Promise.all([
-        fetch('/api/v1/users/me', { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch('/api/v1/sessions/me', { headers: { 'Authorization': `Bearer ${token}` } })
-      ]);
-
-      if (userRes.ok) setUser(await userRes.json());
-      else if (userRes.status === 401) { router.push('/login'); return; }
-      else setError('Failed to load profile data');
-
-      if (sessionsRes.ok) setSessions(await sessionsRes.json());
-    } catch (e) { 
-      console.error(e); 
-      setError('Connection error');
-    } finally {
-      setLoading(false);
-    }
+      const res = await fetch('/api/v1/users/me/2fa/disable', {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ password })
+      });
+      if (res.ok) {
+        setShowModal(false);
+        setPassword('');
+        await refreshUser();
+      } else {
+        const data = await res.json();
+        setError(data.detail || 'Contraseña incorrecta');
+      }
+    } catch (e) { setError('Error de conexión'); }
+    finally { setLoading(false); }
   };
 
-  if (loading) return (
-    <div className="d-flex justify-content-center align-items-center vh-100"><Spinner animation="border" variant="primary" /></div>
-  );
-
-  if (error) return (
-    <Container className="mt-5"><Alert variant="danger">{error}</Alert><Button onClick={() => router.reload()}>Retry</Button></Container>
-  );
-
-  if (!user) return null;
+  if (!mounted) return null;
 
   return (
-    <>
-      <Head><title>My Profile - Ticketera</title></Head>
-      <AppNavbar />
-      <Container className="mt-4 mb-5">
-        <Row>
+    <Layout title={t('profile') || 'Mi Perfil'}>
+      <Container fluid className="px-0">
+        <Row className="g-4">
           <Col lg={4}>
-            <Card className="text-center shadow-sm border-0 mb-4 overflow-hidden">
-              <div className="bg-primary py-5"></div>
-              <Card.Body className="mt-n5">
-                <div className="bg-white rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm mb-3" style={{ width: '100px', height: '100px', marginTop: '-50px' }}>
-                  <span className="h1 mb-0 text-primary">{user.first_name?.[0] || 'U'}{user.last_name?.[0] || ''}</span>
+            <Card className="border-0 shadow-sm text-center p-4">
+              <Card.Body>
+                <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3 text-white shadow" style={{ width: '80px', height: '80px' }}>
+                  <UserIcon size={40} />
                 </div>
-                <h4 className="fw-bold">{user.first_name} {user.last_name}</h4>
-                <p className="text-muted small">@{user.username}</p>
-                <Badge bg={user.is_superuser ? "danger" : "info"} pill className="px-3">
-                  {user.is_superuser ? 'Super Administrator' : 'Staff Member'}
+                <h4 className="fw-bold mb-1">{user?.first_name} {user?.last_name}</h4>
+                <p className="text-muted small">{user?.email}</p>
+                <Badge bg="primary" className="px-3 py-2 rounded-pill">
+                  {user?.is_superuser ? 'Administrador' : 'Técnico'}
                 </Badge>
+                <hr />
+                <div className="text-start small">
+                  <div className="mb-2 d-flex align-items-center"><Mail size={14} className="me-2 text-muted" /> {user?.email}</div>
+                  <div className="mb-2 d-flex align-items-center"><Globe size={14} className="me-2 text-muted" /> Idioma: {user?.preferred_language || 'Español'}</div>
+                  <div className="mb-0 d-flex align-items-center"><Clock size={14} className="me-2 text-muted" /> Miembro desde: {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</div>
+                </div>
               </Card.Body>
             </Card>
-
-            <Card className="shadow-sm border-0">
-              <ListGroup variant="flush">
-                <ListGroup.Item className="d-flex justify-content-between align-items-center py-3">
-                  <div className="d-flex align-items-center small">
-                    <Shield size={16} className="me-2 text-primary" /> <strong>2FA Status</strong>
-                  </div>
-                  <Badge bg={user.is_2fa_enabled ? "success" : "warning"}>{user.is_2fa_enabled ? "Active" : "Disabled"}</Badge>
-                </ListGroup.Item>
-                <ListGroup.Item className="d-flex justify-content-between align-items-center py-3">
-                  <div className="d-flex align-items-center small">
-                    <Globe size={16} className="me-2 text-primary" /> <strong>Group</strong>
-                  </div>
-                  <span className="small text-muted">{user.group_id?.substring(0, 8) || 'N/A'}</span>
-                </ListGroup.Item>
-              </ListGroup>
-            </Card>
           </Col>
-
           <Col lg={8}>
-            <Card className="shadow-sm border-0 h-100">
-              <Tabs defaultActiveKey="sessions" className="custom-tabs border-bottom">
-                <Tab eventKey="account" title="Account" className="p-4">
-                  <Form>
-                    <Row className="mb-3">
-                      <Col md={6}>
-                        <Form.Label className="small fw-bold">First Name</Form.Label>
-                        <Form.Control type="text" defaultValue={user.first_name} readOnly />
-                      </Col>
-                      <Col md={6}>
-                        <Form.Label className="small fw-bold">Last Name</Form.Label>
-                        <Form.Control type="text" defaultValue={user.last_name} readOnly />
-                      </Col>
-                    </Row>
-                    <Form.Label className="small fw-bold">Email</Form.Label>
-                    <Form.Control type="email" defaultValue={user.email} readOnly />
-                  </Form>
-                </Tab>
-                <Tab eventKey="sessions" title="Sessions" className="p-4">
-                  <h6 className="fw-bold mb-3">Recent Activity</h6>
-                  <ListGroup variant="flush">
-                    {sessions?.other_sessions?.map((s: any) => (
-                      <ListGroup.Item key={s.id} className="px-0 py-2 border-0 d-flex justify-content-between">
-                        <div className="small"><Monitor size={14} className="me-2"/> {s.ip_address}</div>
-                        <span className="text-muted" style={{fontSize:'0.7rem'}}>{new Date(s.created_at).toLocaleString()}</span>
-                      </ListGroup.Item>
-                    ))}
-                    {(!sessions?.other_sessions || sessions.other_sessions.length === 0) && <p className="text-muted small">No other active sessions.</p>}
-                  </ListGroup>
-                </Tab>
-              </Tabs>
+            <Card className="border-0 shadow-sm">
+              <Card.Body className="p-0">
+                <Tabs defaultActiveKey="general" className="px-4 pt-3 custom-tabs">
+                  <Tab eventKey="general" title="General" className="p-4">
+                    <Form>
+                      <Row className="g-3">
+                        <Col md={6}>
+                          <Form.Group controlId="profile-first-name">
+                            <Form.Label className="small fw-bold">Nombre</Form.Label>
+                            <Form.Control name="first_name" defaultValue={user?.first_name} />
+                          </Form.Group>
+                        </Col>
+                        <Col md={6}>
+                          <Form.Group controlId="profile-last-name">
+                            <Form.Label className="small fw-bold">Apellido</Form.Label>
+                            <Form.Control name="last_name" defaultValue={user?.last_name} />
+                          </Form.Group>
+                        </Col>
+                        <Col md={12}>
+                          <Form.Group controlId="profile-email">
+                            <Form.Label className="small fw-bold">Email</Form.Label>
+                            <Form.Control name="email" type="email" defaultValue={user?.email} />
+                          </Form.Group>
+                        </Col>
+                      </Row>
+                      <Button variant="primary" className="mt-4 px-4 shadow-sm" disabled={loading}>
+                        {loading ? 'Guardando...' : 'Actualizar Perfil'}
+                      </Button>
+                    </Form>
+                  </Tab>
+                  <Tab eventKey="security" title="Seguridad" className="p-4">
+                    <div className="d-flex justify-content-between align-items-center mb-4">
+                      <div>
+                        <h6 className="fw-bold mb-1">Autenticación de Dos Factores (2FA)</h6>
+                        <p className="text-muted small mb-0">Protección con código TOTP (Google Authenticator / Authy).</p>
+                      </div>
+                      {user?.is_2fa_enabled ? (
+                        <Badge bg="success">Activado</Badge>
+                      ) : (
+                        <Badge bg="secondary">Desactivado</Badge>
+                      )}
+                    </div>
+                    {user?.is_2fa_enabled ? (
+                      <Button variant="outline-danger" size="sm" onClick={() => setShowModal(true)}>Desactivar 2FA</Button>
+                    ) : (
+                      <Button variant="outline-primary" size="sm" onClick={() => router.push('/security/setup-2fa')}>Configurar 2FA</Button>
+                    )}
+                  </Tab>
+                </Tabs>
+              </Card.Body>
             </Card>
           </Col>
         </Row>
       </Container>
-    </>
+
+      <Modal show={showPasswordModal} onHide={() => setShowModal(false)} centered>
+        <Modal.Header closeButton className="border-0">
+          <Modal.Title className="h5 fw-bold text-danger">Desactivar 2FA</Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleDisable2FA}>
+          <Modal.Body>
+            <p className="small text-muted">Por seguridad, confirma tu contraseña para desactivar el segundo factor de autenticación.</p>
+            {error && <Alert variant="danger" className="small py-2">{error}</Alert>}
+            <Form.Group>
+              <Form.Label className="small fw-bold">Contraseña Actual</Form.Label>
+              <Form.Control 
+                type="password" 
+                required 
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                autoFocus
+              />
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer className="border-0">
+            <Button variant="light" onClick={() => setShowModal(false)}>Cancelar</Button>
+            <Button variant="danger" type="submit" disabled={loading}>
+              {loading ? <Spinner animation="border" size="sm" /> : 'Confirmar Desactivación'}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      <style jsx global>{`
+        .custom-tabs .nav-link {
+          border: none;
+          color: #6c757d;
+          font-weight: 500;
+          padding: 1rem 1.5rem;
+        }
+        .custom-tabs .nav-link.active {
+          color: var(--bs-primary);
+          border-bottom: 2px solid var(--bs-primary);
+          background: transparent;
+        }
+      `}</style>
+    </Layout>
   );
 }

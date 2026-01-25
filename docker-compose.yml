@@ -2,8 +2,12 @@ services:
   db:
     image: postgres:16-alpine
     restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
-      PYTHONPATH: /app:/app/app
       POSTGRES_DB: ticketera_db
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -17,6 +21,11 @@ services:
   redis:
     image: redis:7-alpine
     restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -28,12 +37,18 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     env_file:
-      - .env # Usaremos un archivo .env para variables de entorno sensibles
+      - .env
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - uploads_data:/app/uploads
     depends_on:
       - db
       - redis
@@ -45,6 +60,11 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
       - "3000:3000"
     depends_on:
@@ -55,20 +75,23 @@ services:
   nginx:
     build:
       context: ./nginx
-      dockerfile: Dockerfile # Crear este Dockerfile más adelante
+      dockerfile: Dockerfile
     restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
       - "80:80"
       - "443:443"
-    depends_on:
-      - frontend
-      - backend
     networks:
       - app-network
 
 volumes:
   db_data:
   redis_data:
+  uploads_data:
 
 networks:
   app-network:

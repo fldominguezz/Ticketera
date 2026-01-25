@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import AppNavbar from '../../components/AppNavbar';
+
 import { Container, Row, Col, Card, Button, Badge, Table, Form } from 'react-bootstrap';
 import { Cpu, ExternalLink, Power, Trash2, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import Layout from '../../components/Layout';
 
 export default function PluginsAdminPage() {
   const { t } = useTranslation();
@@ -23,7 +24,7 @@ export default function PluginsAdminPage() {
     try {
       const [userRes, pluginsRes] = await Promise.all([
         fetch('/api/v1/users/me', { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch('/api/v1/plugins/', { headers: { 'Authorization': `Bearer ${token}` } })
+        fetch('/api/v1/plugins', { headers: { 'Authorization': `Bearer ${token}` } })
       ]);
       if (userRes.ok) {
         const userData = await userRes.json();
@@ -50,9 +51,7 @@ export default function PluginsAdminPage() {
   if (loading || !isSuperuser) return null;
 
   return (
-    <>
-      <Head><title>Plugins Management - Ticketera</title></Head>
-      <AppNavbar />
+    <Layout title="Plugins Management">
       <Container className="mt-4">
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
@@ -77,7 +76,7 @@ export default function PluginsAdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {plugins.length > 0 ? plugins?.map(p => (
+                  {Array.isArray(plugins) && plugins.length > 0 ? plugins.map(p => (
                     <tr key={p.id} className="align-middle">
                       <td>
                         <div className="fw-bold">{p.name}</div>
@@ -107,7 +106,7 @@ export default function PluginsAdminPage() {
                     <tr>
                       <td colSpan={4} className="text-center py-5 text-muted">
                         <Cpu size={48} className="mb-3 opacity-25" />
-                        <p>No external plugins found.</p>
+                        <p>{plugins.length === 0 ? 'No external plugins found.' : 'Error loading plugins data.'}</p>
                       </td>
                     </tr>
                   )}
@@ -129,6 +128,6 @@ export default function PluginsAdminPage() {
           </Col>
         </Row>
       </Container>
-    </>
+    </Layout>
   );
 }

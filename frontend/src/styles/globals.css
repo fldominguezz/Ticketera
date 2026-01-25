@@ -1,28 +1,59 @@
-html,
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+:root {
+  --bg-dark: #05070a;
+  --bg-card: #0c1016;
+  --sidebar-bg: #0a0d12;
+  --border-color: rgba(255, 255, 255, 0.08);
+}
+
 body {
-  padding: 0;
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
-    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
-  line-height: 1.6;
-  font-size: 18px;
-  background-color: #f0f2f5; /* Light gray background */
+  background-color: var(--bg-dark) !important;
+  color: #ffffff !important;
+  font-family: 'Inter', sans-serif !important;
 }
 
-* {
-  box-sizing: border-box;
+/* Custom scrollbar for technical look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-a {
-  color: #0070f3;
-  text-decoration: none;
+::-webkit-scrollbar-track {
+  background: var(--bg-dark);
 }
 
-a:hover {
-  text-decoration: underline;
+::-webkit-scrollbar-thumb {
+  background: #1a1f26;
+  border-radius: 10px;
 }
 
-img {
-  max-width: 100%;
-  display: block;
+::-webkit-scrollbar-thumb:hover {
+  background: #2a2f36;
+}
+
+.bg-card {
+  background-color: var(--bg-card) !important;
+}
+
+.border-technical {
+  border-color: var(--border-color) !important;
+}
+
+.tech-font {
+  font-family: 'JetBrains Mono', monospace !important;
+}
+
+.fw-black {
+  font-weight: 900 !important;
+}
+
+/* Fix for Bootstrap table in dark mode */
+.table {
+  color: #ffffff !important;
+}
+
+.table-hover tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+  color: #ffffff !important;
 }

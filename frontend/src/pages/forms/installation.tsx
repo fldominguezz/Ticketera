@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import AppNavbar from '../../components/AppNavbar';
+import Layout from '../../components/Layout';
 import { Container, Card, Form, Button, Row, Col, Table } from 'react-bootstrap';
 import { Plus, Trash, Monitor } from 'lucide-react';
 
@@ -16,7 +16,7 @@ export default function FormsPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
     if (!token) router.push('/login');
     else setIsAuthenticated(true);
   }, [router]);
@@ -73,11 +73,9 @@ export default function FormsPage() {
   if (!isAuthenticated) return null;
 
   return (
-    <>
-      <Head><title>Forms - Ticketera</title></Head>
-      <AppNavbar />
-      <Container className="mt-4 pb-5">
-        <h1 className="mb-4 text-primary">Multi-Device Installation Form</h1>
+    <Layout title="Formulario Multi-Equipo">
+      <Container fluid className="px-0">
+        <h2 className="mb-4 text-primary fw-bold">Instalación Multi-Equipo</h2>
         
         <Form onSubmit={handleSubmit}>
             <Card className="mb-4 shadow-sm">
@@ -85,10 +83,11 @@ export default function FormsPage() {
                 <Card.Body>
                     <Row>
                         <Col md={6}>
-                            <Form.Group className="mb-3">
+                            <Form.Group className="mb-3" controlId="installation-division">
                                 <Form.Label>Division / Location</Form.Label>
                                 <Form.Control 
                                     type="text" 
+                                    name="division"
                                     value={installationForm.division}
                                     onChange={e => setInstallationForm({...installationForm, division: e.target.value})}
                                     placeholder="e.g. Planta 1 - SOC"
@@ -97,10 +96,11 @@ export default function FormsPage() {
                             </Form.Group>
                         </Col>
                         <Col md={6}>
-                            <Form.Group className="mb-3">
+                            <Form.Group className="mb-3" controlId="installation-observations">
                                 <Form.Label>General Observations</Form.Label>
                                 <Form.Control 
                                     as="textarea" 
+                                    name="general_observations"
                                     rows={1}
                                     value={installationForm.observations}
                                     onChange={e => setInstallationForm({...installationForm, observations: e.target.value})}
@@ -128,10 +128,11 @@ export default function FormsPage() {
                         </div>
                         <Row className="mt-2">
                             <Col md={3}>
-                                <Form.Group className="mb-2">
+                                <Form.Group className="mb-2" controlId={`device-hostname-${index}`}>
                                     <Form.Label>Hostname</Form.Label>
                                     <Form.Control 
                                         size="sm" 
+                                        name={`hostname-${index}`}
                                         value={device.hostname}
                                         onChange={e => updateDevice(index, 'hostname', e.target.value)}
                                         required
@@ -139,20 +140,22 @@ export default function FormsPage() {
                                 </Form.Group>
                             </Col>
                             <Col md={3}>
-                                <Form.Group className="mb-2">
+                                <Form.Group className="mb-2" controlId={`device-ip-${index}`}>
                                     <Form.Label>IP Address</Form.Label>
                                     <Form.Control 
                                         size="sm" 
+                                        name={`ip-${index}`}
                                         value={device.ip}
                                         onChange={e => updateDevice(index, 'ip', e.target.value)}
                                     />
                                 </Form.Group>
                             </Col>
                             <Col md={2}>
-                                <Form.Group className="mb-2">
+                                <Form.Group className="mb-2" controlId={`device-product-${index}`}>
                                     <Form.Label>Product</Form.Label>
                                     <Form.Select 
                                         size="sm"
+                                        name={`product-${index}`}
                                         value={device.product}
                                         onChange={e => updateDevice(index, 'product', e.target.value)}
                                     >
@@ -163,10 +166,11 @@ export default function FormsPage() {
                                 </Form.Group>
                             </Col>
                             <Col md={4}>
-                                <Form.Group className="mb-2">
+                                <Form.Group className="mb-2" controlId={`device-notes-${index}`}>
                                     <Form.Label>MAC / Notes</Form.Label>
                                     <Form.Control 
                                         size="sm" 
+                                        name={`notes-${index}`}
                                         value={device.observations}
                                         onChange={e => updateDevice(index, 'observations', e.target.value)}
                                     />
@@ -192,6 +196,6 @@ export default function FormsPage() {
             </div>
         </Form>
       </Container>
-    </>
+    </Layout>
   );
 }

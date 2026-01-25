@@ -1,69 +1,80 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import AppNavbar from '../../components/AppNavbar';
-import { Container, Table, Badge } from 'react-bootstrap';
+import Layout from '../../components/Layout';
+import { Container, Table, Badge, Card, Spinner, Button } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
+import { Shield, Clock, User, BarChart2 } from 'lucide-react';
 
 export default function ReportsPage() {
+  const { t } = useTranslation();
   const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [logs, setLogs] = useState([]);
+  const [mounted, setMounted] = useState(false);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-      router.push('/login');
-    } else {
-      setIsAuthenticated(true);
-      fetchAuditLogs(token);
-    }
-  }, [router]);
+    setMounted(true);
+    fetchLogs();
+  }, []);
 
-  const fetchAuditLogs = async (token: string) => {
+  const fetchLogs = async () => {
     try {
-      // Assuming endpoint exists or we implement it
-      const res = await fetch('/api/v1/audit/', {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch('/api/v1/audit', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) setLogs(await res.json());
+      const data = await res.json();
+      setLogs(Array.isArray(data) ? data : []);
     } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
-  if (!isAuthenticated) return null;
+  if (!mounted) return null;
 
   return (
-    <>
-      <Head><title>Audit Logs - Ticketera</title></Head>
-      <AppNavbar />
-      <Container className="mt-4">
-        <h1>System Audit Logs</h1>
-        <p className="text-muted">Immutable record of all security and data events.</p>
-        
-        <Table striped bordered hover responsive size="sm">
-          <thead className="table-dark">
-            <tr>
-              <th>Timestamp</th>
-              <th>Event</th>
-              <th>User ID</th>
-              <th>IP Address</th>
-              <th>Details</th>
-            </tr>
-          </thead>
-          <tbody>
-            {logs.length > 0 ? logs?.map((log: any) => (
-              <tr key={log.id}>
-                <td>{new Date(log.created_at).toLocaleString()}</td>
-                <td><Badge bg="info">{log.event_type}</Badge></td>
-                <td>{log.user_id || 'System'}</td>
-                <td>{log.ip_address}</td>
-                <td style={{fontSize: '0.8rem'}}><pre>{JSON.stringify(log.details, null, 2)}</pre></td>
-              </tr>
-            )) : (
-                <tr><td colSpan={5} className="text-center text-muted">No audit logs found or endpoint pending implementation.</td></tr>
-            )}
-          </tbody>
-        </Table>
+    <Layout title={t('audit_logs') || 'Auditoría'}>
+      <Container fluid className="px-0">
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <h2 className="fw-bold mb-0">Registro de Auditoría Inmutable</h2>
+          <Button variant="primary" className="d-flex align-items-center shadow-sm" onClick={() => router.push('/reports/dashboard')}>
+            <BarChart2 size={18} className="me-2" /> 
+            <span>Ver Dashboard de KPIs</span>
+          </Button>
+        </div>
+        <Card className="border-0 shadow-sm">
+          <Card.Body className="p-0">
+            <Table hover responsive className="mb-0 align-middle">
+              <thead className="bg-light text-muted small text-uppercase">
+                <tr>
+                  <th className="ps-4 py-3">Fecha</th>
+                  <th>Usuario</th>
+                  <th>Acción</th>
+                  <th>Módulo</th>
+                  <th className="pe-4">IP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={5} className="text-center py-5"><Spinner animation="border" size="sm" /></td></tr>
+                ) : logs.length === 0 ? (
+                  <tr><td colSpan={5} className="text-center py-5 text-muted">No hay registros recientes.</td></tr>
+                ) : (
+                  logs.map((log: any) => (
+                    <tr key={log.id}>
+                      <td className="ps-4 small"><Clock size={14} className="me-2" /> {new Date(log.created_at).toLocaleString()}</td>
+                      <td className="fw-bold small"><User size={14} className="me-2" /> {log.username || 'System'}</td>
+                      <td><Badge bg="info" className="fw-normal">{log.action}</Badge></td>
+                      <td className="small text-muted">{log.module}</td>
+                      <td className="pe-4 font-monospace small">{log.ip_address}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </Table>
+          </Card.Body>
+        </Card>
       </Container>
-    </>
+    </Layout>
   );
 }

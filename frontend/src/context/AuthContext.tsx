@@ -5,7 +5,8 @@ interface AuthContextType {
   user: any;
   loading: boolean;
   isSuperuser: boolean;
-  login: (token: string) => void;
+  login: (identifier: string, password: string) => Promise<boolean | { needs_2fa: boolean, interim_token: string }>;
+  verify2FA: (code: string, interimToken: string) => Promise<boolean>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -24,13 +25,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       if (res.ok) {
         const userData = await res.json();
-        setUser(userData);
+        if (userData && (userData.id || userData.email)) {
+          setUser(userData);
+        } else {
+          throw new Error("Invalid user data");
+        }
       } else {
         localStorage.removeItem('access_token');
         setUser(null);
       }
     } catch (e) {
       console.error("Auth fetch error", e);
+      localStorage.removeItem('access_token');
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -38,17 +45,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-    if (token) {
+    
+    if (!token) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
+    if (!user) {
       fetchUser(token);
     } else {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
-  const login = (token: string) => {
-    localStorage.setItem('access_token', token);
-    fetchUser(token);
-    router.push('/');
+  const login = async (identifier: string, password: string) => {
+    try {
+      const res = await fetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, password })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.needs_2fa) {
+          return { needs_2fa: true, interim_token: data.interim_token };
+        }
+        
+        localStorage.setItem('access_token', data.access_token);
+        await fetchUser(data.access_token);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error("Login error", e);
+      return false;
+    }
+  };
+
+  const verify2FA = async (code: string, interimToken: string) => {
+    try {
+      const res = await fetch('/api/v1/auth/login/2fa', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${interimToken}`
+        },
+        body: JSON.stringify({ totp_code: code })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem('access_token', data.access_token);
+        await fetchUser(data.access_token);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error("2FA verify error", e);
+      return false;
+    }
   };
 
   const logout = () => {
@@ -63,6 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       loading, 
       isSuperuser: user?.is_superuser === true, 
       login, 
+      verify2FA,
       logout,
       refreshUser: () => fetchUser(localStorage.getItem('access_token') || '')
     }}>

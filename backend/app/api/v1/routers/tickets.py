@@ -33,6 +33,8 @@ async def get_ticket_stats(
     if current_user.is_superuser:
         base_query = select(TicketModel)
     else:
+        if not current_user.group_id:
+             return {"status": {}, "priority": {}, "overdue": 0}
         group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
         base_query = select(TicketModel).filter(TicketModel.group_id.in_(group_ids))
 
@@ -54,13 +56,26 @@ async def get_ticket_stats(
         .with_only_columns(func.count(TicketModel.id))
     )
 
+    # SIEM Alerts count (Tickets created by the SIEM user)
+    from app.crud.crud_user import user as crud_user # Import crud_user
+    siem_user = await crud_user.get_by_email(db, email="fortisiem@example.com")
+    siem_count = 0
+    if siem_user:
+        siem_alerts_res = await db.execute(
+            base_query.filter(TicketModel.created_by_id == siem_user.id, TicketModel.status != 'closed')
+            .with_only_columns(func.count(TicketModel.id))
+        )
+        siem_count = siem_alerts_res.scalar() or 0
+    siem_count = siem_alerts_res.scalar() or 0
+
     return {
         "status": dict(status_counts.all()),
         "priority": dict(priority_counts.all()),
-        "overdue": overdue_count.scalar()
+        "overdue": overdue_count.scalar() or 0,
+        "siem_alerts": siem_count
     }
 
-@router.get("/", response_model=List[Ticket])
+@router.get("", response_model=List[Ticket])
 async def read_tickets(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_active_user)],
@@ -73,13 +88,15 @@ async def read_tickets(
     if current_user.is_superuser:
         tickets = await crud_ticket.ticket.get_multi(db, skip=skip, limit=limit)
     else:
+        if not current_user.group_id:
+            return []
         group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
         tickets = await crud_ticket.ticket.get_multi_by_group_ids(
             db, group_ids=group_ids, skip=skip, limit=limit
         )
     return tickets
 
-@router.post("/", response_model=Ticket, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=Ticket, status_code=status.HTTP_201_CREATED)
 async def create_ticket(
     request: Request,
     *,
@@ -403,3 +420,76 @@ async def delete_ticket_subtask(
     if not success:
         raise HTTPException(status_code=404, detail="Subtask not found")
     return None
+
+from app.db.models.ticket import TicketWatcher as TicketWatcherModel
+
+@router.get("/{ticket_id}/watchers")
+async def read_ticket_watchers(
+    ticket_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+):
+    """
+    Get ticket watchers.
+    """
+    result = await db.execute(
+        select(TicketWatcherModel).filter(TicketWatcherModel.ticket_id == ticket_id)
+    )
+    watchers = result.scalars().all()
+    # Manual join to get usernames for simplicity in this example
+    from app.db.models.user import User as UserModel
+    final_watchers = []
+    for w in watchers:
+        user_res = await db.execute(select(UserModel).filter(UserModel.id == w.user_id))
+        user_obj = user_res.scalar_one_or_none()
+        final_watchers.append({
+            "id": w.id,
+            "user_id": w.user_id,
+            "username": user_obj.username if user_obj else "Unknown"
+        })
+    return final_watchers
+
+@router.post("/{ticket_id}/watchers")
+async def add_ticket_watcher(
+    ticket_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+):
+    """
+    Add current user as watcher.
+    """
+    # Check if already watching
+    existing = await db.execute(
+        select(TicketWatcherModel).filter(
+            TicketWatcherModel.ticket_id == ticket_id,
+            TicketWatcherModel.user_id == current_user.id
+        )
+    )
+    if existing.scalar_one_or_none():
+        return {"status": "already_watching"}
+        
+    watcher = TicketWatcherModel(ticket_id=ticket_id, user_id=current_user.id)
+    db.add(watcher)
+    await db.commit()
+    return {"status": "success"}
+
+@router.delete("/{ticket_id}/watchers")
+async def remove_ticket_watcher(
+    ticket_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+):
+    """
+    Remove current user from watchers.
+    """
+    result = await db.execute(
+        select(TicketWatcherModel).filter(
+            TicketWatcherModel.ticket_id == ticket_id,
+            TicketWatcherModel.user_id == current_user.id
+        )
+    )
+    watcher = result.scalar_one_or_none()
+    if watcher:
+        await db.delete(watcher)
+        await db.commit()
+    return {"status": "success"}

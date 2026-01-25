@@ -57,8 +57,9 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ initialTickets, onStatusChang
   });
 
   useEffect(() => {
-    const grouped = initialTickets.reduce((acc, ticket) => {
-      const status = ticket.status || 'open';
+    const list = Array.isArray(initialTickets) ? initialTickets : [];
+    const grouped = list.reduce((acc, ticket) => {
+      const status = (ticket && ticket.status) || 'open';
       if (!acc[status]) acc[status] = [];
       acc[status].push(ticket);
       return acc;
@@ -76,33 +77,35 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ initialTickets, onStatusChang
     const destStatus = destination.droppableId;
 
     // Update local state immediately for UX
-    const newTicketsByStatus = { ...ticketsByStatus };
-    const [movedTicket] = newTicketsByStatus[sourceStatus].splice(source.index, 1);
-    movedTicket.status = destStatus;
-    newTicketsByStatus[destStatus].splice(destination.index, 0, movedTicket);
-
-    setTicketsByStatus(newTicketsByStatus);
-
-    // Update backend
     try {
-      await onStatusChange(draggableId, destStatus);
+      const newTicketsByStatus = { ...ticketsByStatus };
+      if (!newTicketsByStatus[sourceStatus] || !newTicketsByStatus[destStatus]) return;
+      
+      const [movedTicket] = newTicketsByStatus[sourceStatus].splice(source.index, 1);
+      if (movedTicket) {
+        movedTicket.status = destStatus;
+        newTicketsByStatus[destStatus].splice(destination.index, 0, movedTicket);
+        setTicketsByStatus(newTicketsByStatus);
+        
+        // Update backend
+        await onStatusChange(draggableId, destStatus);
+      }
     } catch (error) {
       console.error('Failed to update ticket status:', error);
-      // Optional: Revert local state on failure
     }
   };
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <Row className="kanban-row g-3 overflow-auto flex-nowrap pb-4" style={{ minHeight: '70vh' }}>
-        {COLUMNS?.map((column) => (
+        {Array.isArray(COLUMNS) && COLUMNS.map((column) => (
           <Col key={column.id} style={{ minWidth: '300px', maxWidth: '350px' }}>
             <div className="bg-light p-3 rounded-3 h-100 border shadow-sm">
               <div className="d-flex align-items-center mb-3">
                 {column.icon}
                 <h5 className="mb-0 fw-bold">{column.title}</h5>
                 <Badge bg="secondary" pill className="ms-2">
-                  {ticketsByStatus[column.id]?.length || 0}
+                  {(ticketsByStatus[column.id] && ticketsByStatus[column.id].length) || 0}
                 </Badge>
               </div>
 
@@ -114,7 +117,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ initialTickets, onStatusChang
                     className={`kanban-column-body ${snapshot.isDraggingOver ? 'bg-secondary bg-opacity-10' : ''}`}
                     style={{ minHeight: '100px', transition: 'background-color 0.2s ease' }}
                   >
-                    {ticketsByStatus[column.id]?.map((ticket, index) => (
+                    {Array.isArray(ticketsByStatus[column.id]) && ticketsByStatus[column.id].map((ticket, index) => (
                       <Draggable key={ticket.id} draggableId={ticket.id} index={index}>
                         {(provided, snapshot) => (
                           <div
@@ -130,13 +133,13 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ initialTickets, onStatusChang
                               <Card.Body className="p-3">
                                 <div className="d-flex justify-content-between align-items-start mb-2">
                                   <div className="d-flex flex-wrap gap-1">
-                                    <Badge bg={getPriorityColor(ticket.priority)} className="text-uppercase" style={{ fontSize: '0.7rem' }}>
-                                      {ticket.priority}
+                                    <Badge bg={getPriorityColor(ticket.priority || 'medium')} className="text-uppercase" style={{ fontSize: '0.7rem' }}>
+                                      {ticket.priority || 'medium'}
                                     </Badge>
                                     {getSLABadge(ticket.sla_deadline)}
                                   </div>
                                   <small className="text-muted" style={{ fontSize: '0.75rem' }}>
-                                    {new Date(ticket.created_at).toLocaleDateString()}
+                                    {ticket.created_at ? new Date(ticket.created_at).toLocaleDateString() : '---'}
                                   </small>
                                 </div>
                                 <Card.Title className="h6 mb-2 text-dark fw-bold">
@@ -146,7 +149,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ initialTickets, onStatusChang
                                 </Card.Title>
                                 <div className="d-flex justify-content-between align-items-center mt-3">
                                   <small className="text-truncate text-muted" style={{ maxWidth: '150px' }}>
-                                    ID: {ticket.id.substring(0, 8)}
+                                    ID: {ticket.id ? ticket.id.substring(0, 8) : '---'}
                                   </small>
                                   <div className="avatar-placeholder bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style={{ width: '24px', height: '24px', fontSize: '10px' }}>
                                     U

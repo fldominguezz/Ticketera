@@ -1,228 +1,298 @@
-import { useState, FormEvent } from 'react';
-import Head from 'next/head';
+import React, { useState, useEffect } from 'react';
+import { Container, Form, Button, Card, Alert, Spinner } from 'react-bootstrap';
+import { ShieldCheck, Lock, User, Key, ArrowRight, Sun, Moon } from 'lucide-react';
 import { useRouter } from 'next/router';
+import Head from 'next/head';
+import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
-interface LoginResponse {
-  needs_2fa: boolean;
-  interim_token: string;
-}
-
-interface TokenResponse {
-  access_token: string;
-  token_type: string;
-}
-
-export default function LoginPage() {
-  const [identifier, setIdentifier] = useState('');
+export default function Login() {
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [totpCode, setTotpCode] = useState('');
-  const [needs2Fa, setNeeds2Fa] = useState(false);
-  const [interimToken, setInterimToken] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [needs2FA, setNeeds2FA] = useState(false);
+  const [interimToken, setInterimToken] = useState('');
+  const [mounted, setMounted] = useState(false);
+  
+  const { login, verify2FA } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const router = useRouter();
 
-  const handleLogin = async (event: FormEvent) => {
-    event.preventDefault();
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
     setError(null);
-
     try {
-      const response = await fetch('/api/v1/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ identifier, password }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Login failed');
-      }
-
-      const data: LoginResponse | TokenResponse = await response.json();
-
-      if ('needs_2fa' in data) { // This is a LoginResponse
-        if (data.needs_2fa) {
-          setNeeds2Fa(true);
-          setInterimToken(data.interim_token);
-        } else { // No 2FA needed, full token received
-          localStorage.setItem('access_token', data.interim_token); // interim_token is actually the full token here
-          router.push('/');
-        }
-      } else { // This is a direct TokenResponse (should not happen with current backend design)
-        localStorage.setItem('access_token', data.access_token);
+      const result = await login(username, password);
+      if (typeof result === 'object' && result.needs_2fa) {
+        setNeeds2FA(true);
+        setInterimToken(result.interim_token);
+      } else if (result === true) {
         router.push('/');
+      } else {
+        setError('ACCESS DENIED: Invalid operator credentials.');
       }
-
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+    } catch (err) {
+      setError('CONNECTION ERROR: Security core unreachable.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handle2FaVerification = async (event: FormEvent) => {
-    event.preventDefault();
+  const handle2FASubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
     setError(null);
-
-    if (!interimToken) {
-      setError('No interim token found for 2FA verification.');
-      setLoading(false);
-      return;
-    }
-
     try {
-      const response = await fetch('/api/v1/auth/login/2fa', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${interimToken}`,
-        },
-        body: JSON.stringify({ totp_code: totpCode }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || '2FA verification failed');
+      const success = await verify2FA(totpCode, interimToken);
+      if (success) {
+        router.push('/');
+      } else {
+        setError('AUTH_FAILED: Invalid security code.');
       }
-
-      const data: TokenResponse = await response.json();
-      localStorage.setItem('access_token', data.access_token);
-      router.push('/');
-
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred during 2FA.');
+    } catch (err) {
+      setError('VALIDATION_ERROR: Verification core failed.');
     } finally {
       setLoading(false);
     }
   };
+
+  if (!mounted) return null;
 
   return (
-    <div className="login-container">
+    <div className={`login-wrapper theme-${theme}`}>
       <Head>
-        <title>Login - Ticketera</title>
+        <title>Secure Gateway | Ticketera SOC</title>
       </Head>
 
-      <main className="login-card">
-        <h2>{needs2Fa ? 'Verify 2FA' : 'Login'}</h2>
-        {error && <p className="error-message">{error}</p>}
+      <div className="theme-toggle-fixed">
+        <Button variant="link" className="text-muted" onClick={toggleTheme}>
+          {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+        </Button>
+      </div>
 
-        {!needs2Fa ? (
-          <form onSubmit={handleLogin}>
-            <div className="form-group">
-              <label htmlFor="identifier">Username or Email</label>
-              <input
-                type="text"
-                id="identifier"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                required
-              />
+      <div className="vignette" />
+      
+      <Card className="login-card shadow-2xl p-2">
+        <Card.Body className="p-4">
+          <div className="text-center mb-5">
+            <div className="shield-container mb-3">
+              <ShieldCheck size={48} className="text-primary" />
             </div>
-            <div className="form-group">
-              <label htmlFor="password">Password</label>
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+            <h4 className="fw-black m-0 tracking-tighter uppercase">TICKETERA <span className="text-primary">SOC</span></h4>
+            <div className="text-muted small fw-bold tracking-widest uppercase" style={{ fontSize: '9px' }}>
+              Enterprise Security Gateway
             </div>
-            <button type="submit" disabled={loading}>
-              {loading ? 'Logging in...' : 'Login'}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handle2FaVerification}>
-            <p>Please enter the 6-digit code from your authenticator app.</p>
-            <div className="form-group">
-              <label htmlFor="totpCode">2FA Code</label>
-              <input
-                type="text"
-                id="totpCode"
-                value={totpCode}
-                onChange={(e) => setTotpCode(e.target.value)}
-                maxLength={6}
-                required
-              />
-            </div>
-            <button type="submit" disabled={loading}>
-              {loading ? 'Verifying...' : 'Verify 2FA'}
-            </button>
-            <button type="button" onClick={() => setNeeds2Fa(false)} disabled={loading}>
-              Back to Login
-            </button>
-          </form>
-        )}
-      </main>
+          </div>
 
-      <style jsx>{`
-        .login-container {
+          {error && (
+            <Alert variant="danger" className="py-2 small border-0 bg-danger bg-opacity-10 text-danger fw-bold">
+              {error}
+            </Alert>
+          )}
+
+          {!needs2FA ? (
+            <Form onSubmit={handleLoginSubmit}>
+              <Form.Group className="mb-3">
+                <Form.Label className="x-small fw-black text-muted uppercase">Operator ID</Form.Label>
+                <div className="input-group-custom">
+                  <User size={16} className="input-icon" />
+                  <Form.Control 
+                    type="text"
+                    placeholder="Username"
+                    className="input-field"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                  />
+                </div>
+              </Form.Group>
+
+              <Form.Group className="mb-4">
+                <Form.Label className="x-small fw-black text-muted uppercase">Security Token</Form.Label>
+                <div className="input-group-custom">
+                  <Lock size={16} className="input-icon" />
+                  <Form.Control 
+                    type="password"
+                    placeholder="Password"
+                    className="input-field"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+              </Form.Group>
+
+              <Button 
+                variant="primary" 
+                type="submit" 
+                className="w-100 fw-black uppercase tracking-widest py-2 d-flex align-items-center justify-content-center"
+                disabled={loading}
+              >
+                {loading ? <Spinner animation="border" size="sm" /> : (
+                  <>AUTHENTICATE <ArrowRight size={16} className="ms-2" /></>
+                )}
+              </Button>
+            </Form>
+          ) : (
+            <Form onSubmit={handle2FASubmit}>
+              <div className="text-center mb-4">
+                <div className="text-primary x-small fw-black uppercase mb-2">Multi-Factor Authentication Required</div>
+                <p className="text-muted x-small m-0">Enter the 6-digit verification code from your security device.</p>
+              </div>
+              
+              <Form.Group className="mb-4">
+                <Form.Label className="x-small fw-black text-muted uppercase">Verification Code</Form.Label>
+                <div className="input-group-custom">
+                  <Key size={16} className="input-icon" />
+                  <Form.Control 
+                    type="text"
+                    placeholder="000000"
+                    className="input-field text-center fw-black tracking-widest"
+                    maxLength={6}
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value)}
+                    autoFocus
+                    required
+                  />
+                </div>
+              </Form.Group>
+
+              <Button 
+                variant="primary" 
+                type="submit" 
+                className="w-100 fw-black uppercase tracking-widest py-2"
+                disabled={loading || totpCode.length < 6}
+              >
+                {loading ? <Spinner animation="border" size="sm" /> : 'VERIFY IDENTITY'}
+              </Button>
+              
+              <Button 
+                variant="link" 
+                className="w-100 text-muted x-small mt-3 text-decoration-none fw-bold uppercase"
+                onClick={() => setNeeds2FA(false)}
+              >
+                Back to credentials
+              </Button>
+            </Form>
+          )}
+
+          <div className="mt-5 pt-3 border-top border-theme text-center">
+            <div className="text-muted fw-mono uppercase italic" style={{ fontSize: '8px' }}>
+              v1.3.5 • IMMUTABLE SECURE CONNECTION • AES-256
+            </div>
+            <div className="text-muted fw-mono mt-1" style={{ fontSize: '7px' }}>
+              DETECTED_IP: {typeof window !== 'undefined' ? window.location.hostname : '...'}
+            </div>
+          </div>
+        </Card.Body>
+      </Card>
+
+      <style jsx global>{`
+        .theme-dark {
+          --bg-login: #05070a;
+          --bg-card: #0c1016;
+          --text-primary: #ffffff;
+          --text-muted: #8a8f98;
+          --border-color: rgba(255, 255, 255, 0.05);
+          --input-bg: #05070a;
+        }
+
+        .theme-light {
+          --bg-login: #f0f2f5;
+          --bg-card: #ffffff;
+          --text-primary: #1a1f26;
+          --text-muted: #64748b;
+          --border-color: rgba(0, 0, 0, 0.1);
+          --input-bg: #ffffff;
+        }
+
+        .login-wrapper {
+          height: 100vh;
           display: flex;
-          justify-content: center;
           align-items: center;
-          min-height: 100vh;
-          background-color: #f0f2f5;
+          justify-content: center;
+          background-color: var(--bg-login);
+          transition: background-color 0.25s ease;
+          position: relative;
         }
+
+        .theme-toggle-fixed {
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          z-index: 100;
+        }
+
+        .vignette {
+          position: absolute;
+          inset: 0;
+          box-shadow: inset 0 0 150px rgba(0,0,0,0.5);
+          pointer-events: none;
+        }
+
         .login-card {
-          background: #fff;
-          padding: 2rem;
-          border-radius: 8px;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
           width: 100%;
-          max-width: 400px;
-          text-align: center;
+          max-width: 380px;
+          background: var(--bg-card) !important;
+          border: 1px solid var(--border-color) !important;
+          border-radius: 12px !important;
+          color: var(--text-primary) !important;
+          transition: all 0.25s ease;
         }
-        h2 {
-          margin-bottom: 1.5rem;
-          color: #333;
+
+        .shield-container {
+          display: inline-flex;
+          padding: 15px;
+          border-radius: 50%;
+          background: rgba(13, 110, 253, 0.05);
+          border: 1px solid rgba(13, 110, 253, 0.1);
+          box-shadow: 0 0 30px rgba(13, 110, 253, 0.1);
         }
-        .form-group {
-          margin-bottom: 1rem;
-          text-align: left;
+
+        .x-small { font-size: 10px; }
+        .fw-black { font-weight: 900; }
+        .fw-mono { font-family: 'JetBrains Mono', monospace; }
+
+        .input-group-custom {
+          position: relative;
         }
-        label {
-          display: block;
-          margin-bottom: 0.5rem;
-          color: #555;
-          font-weight: bold;
+
+        .input-icon {
+          position: absolute;
+          left: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: var(--text-muted);
+          opacity: 0.5;
+          z-index: 10;
         }
-        input[type="text"],
-        input[type="password"] {
-          width: 100%;
-          padding: 0.8rem;
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          box-sizing: border-box;
-          font-size: 1rem;
+
+        .input-field {
+          background-color: var(--input-bg) !important;
+          border: 1px solid var(--border-color) !important;
+          color: var(--text-primary) !important;
+          padding-left: 40px !important;
+          height: 45px !important;
+          font-size: 14px !important;
         }
-        button {
-          width: 100%;
-          padding: 0.8rem;
-          border: none;
-          border-radius: 4px;
-          background-color: #0070f3;
-          color: white;
-          font-size: 1rem;
-          cursor: pointer;
-          transition: background-color 0.2s;
-          margin-top: 1rem;
+
+        .input-field:focus {
+          border-color: #0d6efd !important;
+          box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15) !important;
         }
-        button:hover:not(:disabled) {
-          background-color: #005bb5;
+
+        .border-theme {
+          border-color: var(--border-color) !important;
         }
-        button:disabled {
-          background-color: #a0cffc;
-          cursor: not-allowed;
-        }
-        .error-message {
-          color: #e00;
-          margin-bottom: 1rem;
-        }
+
+        .text-muted { color: var(--text-muted) !important; }
       `}</style>
     </div>
   );

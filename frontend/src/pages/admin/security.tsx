@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import AppNavbar from '../../components/AppNavbar';
+
 import { Container, Card, Form, Button, Row, Col, Alert } from 'react-bootstrap';
 import { ShieldCheck, Save, Info, AlertTriangle } from 'lucide-react';
+import Layout from '../../components/Layout';
 
 export default function SecuritySettingsPage() {
   const [policy, setPolicy] = useState({
@@ -17,9 +18,7 @@ export default function SecuritySettingsPage() {
   const [saving, setSaving] = useState(false);
 
   return (
-    <>
-      <Head><title>Security Settings - Ticketera</title></Head>
-      <AppNavbar />
+    <Layout title="Security Settings">
       <Container className="mt-4">
         <div className="mb-4">
           <h1 className="fw-bold mb-0">Global Security Policy</h1>
@@ -34,17 +33,50 @@ export default function SecuritySettingsPage() {
               </Card.Header>
               <Card.Body className="p-4">
                 <Form>
-                  <Form.Group className="mb-4">
+                  <Form.Group className="mb-4" controlId="min-length-input">
                     <Form.Label className="small fw-bold">Minimum Password Length</Form.Label>
-                    <Form.Control type="number" value={policy.min_length} onChange={e => setPolicy({...policy, min_length: parseInt(e.target.value)})} />
+                    <Form.Control 
+                      type="number" 
+                      name="min_length"
+                      value={policy.min_length} 
+                      onChange={e => setPolicy({...policy, min_length: parseInt(e.target.value)})} 
+                    />
                     <Form.Text className="text-muted">NIST recommendations suggest at least 12 characters.</Form.Text>
                   </Form.Group>
 
                   <div className="d-flex flex-column gap-3">
-                    <Form.Check type="switch" label="Require Uppercase Letters (A-Z)" checked={policy.requires_uppercase} onChange={e => setPolicy({...policy, requires_uppercase: e.target.checked})} />
-                    <Form.Check type="switch" label="Require Lowercase Letters (a-z)" checked={policy.requires_lowercase} onChange={e => setPolicy({...policy, requires_lowercase: e.target.checked})} />
-                    <Form.Check type="switch" label="Require Numbers (0-9)" checked={policy.requires_number} onChange={e => setPolicy({...policy, requires_number: e.target.checked})} />
-                    <Form.Check type="switch" label="Require Special Characters (!@#$%...)" checked={policy.requires_special_char} onChange={e => setPolicy({...policy, requires_special_char: e.target.checked})} />
+                    <Form.Check 
+                      type="switch" 
+                      id="req-upper-switch"
+                      name="requires_uppercase"
+                      label="Require Uppercase Letters (A-Z)" 
+                      checked={policy.requires_uppercase} 
+                      onChange={e => setPolicy({...policy, requires_uppercase: e.target.checked})} 
+                    />
+                    <Form.Check 
+                      type="switch" 
+                      id="req-lower-switch"
+                      name="requires_lowercase"
+                      label="Require Lowercase Letters (a-z)" 
+                      checked={policy.requires_lowercase} 
+                      onChange={e => setPolicy({...policy, requires_lowercase: e.target.checked})} 
+                    />
+                    <Form.Check 
+                      type="switch" 
+                      id="req-number-switch"
+                      name="requires_number"
+                      label="Require Numbers (0-9)" 
+                      checked={policy.requires_number} 
+                      onChange={e => setPolicy({...policy, requires_number: e.target.checked})} 
+                    />
+                    <Form.Check 
+                      type="switch" 
+                      id="req-special-switch"
+                      name="requires_special_char"
+                      label="Require Special Characters (!@#$%...)" 
+                      checked={policy.requires_special_char} 
+                      onChange={e => setPolicy({...policy, requires_special_char: e.target.checked})} 
+                    />
                   </div>
 
                   <hr className="my-4" />
@@ -56,6 +88,7 @@ export default function SecuritySettingsPage() {
                     <Form.Check 
                       type="switch" 
                       id="maintenance-switch" 
+                      name="maintenance_mode"
                       label="Enable Maintenance Mode (Restricts access to non-admins)" 
                       className="mt-2"
                     />
@@ -82,6 +115,6 @@ export default function SecuritySettingsPage() {
           </Col>
         </Row>
       </Container>
-    </>
+    </Layout>
   );
 }

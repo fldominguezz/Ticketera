@@ -11,7 +11,7 @@ from app.core.config import settings
 
 router = APIRouter()
 
-UPLOAD_DIR = "/root/Ticketera/uploads"
+UPLOAD_DIR = "/app/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.post("/{ticket_id}")
@@ -50,3 +50,26 @@ async def list_attachments(
     from sqlalchemy.future import select
     result = await db.execute(select(AttachmentModel).filter(AttachmentModel.ticket_id == ticket_id))
     return result.scalars().all()
+
+from fastapi.responses import FileResponse
+
+@router.get("/download/{attachment_id}")
+async def download_attachment(
+    attachment_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+):
+    from sqlalchemy.future import select
+    result = await db.execute(select(AttachmentModel).filter(AttachmentModel.id == attachment_id))
+    db_obj = result.scalar_one_or_none()
+    if not db_obj:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+        
+    if not os.path.exists(db_obj.file_path):
+        raise HTTPException(status_code=404, detail="File not found on disk")
+        
+    return FileResponse(
+        path=db_obj.file_path,
+        filename=db_obj.filename,
+        media_type=db_obj.content_type
+    )

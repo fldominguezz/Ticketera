@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import AppNavbar from '../../components/AppNavbar';
+
 import { Container, Button, Alert } from 'react-bootstrap';
 import KanbanBoard from '../../components/tickets/KanbanBoard';
 import { List } from 'lucide-react';
@@ -31,7 +31,7 @@ export default function KanbanPage() {
     try {
       setLoading(true);
       const [ticketsRes, userRes] = await Promise.all([
-        fetch('/api/v1/tickets/', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('/api/v1/tickets', { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch('/api/v1/users/me', { headers: { 'Authorization': `Bearer ${token}` } })
       ]);
       
@@ -67,18 +67,17 @@ export default function KanbanPage() {
   return (
     <>
       <Head><title>Kanban - Ticketera</title></Head>
-      <AppNavbar />
+      
       <Container fluid className="mt-4 px-4">
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
             <h1 className="fw-bold mb-0">Tickets Kanban</h1>
             <p className="text-muted small">Drag and drop tickets to update their status</p>
           </div>
-          <div className="d-flex gap-2">
-            <Link href="/tickets" passHref legacyBehavior><Button variant="outline-secondary"><List size={18} className="me-2" /> List View</Button></Link>
-            <Button variant="primary" onClick={() => router.push('/tickets')}>New Ticket</Button>
-          </div>
-        </div>
+                  <div className="d-flex gap-2">
+                    <Link href="/tickets" passHref legacyBehavior><Button variant="outline-secondary"><List size={18} className="me-2" /> List View</Button></Link>
+                    <Button variant="primary" onClick={() => router.push('/tickets/new')}>New Ticket</Button>
+                  </div>        </div>
 
         {error && <Alert variant="danger">{error}</Alert>}
 

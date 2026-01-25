@@ -6,7 +6,7 @@ import uuid
 
 from app.db.base import Base
 
-# Association table for tickets and endpoints (M2M)
+# Association table for tickets and endpoints (M2M) - Legacy keeping for compatibility
 ticket_endpoints = Table(
     "ticket_endpoints",
     Base.metadata,
@@ -19,8 +19,8 @@ class TicketType(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(50), unique=True, nullable=False) # Instalación, Alerta SIEM, Incidente, etc.
     description = Column(String(255))
-    icon = Column(String(50)) # For UI representation
-    color = Column(String(20)) # For UI representation
+    icon = Column(String(50)) 
+    color = Column(String(20)) 
 
 class Ticket(Base):
     __tablename__ = "tickets"
@@ -33,16 +33,13 @@ class Ticket(Base):
     priority = Column(String(50), default="medium") # low, medium, high, critical
     
     ticket_type_id = Column(UUID(as_uuid=True), ForeignKey("ticket_types.id"), nullable=False)
-    
     group_id = Column(UUID(as_uuid=True), ForeignKey("groups.id"), nullable=False)
-    
+    asset_id = Column(UUID(as_uuid=True), ForeignKey("assets.id"), nullable=True)
     created_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     assigned_to_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     
     parent_ticket_id = Column(UUID(as_uuid=True), ForeignKey("tickets.id"), nullable=True)
-    
     sla_deadline = Column(DateTime(timezone=True), nullable=True)
-    
     extra_data = Column(JSON, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -53,6 +50,7 @@ class Ticket(Base):
     # Relaciones
     ticket_type = relationship("TicketType")
     group = relationship("Group", back_populates="tickets")
+    asset = relationship("Asset")
     created_by = relationship("User", foreign_keys=[created_by_id], back_populates="tickets_created")
     assigned_to = relationship("User", foreign_keys=[assigned_to_id], back_populates="tickets_assigned")
     

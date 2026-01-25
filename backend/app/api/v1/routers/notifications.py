@@ -10,7 +10,7 @@ from app.schemas.notification import Notification, NotificationUpdate
 
 router = APIRouter()
 
-@router.get("/", response_model=List[Notification])
+@router.get("", response_model=List[Notification])
 async def read_notifications(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_active_user)],

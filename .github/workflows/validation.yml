@@ -1,0 +1,49 @@
+name: Total Validation Agent
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Start Services
+        run: |
+          # Create .env from example or secrets (simplified for this agent)
+          cp .env .env.local || touch .env
+          echo "DATABASE_URL=postgres://user:password@db:5432/ticketera_db" >> .env
+          echo "SECRET_KEY=supersecret" >> .env
+          
+          docker compose up -d --build
+          
+          # Wait for services to be healthy (validator waits for dependencies)
+          # But we want to explicitly run the validator and see its exit code
+      
+      - name: Run Total Validation Agent
+        run: |
+          docker compose up --abort-on-container-exit --exit-code-from validator validator
+
+      - name: Extract Validation Report
+        if: always()
+        run: |
+          # Copy report out of container (if using volume mapping might not be needed, but explicit cp is safer in CI)
+          # Since container might be stopped, we use `docker cp`.
+          # Note: The container name is 'validator' from docker-compose.
+          mkdir -p validation_artifacts
+          docker cp validator:/app/validation_artifacts/ . || echo "Failed to copy artifacts, maybe container didn't start?"
+
+      - name: Upload Validation Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-report
+          path: validation_artifacts/

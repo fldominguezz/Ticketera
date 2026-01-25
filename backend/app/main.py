@@ -3,16 +3,19 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator
 import logging
 import asyncio
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.db.session import engine, AsyncSessionLocal
 from app.api.v1.routers import (
     auth, users, sessions, endpoints, integrations, 
     groups, tickets, audit, ticket_types, admin_users,
     sla, reports, notifications, attachments, ticket_ops,
-    views, plugins
+    views, plugins, assets, locations, soc_ws, forms
 )
-from app.services.background_tasks import check_sla_breaches
+from app.services.background_tasks import check_sla_breaches, poll_incoming_emails
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +24,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.db_engine = engine
     app.state.async_session_local = AsyncSessionLocal
     sla_task = asyncio.create_task(check_sla_breaches())
+    email_task = asyncio.create_task(poll_incoming_emails())
     yield
     sla_task.cancel()
+    email_task.cancel()
 
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.router.redirect_slashes = False
 
 MAINTENANCE_MODE = False
@@ -47,10 +54,14 @@ app.include_router(ticket_types.router, prefix=f"{settings.API_V1_STR}/ticket-ty
 app.include_router(audit.router, prefix=f"{settings.API_V1_STR}/audit", tags=["audit"])
 app.include_router(sessions.router, prefix=f"{settings.API_V1_STR}/sessions", tags=["sessions"])
 app.include_router(endpoints.router, prefix=f"{settings.API_V1_STR}/endpoints", tags=["endpoints"])
-app.include_router(integrations.router, prefix=f"{settings.API_V1_STR}/integrations", tags=["integrations"])
+app.include_router(integrations.router, prefix=f"{settings.API_V1_STR}", tags=["integrations"])
 app.include_router(sla.router, prefix=f"{settings.API_V1_STR}/sla", tags=["sla"])
 app.include_router(reports.router, prefix=f"{settings.API_V1_STR}/reports", tags=["reports"])
 app.include_router(notifications.router, prefix=f"{settings.API_V1_STR}/notifications", tags=["notifications"])
 app.include_router(attachments.router, prefix=f"{settings.API_V1_STR}/attachments", tags=["attachments"])
 app.include_router(views.router, prefix=f"{settings.API_V1_STR}/views", tags=["views"])
 app.include_router(plugins.router, prefix=f"{settings.API_V1_STR}/plugins", tags=["plugins"])
+app.include_router(assets.router, prefix=f"{settings.API_V1_STR}/assets", tags=["assets"])
+app.include_router(locations.router, prefix=f"{settings.API_V1_STR}/locations", tags=["locations"])
+app.include_router(forms.router, prefix=f"{settings.API_V1_STR}/forms", tags=["forms"])
+app.include_router(soc_ws.router, tags=["websocket"])

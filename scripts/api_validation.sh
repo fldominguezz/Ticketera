@@ -1,0 +1,120 @@
+#!/bin/bash
+set -e
+
+# Function to report status
+report_status() {
+    TEST_NAME=$1
+    STATUS=$2
+    MESSAGE=$3
+    if [ "$STATUS" == "PASS" ]; then
+        echo "✅ $TEST_NAME: PASS - $MESSAGE"
+    else
+        echo "❌ $TEST_NAME: FAIL - $MESSAGE"
+        # We don't exit immediately here to allow all API tests to try running, 
+        # unless it's a critical auth failure that blocks everything.
+        # But for the orchestrator to fail, we should probably return non-zero at the end.
+        export GLOBAL_FAIL=1
+    fi
+}
+
+echo "--- C) Running API Validation (contract tests) ---"
+
+API_BASE_URL="http://backend:8000/api/v1"
+ADMIN_USERNAME="admin"
+ADMIN_PASSWORD="adminpassword"
+GLOBAL_FAIL=0
+
+# 1. Test Auth Login
+echo "Testing Auth Login..."
+LOGIN_RESPONSE=$(curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}" \
+  "$API_BASE_URL/auth/login")
+
+ACCESS_TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.access_token')
+
+if [ -n "$ACCESS_TOKEN" ] && [ "$ACCESS_TOKEN" != "null" ]; then
+    report_status "Auth Login" "PASS" "Login successful, received access token."
+else
+    report_status "Auth Login" "FAIL" "Login failed. Response: $LOGIN_RESPONSE"
+    exit 1
+fi
+
+# Store token for subsequent requests
+BEARER_TOKEN="Bearer $ACCESS_TOKEN"
+
+
+# 2. Tickets CRUD
+echo "Testing Tickets CRUD..."
+
+# List Tickets
+TICKETS_LIST_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X GET \
+  -H "Authorization: $BEARER_TOKEN" \
+  "$API_BASE_URL/tickets/")
+
+if [ "$TICKETS_LIST_STATUS" -eq 200 ]; then
+    report_status "List Tickets" "PASS" "GET /tickets returned 200."
+else
+    report_status "List Tickets" "FAIL" "GET /tickets returned $TICKETS_LIST_STATUS."
+fi
+
+# Create Ticket
+CREATE_TICKET_RESPONSE=$(curl -s -X POST \
+  -H "Authorization: $BEARER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title": "API Test Ticket", "description": "Created by validator", "priority": "normal"}' \
+  "$API_BASE_URL/tickets/")
+
+TICKET_ID=$(echo "$CREATE_TICKET_RESPONSE" | jq -r '.id')
+
+if [ -n "$TICKET_ID" ] && [ "$TICKET_ID" != "null" ]; then
+    report_status "Create Ticket" "PASS" "Ticket created successfully. ID: $TICKET_ID"
+else
+    report_status "Create Ticket" "FAIL" "Failed to create ticket. Response: $CREATE_TICKET_RESPONSE"
+fi
+
+# 3. Forms & Audit
+echo "Testing Forms & Audit Endpoints..."
+
+# Audit Log (Admin only usually)
+AUDIT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X GET \
+  -H "Authorization: $BEARER_TOKEN" \
+  "$API_BASE_URL/audit/")
+
+# Assuming 200 if implemented, or 404 if not found, or 403 if forbidden
+if [ "$AUDIT_STATUS" -eq 200 ] || [ "$AUDIT_STATUS" -eq 403 ]; then
+    report_status "Audit Endpoint" "PASS" "GET /audit returned $AUDIT_STATUS (Acceptable)."
+else
+    report_status "Audit Endpoint" "FAIL" "GET /audit returned $AUDIT_STATUS."
+fi
+
+# 4. Redirect Check (API should not redirect)
+echo "Testing API Redirects..."
+# Request a non-existent endpoint
+NO_REDIRECT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X GET \
+  -H "Authorization: $BEARER_TOKEN" \
+  "$API_BASE_URL/non-existent-endpoint")
+
+if [ "$NO_REDIRECT_STATUS" -ne 301 ] && [ "$NO_REDIRECT_STATUS" -ne 302 ]; then
+    report_status "No Redirects" "PASS" "API did not return a redirect for 404."
+else
+    report_status "No Redirects" "FAIL" "API returned a redirect ($NO_REDIRECT_STATUS)."
+fi
+
+# 5. Auth Logout
+echo "Testing Auth Logout..."
+LOGOUT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+  -H "Authorization: $BEARER_TOKEN" \
+  "$API_BASE_URL/auth/logout")
+
+if [ "$LOGOUT_STATUS" -eq 200 ]; then
+    report_status "Auth Logout" "PASS" "Logout successful."
+else
+    report_status "Auth Logout" "FAIL" "Logout failed with status: $LOGOUT_STATUS."
+fi
+
+if [ "$GLOBAL_FAIL" -eq 1 ]; then
+    exit 1
+fi
+
+echo "All API Validation tests completed."

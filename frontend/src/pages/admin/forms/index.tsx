@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import AppNavbar from '../../../components/AppNavbar';
+
 import { Container, Table, Button, Badge, Card } from 'react-bootstrap';
 import { Plus, Edit, FileText, Trash } from 'lucide-react';
 import Link from 'next/link';
+import Layout from '../../../components/Layout';
 
 export default function AdminFormsPage() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export default function AdminFormsPage() {
 
   const fetchForms = async (token: string) => {
     try {
-      const res = await fetch('/api/v1/forms/', {
+      const res = await fetch('/api/v1/forms', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) setForms(await res.json());
@@ -34,9 +35,7 @@ export default function AdminFormsPage() {
   };
 
   return (
-    <>
-      <Head><title>Manage Forms - Ticketera</title></Head>
-      <AppNavbar />
+    <Layout title="Manage Forms">
       <Container className="mt-4">
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
@@ -99,6 +98,6 @@ export default function AdminFormsPage() {
           </Card.Body>
         </Card>
       </Container>
-    </>
+    </Layout>
   );
 }

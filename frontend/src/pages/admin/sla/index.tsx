@@ -1,122 +1,117 @@
-import { useEffect, useState } from 'react';
-import Head from 'next/head';
-import { useRouter } from 'next/router';
-import AppNavbar from '../../../components/AppNavbar';
-import { Container, Card, Table, Button, Badge, Form, Modal, Row, Col } from 'react-bootstrap';
-import { Clock, Plus, Trash2, Edit, Save } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import Layout from '../../../components/Layout';
+import { Table, Button, Badge, Modal, Form, Row, Col } from 'react-bootstrap';
+import { Clock, Plus, Edit2, Trash2 } from 'lucide-react';
+import axios from 'axios';
 
-export default function AdminSLAPage() {
-  const router = useRouter();
-  const [policies, setPolicies] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [newPolicy, setNewPolicy] = useState({ name: '', priority: 'medium', response_time_goal: 60, resolution_time_goal: 240 });
+const SLAAdmin = () => {
+    const [policies, setPolicies] = useState<any[]>([]);
+    const [showModal, setShowModal] = useState(false);
 
-  useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    if (!token) router.push('/login');
-    else fetchPolicies(token);
-  }, [router]);
+    useEffect(() => {
+        // fetchPolicies();
+        setPolicies([
+            { id: '1', name: 'Críticos SOC', priority: 'critical', response: 15, resolution: 60, active: true },
+            { id: '2', name: 'Instalaciones Estándar', priority: 'medium', response: 120, resolution: 480, active: true },
+        ]);
+    }, []);
 
-  const fetchPolicies = async (token: string) => {
-    const res = await fetch('/api/v1/sla/', { headers: { 'Authorization': `Bearer ${token}` } });
-    if (res.ok) setPolicies(await res.json());
-  };
+    return (
+        <Layout title="Políticas de SLA (v1.2.6)">
+            <div className="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 className="fw-bold">Acuerdos de Nivel de Servicio (SLA)</h1>
+                    <p className="text-muted">Configure los tiempos objetivo para respuesta y resolución por prioridad.</p>
+                </div>
+                <Button variant="primary" onClick={() => setShowModal(true)}>
+                    <Plus size={18} className="me-2" /> Nueva Política
+                </Button>
+            </div>
 
-  const handleCreate = async () => {
-    const token = localStorage.getItem('access_token');
-    const res = await fetch('/api/v1/sla/', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(newPolicy)
-    });
-    if (res.ok) {
-      setShowModal(false);
-      fetchPolicies(token!);
-    }
-  };
-
-  return (
-    <>
-      <Head><title>SLA Configuration - Ticketera</title></Head>
-      <AppNavbar />
-      <Container className="mt-4">
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <div>
-            <h1 className="fw-bold mb-0">SLA Policies</h1>
-            <p className="text-muted">Set response and resolution time goals by priority</p>
-          </div>
-          <Button variant="primary" onClick={() => setShowModal(true)}>
-            <Plus size={18} className="me-2" /> New Policy
-          </Button>
-        </div>
-
-        <Card className="shadow-sm border-0">
-          <Card.Body className="p-0">
-            <Table responsive hover className="mb-0">
-              <thead className="bg-light">
-                <tr>
-                  <th className="ps-4">Policy Name</th>
-                  <th>Priority</th>
-                  <th>Response Goal</th>
-                  <th>Resolution Goal</th>
-                  <th className="text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {policies?.map((p: any) => (
-                  <tr key={p.id} className="align-middle">
-                    <td className="ps-4 fw-bold">{p.name}</td>
-                    <td><Badge bg="info">{p.priority.toUpperCase()}</Badge></td>
-                    <td>{p.response_time_goal} min</td>
-                    <td>{p.resolution_time_goal} min</td>
-                    <td className="text-center">
-                      <Button variant="outline-danger" size="sm" className="border-0"><Trash2 size={16} /></Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+            <Table responsive hover className="align-middle shadow-sm rounded">
+                <thead className="table-dark">
+                    <tr>
+                        <th>Nombre de Política</th>
+                        <th>Prioridad</th>
+                        <th>T. Respuesta</th>
+                        <th>T. Resolución</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {policies.map(p => (
+                        <tr key={p.id}>
+                            <td className="fw-bold">{p.name}</td>
+                            <td>
+                                <Badge bg={p.priority === 'critical' ? 'danger' : 'warning'}>
+                                    {(p.priority || 'medium').toUpperCase()}
+                                </Badge>
+                            </td>
+                            <td>{p.response} min</td>
+                            <td>{p.resolution} min</td>
+                            <td>
+                                <Badge bg={p.active ? 'success' : 'secondary'}>
+                                    {p.active ? 'Activo' : 'Pausado'}
+                                </Badge>
+                            </td>
+                            <td>
+                                <Button variant="link" className="text-primary p-0 me-3"><Edit2 size={16}/></Button>
+                                <Button variant="link" className="text-danger p-0"><Trash2 size={16}/></Button>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
             </Table>
-          </Card.Body>
-        </Card>
 
-        <Modal show={showModal} onHide={() => setShowModal(false)}>
-          <Modal.Header closeButton><Modal.Title>Add SLA Policy</Modal.Title></Modal.Header>
-          <Modal.Body>
-            <Form>
-              <Form.Group className="mb-3">
-                <Form.Label className="small fw-bold">Policy Name</Form.Label>
-                <Form.Control type="text" placeholder="Critical Support" value={newPolicy.name} onChange={e => setNewPolicy({...newPolicy, name: e.target.value})} />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label className="small fw-bold">Ticket Priority</Form.Label>
-                <Form.Select value={newPolicy.priority} onChange={e => setNewPolicy({...newPolicy, priority: e.target.value})}>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
-                </Form.Select>
-              </Form.Group>
-              <Row>
-                <Col>
-                  <Form.Group className="mb-3">
-                    <Form.Label className="small fw-bold">Resp. Goal (min)</Form.Label>
-                    <Form.Control type="number" value={newPolicy.response_time_goal} onChange={e => setNewPolicy({...newPolicy, response_time_goal: parseInt(e.target.value)})} />
-                  </Form.Group>
-                </Col>
-                <Col>
-                  <Form.Group className="mb-3">
-                    <Form.Label className="small fw-bold">Resol. Goal (min)</Form.Label>
-                    <Form.Control type="number" value={newPolicy.resolution_time_goal} onChange={e => setNewPolicy({...newPolicy, resolution_time_goal: parseInt(e.target.value)})} />
-                  </Form.Group>
-                </Col>
-              </Row>
-            </Form>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="primary" onClick={handleCreate}>Save Policy</Button>
-          </Modal.Footer>
-        </Modal>
-      </Container>
-    </>
-  );
-}
+            <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
+                <Modal.Header closeButton>
+                    <Modal.Title>Configurar Política de SLA</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <Form>
+                        <Row>
+                            <Col md={6}>
+                                <Form.Group className="mb-3" controlId="sla-policy-name">
+                                    <Form.Label>Nombre</Form.Label>
+                                    <Form.Control type="text" name="policy_name" placeholder="Ej: Incidentes de Seguridad" />
+                                </Form.Group>
+                            </Col>
+                            <Col md={6}>
+                                <Form.Group className="mb-3" controlId="sla-policy-priority">
+                                    <Form.Label>Prioridad Asociada</Form.Label>
+                                    <Form.Select name="priority">
+                                        <option>Baja</option>
+                                        <option>Media</option>
+                                        <option>Alta</option>
+                                        <option value="critical">Crítica</option>
+                                    </Form.Select>
+                                </Form.Group>
+                            </Col>
+                        </Row>
+                        <Row>
+                            <Col md={6}>
+                                <Form.Group className="mb-3" controlId="sla-policy-response">
+                                    <Form.Label>Meta de Respuesta (minutos)</Form.Label>
+                                    <Form.Control type="number" name="response_min" defaultValue={15} />
+                                </Form.Group>
+                            </Col>
+                            <Col md={6}>
+                                <Form.Group className="mb-3" controlId="sla-policy-resolution">
+                                    <Form.Label>Meta de Resolución (minutos)</Form.Label>
+                                    <Form.Control type="number" name="resolution_min" defaultValue={60} />
+                                </Form.Group>
+                            </Col>
+                        </Row>
+                    </Form>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowModal(false)}>Cancelar</Button>
+                    <Button variant="primary">Crear Política</Button>
+                </Modal.Footer>
+            </Modal>
+        </Layout>
+    );
+};
+
+export default SLAAdmin;

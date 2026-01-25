@@ -4,6 +4,8 @@ from typing import Annotated, Union, Optional, List # Added List
 from fastapi import APIRouter, Depends, HTTPException, status, Request # Removed Security
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.limiter import limiter
+from app.api import deps
 from app.api.deps import get_db, get_current_user, get_crud_user, reusable_oauth2 # Import reusable_oauth2
 from app.crud import crud_audit, crud_session
 from app.crud.crud_user import user as crud_user_instance # Import the instance directly
@@ -58,6 +60,7 @@ async def authenticate_user_local(
     return user
 
 @router.post("/login", response_model=Union[LoginResponse, Token])
+@limiter.limit("5/minute")
 async def login(
     request: Request,
     login_data: LoginRequest,
@@ -121,26 +124,34 @@ async def login(
             user_agent=request.headers.get("user-agent")
         )
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        scopes = "session"
+        if user.is_superuser:
+            scopes += " superuser"
+            
         access_token = create_access_token(
             subject=user.id,
             expires_delta=access_token_expires,
-            claims={"scope": "session", "sid": str(session.id)},
+            claims={"scope": scopes, "sid": str(session.id)},
         )
         # Here we should create the session in the DB
         return Token(access_token=access_token, token_type="bearer")
 
 
 @router.post("/login/2fa", response_model=Token)
+@limiter.limit("10/minute")
 async def login_2fa(
     request: Request,
     totp_data: TotpRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(lambda db=Depends(get_db), token_auth=Depends(reusable_oauth2): get_current_user(db, token_auth, required_scopes=["2fa:verify"]))],
+    current_user: Annotated[User, Depends(deps.get_current_2fa_user_dep)],
 ):
     """
     Second step of the login process for users with 2FA enabled.
     Verifies the TOTP code and returns a final session token.
     """
+    if not current_user.totp_secret:
+         raise HTTPException(status_code=400, detail="2FA not configured")
+
     if not verify_totp(secret=current_user.totp_secret, code=totp_data.totp_code):
         await crud_audit.audit_log.create_log(
             db,
@@ -167,10 +178,14 @@ async def login_2fa(
     )
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    scopes = "session"
+    if current_user.is_superuser:
+        scopes += " superuser"
+
     access_token = create_access_token(
         subject=current_user.id,
         expires_delta=access_token_expires,
-        claims={"scope": "session", "sid": str(session.id)},
+        claims={"scope": scopes, "sid": str(session.id)},
     )
     # Here we should create the session in the DB
     return Token(access_token=access_token, token_type="bearer")

@@ -19,10 +19,13 @@ class Group(Base):
 
     # Relaciones
     parent_group = relationship("Group", remote_side=[id], back_populates="child_groups")
+    
     child_groups = relationship("Group", back_populates="parent_group")
     users = relationship("User", back_populates="group")
     # user_role_groups = relationship("UserRoleGroup", back_populates="group")
     endpoints = relationship("Endpoint", back_populates="group")
+    assets = relationship("Asset", back_populates="owner_group")
+    locations = relationship("LocationNode", back_populates="owner_group")
     # forms = relationship("Form", back_populates="group")
     # form_submissions = relationship("FormSubmission", back_populates="group")
     tickets = relationship("Ticket", back_populates="group")

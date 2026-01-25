@@ -13,14 +13,14 @@ from sqlalchemy.future import select
 
 router = APIRouter()
 
-@router.get("/", response_model=List[Form])
+@router.get("", response_model=List[Form])
 async def read_forms(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_active_user)],
 ):
     return await crud_form.form.get_multi(db)
 
-@router.post("/", response_model=Form)
+@router.post("", response_model=Form)
 async def create_form(
     form_in: FormCreate,
     db: Annotated[AsyncSession, Depends(get_db)],

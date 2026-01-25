@@ -69,6 +69,7 @@ async def get_current_user(
             # Check if session is active
             session = await crud_session.session.get_session_by_id(db, session_id=UUID(session_id))
             if not session or not session.is_active:
+                logger.warning(f"Session {session_id} not found or inactive")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid or inactive session",
@@ -83,7 +84,8 @@ async def get_current_user(
                     selectinload(User.roles)
                     .selectinload(UserRole.role)
                     .selectinload(Role.permissions)
-                    .selectinload(RolePermission.permission)
+                    .selectinload(RolePermission.permission),
+                    selectinload(User.group)
                 )
             )
             result = await db.execute(query)
@@ -104,7 +106,14 @@ async def get_current_user(
         else: # Unknown or unsupported scope
             raise credentials_exception
 
-    except (JWTError, ValueError):
+    except JWTError as e:
+        logger.warning(f"JWT Decode error: {e}")
+        raise credentials_exception
+    except ValueError as e:
+        logger.warning(f"Value error during auth: {e}")
+        raise credentials_exception
+    except Exception as e:
+        logger.error(f"Unexpected auth error: {e}")
         raise credentials_exception
 
 # --- Helper functions to create specific user dependencies ---
@@ -119,6 +128,12 @@ async def get_current_superuser_dep(
     token_auth: HTTPAuthorizationCredentials = Depends(reusable_oauth2)
 ) -> User:
     return await get_current_user(db, token_auth, required_scopes=["session", "superuser"])
+
+async def get_current_2fa_user_dep(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    token_auth: HTTPAuthorizationCredentials = Depends(reusable_oauth2)
+) -> User:
+    return await get_current_user(db, token_auth, required_scopes=["2fa:verify"])
 
 async def get_current_active_user(
     current_user: Annotated[User, Depends(get_current_active_user_dep)],

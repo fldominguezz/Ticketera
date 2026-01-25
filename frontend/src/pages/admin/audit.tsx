@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
-import AppNavbar from '../../components/AppNavbar';
+
 import { Container, Table, Card, Badge, Form, Row, Col, Spinner } from 'react-bootstrap';
 import { Shield, Search, Clock, User as UserIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import Layout from '../../components/Layout';
 
 export default function AuditLogsPage() {
   const { t } = useTranslation();
@@ -18,10 +19,13 @@ export default function AuditLogsPage() {
   const fetchLogs = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch('/api/v1/audit/', {
+      const res = await fetch('/api/v1/audit', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) setLogs(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setLogs(Array.isArray(data) ? data : []);
+      }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -39,9 +43,7 @@ export default function AuditLogsPage() {
   );
 
   return (
-    <>
-      <Head><title>{t('audit_logs')} - Ticketera</title></Head>
-      <AppNavbar />
+    <Layout title={t('audit_logs')}>
       <Container className="mt-4 mb-5">
         <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
           <div>
@@ -109,6 +111,6 @@ export default function AuditLogsPage() {
           </Card.Body>
         </Card>
       </Container>
-    </>
+    </Layout>
   );
 }
