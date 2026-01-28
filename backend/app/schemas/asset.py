@@ -8,6 +8,8 @@ class AssetInstallRecord(BaseModel):
     id: UUID
     asset_id: UUID
     gde_number: Optional[str] = None
+    tecnico_instalacion: Optional[str] = None
+    tecnico_carga: Optional[str] = None
     observations: Optional[str] = None
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
@@ -33,6 +35,8 @@ class Asset(BaseModel):
     asset_tag: Optional[str] = None
     mac_address: Optional[str] = None
     ip_address: Optional[str] = None
+    dependencia: Optional[str] = None
+    codigo_dependencia: Optional[str] = None
     status: str = "operative"
     criticality: str = "medium"
     av_product: Optional[str] = None
@@ -53,6 +57,8 @@ class AssetCreate(BaseModel):
     serial: Optional[str] = None
     mac_address: Optional[str] = None
     ip_address: Optional[str] = None
+    dependencia: Optional[str] = None
+    codigo_dependencia: Optional[str] = None
     location_node_id: Optional[UUID] = None
 
 class AssetUpdate(BaseModel):
@@ -61,6 +67,8 @@ class AssetUpdate(BaseModel):
 
 class AssetInstallRecordCreate(BaseModel):
     gde_number: Optional[str] = None
+    tecnico_instalacion: Optional[str] = None
+    tecnico_carga: Optional[str] = None
     observations: Optional[str] = None
 
 class AssetInstallRequest(BaseModel):

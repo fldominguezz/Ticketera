@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, JSON, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from app.db.base import Base
+from app.db.base_class import Base
 
 class SavedView(Base):
     __tablename__ = "saved_views"

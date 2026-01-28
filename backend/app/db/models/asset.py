@@ -3,7 +3,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
-from app.db.base import Base
+from app.db.base_class import Base
 
 class Asset(Base):
     __tablename__ = "assets"
@@ -19,6 +19,8 @@ class Asset(Base):
     
     # Organization
     location_node_id = Column(UUID(as_uuid=True), ForeignKey("location_nodes.id"), nullable=True)
+    dependencia = Column(String(255), nullable=True)
+    codigo_dependencia = Column(String(50), nullable=True)
     division = Column(String(100), nullable=True) # Can be derived from location or explicit
     owner_group_id = Column(UUID(as_uuid=True), ForeignKey("groups.id"), nullable=True)
     responsible_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)

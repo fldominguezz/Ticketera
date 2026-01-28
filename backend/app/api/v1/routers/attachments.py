@@ -8,6 +8,7 @@ import os
 from app.api.deps import get_db, get_current_active_user
 from app.db.models import User, Attachment as AttachmentModel
 from app.core.config import settings
+from fastapi.responses import FileResponse
 
 router = APIRouter()
 
@@ -60,8 +61,6 @@ async def list_attachments(
     result = await db.execute(select(AttachmentModel).filter(AttachmentModel.ticket_id == ticket_id))
     return result.scalars().all()
 
-from fastapi.responses import FileResponse
-
 @router.get("/download/{attachment_id}")
 async def download_attachment(
     attachment_id: UUID,
@@ -82,3 +81,29 @@ async def download_attachment(
         filename=db_obj.filename,
         media_type=db_obj.content_type
     )
+
+@router.get("/daily_reports/{file_name}")
+async def get_daily_report_pdf(
+    file_name: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    # Fix path: "uploads/daily_reports" is used in daily_reports.py, so it's relative to app root
+    # But here UPLOAD_DIR is "/app/uploads".
+    # Let's ensure consistency.
+    
+    file_path = os.path.join("uploads/daily_reports", file_name)
+    if not os.path.exists(file_path):
+        # Fallback to absolute if relative fails
+        file_path = os.path.join(UPLOAD_DIR, "daily_reports", file_name)
+        
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    media_type = "application/pdf"
+    if file_name.endswith(".docx"):
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    elif file_name.endswith(".doc"):
+        media_type = "application/msword"
+        
+    return FileResponse(path=file_path, media_type=media_type, filename=file_name)

@@ -1,39 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
-import LocationSelector from '../../components/inventory/LocationSelector';
 import { 
-  Monitor, 
-  Network, 
-  ShieldCheck, 
-  MapPin, 
-  Save, 
-  ChevronLeft,
-  FileText,
-  UserCheck,
-  Plus,
-  Trash2
+  Monitor, Network, ShieldCheck, Save, ChevronLeft, UserCheck, Plus, Trash2, Hash, MapPin
 } from 'lucide-react';
 import { 
-  Container, 
-  Row, 
-  Col, 
-  Card, 
-  Form, 
-  Button, 
-  Badge,
-  Alert
+  Container, Row, Col, Card, Form, Button, Badge, Alert
 } from 'react-bootstrap';
 
 const AssetInstallPage = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedNode, setSelectedNode] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
 
   const [globalData, setGlobalData] = useState({
     responsible_user_id: '',
+    tecnico_instalacion: '',
+    tecnico_carga: '',
     gde_number: '',
     status: 'tagging_pending',
   });
@@ -44,6 +28,8 @@ const AssetInstallPage = () => {
     serial: '',
     mac_address: '',
     ip_address: '',
+    dependencia: '',
+    codigo_dependencia: '',
     device_type: 'desktop',
     os_name: 'Windows 10',
     os_version: '',
@@ -63,7 +49,6 @@ const AssetInstallPage = () => {
       });
       if (res.ok) {
         const data = await res.json();
-        // Filtrar usuarios: fortisiem, admin, system
         const filtered = data.filter((u: any) => 
           !['fortisiem', 'admin', 'system'].includes(u.username.toLowerCase())
         );
@@ -96,6 +81,7 @@ const AssetInstallPage = () => {
       if (dev.id === id) {
         if (name === 'mac_address') return { ...dev, [name]: formatMac(value) };
         if (name === 'ip_address') return { ...dev, [name]: formatIp(value) };
+        if (name === 'codigo_dependencia') return { ...dev, [name]: value.replace(/\D/g, '') };
         return { ...dev, [name]: value };
       }
       return dev;
@@ -109,6 +95,8 @@ const AssetInstallPage = () => {
       serial: '',
       mac_address: '',
       ip_address: '',
+      dependencia: '',
+      codigo_dependencia: '',
       device_type: 'desktop',
       os_name: 'Windows 10',
       os_version: '',
@@ -125,18 +113,12 @@ const AssetInstallPage = () => {
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
-    if (!selectedNode) {
-      setError("Debe seleccionar una ubicación en el árbol.");
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
     try {
       const token = localStorage.getItem('access_token');
       
-      // Enviar una petición por cada equipo
       for (const dev of devices) {
         const payload = {
           asset_data: {
@@ -144,6 +126,8 @@ const AssetInstallPage = () => {
             serial: dev.serial,
             mac_address: dev.mac_address,
             ip_address: dev.ip_address,
+            dependencia: dev.dependencia,
+            codigo_dependencia: dev.codigo_dependencia,
             device_type: dev.device_type,
             os_name: dev.os_name,
             os_version: dev.os_version,
@@ -151,10 +135,12 @@ const AssetInstallPage = () => {
             status: globalData.status,
             observations: dev.observations,
             responsible_user_id: globalData.responsible_user_id || null,
-            location_node_id: selectedNode.id
+            location_node_id: null
           },
           install_data: {
             gde_number: globalData.gde_number,
+            tecnico_instalacion: globalData.tecnico_instalacion,
+            tecnico_carga: globalData.tecnico_carga,
             observations: dev.observations,
             install_details: {
               os: dev.os_name,
@@ -201,9 +187,7 @@ const AssetInstallPage = () => {
 
         <Form onSubmit={handleSubmit}>
           <Row>
-            {/* Left Column: Form Details */}
             <Col lg={8}>
-              
               {/* Información General de la Instalación */}
               <Card className="border-0 shadow-sm mb-4 bg-light">
                 <Card.Header className="bg-transparent py-3 border-0 d-flex align-items-center">
@@ -213,8 +197,8 @@ const AssetInstallPage = () => {
                 <Card.Body>
                   <Row className="g-3">
                     <Col md={6}>
-                      <Form.Group controlId="global-technician">
-                        <Form.Label className="small fw-bold">Técnico a cargo *</Form.Label>
+                      <Form.Group>
+                        <Form.Label className="small fw-bold">Técnico a cargo (Sistema) *</Form.Label>
                         <Form.Select 
                           name="responsible_user_id" 
                           value={globalData.responsible_user_id} 
@@ -231,7 +215,7 @@ const AssetInstallPage = () => {
                       </Form.Group>
                     </Col>
                     <Col md={6}>
-                      <Form.Group controlId="global-status">
+                      <Form.Group>
                         <Form.Label className="small fw-bold">Estado Inicial</Form.Label>
                         <Form.Select name="status" value={globalData.status} onChange={handleGlobalChange}>
                           <option value="tagging_pending">Pendiente a Etiquetar</option>
@@ -240,8 +224,26 @@ const AssetInstallPage = () => {
                         </Form.Select>
                       </Form.Group>
                     </Col>
+                    <Col md={6}>
+                      <Form.Group>
+                        <Form.Label className="small fw-bold">Técnico a cargo de la instalación</Form.Label>
+                        <Form.Control 
+                          name="tecnico_instalacion" value={globalData.tecnico_instalacion} 
+                          onChange={handleGlobalChange} placeholder="Nombre del técnico..."
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Group>
+                        <Form.Label className="small fw-bold">Técnico a cargo de la carga</Form.Label>
+                        <Form.Control 
+                          name="tecnico_carga" value={globalData.tecnico_carga} 
+                          onChange={handleGlobalChange} placeholder="Nombre del técnico..."
+                        />
+                      </Form.Group>
+                    </Col>
                     <Col md={12}>
-                      <Form.Group controlId="global-gde">
+                      <Form.Group>
                         <Form.Label className="small fw-bold">Número de GDE / Expediente</Form.Label>
                         <Form.Control 
                           name="gde_number" value={globalData.gde_number} onChange={handleGlobalChange} 
@@ -305,6 +307,28 @@ const AssetInstallPage = () => {
                           />
                         </Form.Group>
                       </Col>
+                      
+                      <Col md={8}>
+                        <Form.Group>
+                          <Form.Label className="x-small fw-bold">Dependencia *</Form.Label>
+                          <Form.Control 
+                            size="sm" name="dependencia" value={device.dependencia} 
+                            onChange={(e) => handleDeviceChange(device.id, e)} required
+                            placeholder="Ej: Div. Informática"
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Group>
+                          <Form.Label className="x-small fw-bold">Código Dependencia</Form.Label>
+                          <Form.Control 
+                            size="sm" name="codigo_dependencia" value={device.codigo_dependencia} 
+                            onChange={(e) => handleDeviceChange(device.id, e)}
+                            placeholder="Solo números"
+                          />
+                        </Form.Group>
+                      </Col>
+
                       <Col md={4}>
                         <Form.Group>
                           <Form.Label className="x-small fw-bold">Tipo</Form.Label>
@@ -360,40 +384,22 @@ const AssetInstallPage = () => {
 
               <div className="d-grid mb-5">
                 <Button variant="outline-primary" onClick={addDevice} className="py-3 border-dashed">
-                  <Plus size={20} className="me-2" /> AGREGAR OTRO EQUIPO A ESTA UBICACIÓN
+                  <Plus size={20} className="me-2" /> AGREGAR OTRO EQUIPO
                 </Button>
               </div>
-
             </Col>
 
-            {/* Right Column: Location Selector */}
             <Col lg={4}>
               <Card className="border-0 shadow-sm sticky-top" style={{ top: '100px' }}>
                 <Card.Header className="bg-white py-3 border-0 d-flex align-items-center">
-                  <MapPin className="me-2 text-danger" size={20} />
-                  <h6 className="mb-0 fw-bold">Ubicación *</h6>
+                  <Save className="me-2 text-primary" size={20} />
+                  <h6 className="mb-0 fw-bold">Finalizar</h6>
                 </Card.Header>
                 <Card.Body>
-                  <div className="mb-3">
-                    {selectedNode ? (
-                      <div className="p-2 border rounded bg-light mb-3">
-                        <small className="text-muted d-block">Ubicación destino:</small>
-                        <span className="fw-bold text-primary">{selectedNode.path}</span>
-                      </div>
-                    ) : (
-                      <Alert variant="warning" className="small py-2">Seleccione una carpeta para todos los equipos.</Alert>
-                    )}
-                  </div>
-                  <LocationSelector 
-                    selectedId={selectedNode?.id} 
-                    onSelect={(node) => setSelectedNode(node)} 
-                  />
-
-                  <hr />
-                  
+                  <p className="small text-muted">Complete todos los campos obligatorios antes de guardar.</p>
                   <div className="d-grid">
                     <Button variant="primary" size="lg" type="submit" disabled={loading}>
-                      {loading ? 'Guardando instalaciones...' : <><Save size={18} className="me-2"/> Finalizar y Guardar Todo</>}
+                      {loading ? 'Guardando...' : <><Save size={18} className="me-2"/> Guardar Todo</>}
                     </Button>
                     <small className="text-center text-muted mt-2">Se crearán {devices.length} activos.</small>
                   </div>

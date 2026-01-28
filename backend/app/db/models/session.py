@@ -4,7 +4,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
 
-from app.db.base import Base
+from app.db.base_class import Base
 
 class Session(Base):
     __tablename__ = "sessions"

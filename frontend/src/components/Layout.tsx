@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import { Container, Button, Dropdown } from 'react-bootstrap';
 import { 
   LayoutDashboard, Ticket, ShieldAlert, Database, 
-  BarChart3, Settings, LogOut, User, Menu, X, Sun, Moon, FileSearch
+  BarChart3, Settings, LogOut, User, Menu, X, Sun, Moon, FileSearch, FileText
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -41,6 +41,7 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
     { id: 'tickets', name: 'Incident Cases', path: '/tickets', icon: Ticket },
     { id: 'siem-alerts', name: 'SIEM Events', path: '/soc/events', icon: ShieldAlert },
     { id: 'inventory', name: 'Asset Inventory', path: '/inventory', icon: Database },
+    { id: 'daily-report', name: 'Parte Informativo', path: '/reports/daily', icon: FileText },
     { id: 'forensics', name: 'EML Analytics', path: '/forensics/eml', icon: FileSearch },
     { id: 'compliance', name: 'Compliance', path: '/reports', icon: BarChart3 },
   ];

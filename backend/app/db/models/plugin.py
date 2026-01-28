@@ -2,7 +2,7 @@ from sqlalchemy import Column, String, Boolean, JSON, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 import uuid
-from app.db.base import Base
+from app.db.base_class import Base
 
 class Plugin(Base):
     __tablename__ = "plugins"

@@ -3,7 +3,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
-from app.db.base import Base
+from app.db.base_class import Base
 
 class AssetLocationHistory(Base):
     __tablename__ = "asset_location_history"
@@ -45,6 +45,8 @@ class AssetInstallRecord(Base):
     asset_id = Column(UUID(as_uuid=True), ForeignKey("assets.id"), nullable=False)
     
     gde_number = Column(String(100), nullable=True)
+    tecnico_instalacion = Column(String(255), nullable=True)
+    tecnico_carga = Column(String(255), nullable=True)
     install_details = Column(JSON, nullable=True) # structured data of what was installed
     snapshot_url = Column(String(500), nullable=True) # Link to screenshot/image
     observations = Column(Text, nullable=True)

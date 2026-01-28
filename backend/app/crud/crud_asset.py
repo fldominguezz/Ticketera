@@ -178,6 +178,8 @@ class CRUDAsset:
             asset_id=asset.id,
             created_by_id=user_id,
             gde_number=install_record_data.get("gde_number"),
+            tecnico_instalacion=install_record_data.get("tecnico_instalacion"),
+            tecnico_carga=install_record_data.get("tecnico_carga"),
             install_details=install_record_data.get("install_details"),
             observations=install_record_data.get("observations"),
             snapshot_url=install_record_data.get("snapshot_url")

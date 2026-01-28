@@ -8,16 +8,41 @@ from app.db.session import AsyncSessionLocal
 from app.crud.crud_user import user
 from app.schemas.user import UserCreate
 from app.db.models import Group, TicketType, User, SLAPolicy, WorkflowTransition, Workflow, WorkflowState
+from app.core.config import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def init_db() -> None:
     async with AsyncSessionLocal() as session:
-        # ... (existing code for Group, User, TicketType, SLAPolicy) ...
+        # 1. Create Default Group
+        result = await session.execute(select(Group).filter(Group.name == "Admin"))
+        group = result.scalar_one_or_none()
+        if not group:
+            group = Group(name="Admin", description="Administrators Group")
+            session.add(group)
+            await session.commit()
+            await session.refresh(group)
+            logger.info("Created Admin group")
+
+        # 2. Create Superuser
+        user_in = await user.get_by_email(session, email=settings.FIRST_SUPERUSER)
+        if not user_in:
+            user_in = UserCreate(
+                email=settings.FIRST_SUPERUSER,
+                username="admin",
+                password=settings.FIRST_SUPERUSER_PASSWORD,
+                is_superuser=True,
+                group_id=group.id,
+                first_name="Admin",
+                last_name="System"
+            )
+            await user.create(session, obj_in=user_in)
+            logger.info(f"Superuser created: {settings.FIRST_SUPERUSER}")
+        else:
+            logger.info("Superuser already exists")
 
         # 6. Ensure Workflow and Workflow States
-        # Create a default workflow if it doesn't exist
         result = await session.execute(select(Workflow).filter(Workflow.name == "Default Ticket Workflow"))
         default_workflow = result.scalar_one_or_none()
         if not default_workflow:
@@ -31,11 +56,11 @@ async def init_db() -> None:
             {"name": "Abierto", "status_key": "open", "color": "primary", "is_initial": True},
             {"name": "En Progreso", "status_key": "in_progress", "color": "info"},
             {"name": "Pendiente", "status_key": "pending", "color": "warning"},
-            {"name": "Resuelto", "status_key": "success", "color": "success"},
-            {"name": "Cerrado", "status_key": "secondary", "color": "dark", "is_final": True},
+            {"name": "Resuelto", "status_key": "resolved", "color": "success"},
+            {"name": "Cerrado", "status_key": "closed", "color": "dark", "is_final": True},
         ]
 
-        state_map = {} # To map status_key to WorkflowState object
+        state_map = {} 
         for sd in states_data:
             result = await session.execute(select(WorkflowState).filter(
                 WorkflowState.workflow_id == default_workflow.id,
@@ -49,7 +74,7 @@ async def init_db() -> None:
                 logger.info(f"Workflow State {sd['name']} created")
             state_map[sd["status_key"]] = state
 
-        # 7. Ensure Workflow Transitions (using state_map)
+        # 7. Ensure Workflow Transitions
         transitions = [
             ("open", "in_progress"),
             ("in_progress", "pending"),
@@ -60,12 +85,12 @@ async def init_db() -> None:
             ("resolved", "in_progress"),
             ("closed", "open"),
         ]
+        
         for f_key, t_key in transitions:
             from_state = state_map.get(f_key)
             to_state = state_map.get(t_key)
 
             if not from_state or not to_state:
-                logger.warning(f"Skipping transition {f_key} -> {t_key}: one or both states not found.")
                 continue
 
             result = await session.execute(
@@ -80,6 +105,11 @@ async def init_db() -> None:
                     workflow_id=default_workflow.id,
                     from_state_id=from_state.id,
                     to_state_id=to_state.id,
-                    name=f"{from_state.name} to {to_state.name}" # Provide a default name
+                    name=f"{from_state.name} to {to_state.name}"
                 ))
                 logger.info(f"Transition {f_key} -> {t_key} created")
+        
+        await session.commit()
+
+if __name__ == "__main__":
+    asyncio.run(init_db())

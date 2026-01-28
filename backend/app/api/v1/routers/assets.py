@@ -183,7 +183,9 @@ async def read_assets(
         query = query.filter(
             (AssetModel.hostname.ilike(search_filter)) |
             (AssetModel.ip_address.ilike(search_filter)) |
-            (AssetModel.mac_address.ilike(search_filter))
+            (AssetModel.mac_address.ilike(search_filter)) |
+            (AssetModel.dependencia.ilike(search_filter)) |
+            (AssetModel.codigo_dependencia.ilike(search_filter))
         )
         
     result = await db.execute(query.offset(skip).limit(limit))
@@ -198,6 +200,8 @@ async def read_assets(
             "ip_address": a.ip_address or "---",
             "mac_address": a.mac_address or "---", 
             "status": a.status,
+            "dependencia": a.dependencia,
+            "codigo_dependencia": a.codigo_dependencia,
             "criticality": a.criticality or "medium", 
             "av_product": a.av_product or "Sin Protección",
             "location_name": row.loc_name or "Sin Ubicación",
