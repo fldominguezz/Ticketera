@@ -39,6 +39,15 @@ async def upload_attachment(
     db.add(db_obj)
     await db.commit()
     await db.refresh(db_obj)
+
+    from app.crud import crud_audit
+    await crud_audit.audit_log.create_log(
+        db,
+        user_id=current_user.id,
+        event_type="attachment_added",
+        details={"ticket_id": str(ticket_id), "filename": file.filename, "size": db_obj.size}
+    )
+    
     return db_obj
 
 @router.get("/{ticket_id}")

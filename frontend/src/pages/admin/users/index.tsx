@@ -1,262 +1,244 @@
 import { useEffect, useState } from 'react';
-import Head from 'next/head';
 import { useRouter } from 'next/router';
-
-import { Container, Table, Button, Badge, Card, Modal, Form, Row, Col } from 'react-bootstrap';
-import { UserPlus, Edit, Trash2, Shield, User as UserIcon, Mail } from 'lucide-react';
+import { Container, Table, Button, Badge, Card, Modal, Form, Row, Col, Spinner } from 'react-bootstrap';
+import { UserPlus, Edit, Trash2, Shield, User as UserIcon, Mail, Lock } from 'lucide-react';
 import Layout from '../../../components/Layout';
+import { useTheme } from '../../../context/ThemeContext';
 
 export default function AdminUsersPage() {
   const router = useRouter();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  
   const [users, setUsers] = useState<any[]>([]);
+  const [roles, setRoles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [groups, setGroups] = useState<any[]>([]);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [showSecurityModal, setShowSecurityModal] = useState(false);
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: '',
-    first_name: '',
-    last_name: '',
-    is_superuser: false,
-    group_id: ''
+    username: '', email: '', password: '', first_name: '', last_name: '',
+    is_superuser: false, group_id: '', role_ids: [] as string[]
   });
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-      router.push('/login');
-    } else {
-      fetchUsers(token);
-      fetchGroups(token);
-    }
-  }, [router]);
+    fetchData();
+  }, []);
 
-  const fetchUsers = async (token: string) => {
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      const res = await fetch('/api/v1/admin/users', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setUsers(Array.isArray(data) ? data : []);
-      }
+      const token = localStorage.getItem('access_token');
+      const [uRes, gRes, rRes] = await Promise.all([
+        fetch('/api/v1/admin/users', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('/api/v1/groups', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('/api/v1/iam/roles', { headers: { 'Authorization': `Bearer ${token}` } })
+      ]);
+      setUsers(await uRes.json());
+      setGroups(await gRes.json());
+      setRoles(await rRes.json());
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
 
-  const fetchGroups = async (token: string) => {
+  const handleSecurityAction = async (action: string) => {
+    if (!editingUserId) return;
+    const token = localStorage.getItem('access_token');
     try {
-      const res = await fetch('/api/v1/groups', {
+      const res = await fetch(`/api/v1/admin/users/${editingUserId}/${action}`, {
+        method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) {
-        const data = await res.json();
-        setGroups(Array.isArray(data) ? data : []);
+      const data = await res.json();
+      if (action === 'reset-password' && data.new_password) {
+        setGeneratedPassword(data.new_password);
+      } else {
+        alert(data.detail || "Acción completada con éxito");
+        setShowModal(false);
+        fetchData();
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { alert("Error al ejecutar acción de seguridad"); }
   };
 
   const handleOpenModal = (user: any = null) => {
     if (user) {
       setEditingUserId(user.id);
       setFormData({
-        username: user.username,
-        email: user.email,
-        password: '', // No cargamos el password por seguridad
-        first_name: user.first_name || '',
-        last_name: user.last_name || '',
-        is_superuser: user.is_superuser || false,
-        group_id: user.group_id || ''
+        username: user.username, email: user.email, password: '',
+        first_name: user.first_name || '', last_name: user.last_name || '',
+        is_superuser: user.is_superuser || false, group_id: user.group_id || '',
+        role_ids: Array.isArray(user.roles) ? user.roles.map((r: any) => r.id) : []
       });
     } else {
       setEditingUserId(null);
-      setFormData({ username: '', email: '', password: '', first_name: '', last_name: '', is_superuser: false, group_id: '' });
+      setFormData({ username: '', email: '', password: '', first_name: '', last_name: '', is_superuser: false, group_id: '', role_ids: [] });
     }
     setShowModal(true);
   };
 
   const handleSubmit = async () => {
+    console.log('handleSubmit called!');
     const token = localStorage.getItem('access_token');
     const method = editingUserId ? 'PUT' : 'POST';
     const url = editingUserId ? `/api/v1/admin/users/${editingUserId}` : '/api/v1/admin/users';
     
-    // Si estamos editando y el password está vacío, enviamos todo menos el password
     const payload: any = { ...formData };
-    if (editingUserId && !payload.password) {
-      delete payload.password;
-    }
+    if (editingUserId && !payload.password) delete payload.password;
 
     try {
       const res = await fetch(url, {
-        method: method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        method, headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       if (res.ok) {
         setShowModal(false);
-        fetchUsers(token!);
+        fetchData();
       } else {
-        const err = await res.json();
-        alert("Error: " + JSON.stringify(err.detail));
+        const errorData = await res.json();
+        const errorMessage = errorData.detail || errorData.message || `Error: ${res.status} ${res.statusText}`;
+        alert(`Error al guardar usuario: ${errorMessage}`);
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      alert(`Error de red o inesperado: ${e.message || e}`);
+    }
   };
 
-  const handleDeactivate = async (userId: string) => {
-    if (!confirm('Are you sure you want to deactivate this user?')) return;
-    const token = localStorage.getItem('access_token');
-    try {
-      const res = await fetch(`/api/v1/admin/users/${userId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) fetchUsers(token!);
-    } catch (e) { console.error(e); }
+  const toggleRole = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      role_ids: prev.role_ids.includes(id) ? prev.role_ids.filter(rid => rid !== id) : [...prev.role_ids, id]
+    }));
   };
 
   return (
-    <Layout title="Manage Users">
-      <Container className="mt-4">
+    <Layout title="Gestión de Cuentas">
+      <Container fluid className="px-0">
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
-            <h1 className="fw-bold mb-0">User Management</h1>
-            <p className="text-muted">Manage system users, roles and group assignments</p>
+            <h2 className="fw-black text-uppercase m-0">Usuarios del Sistema</h2>
+            <p className="text-muted small mb-0">Administre el acceso del personal y analistas del SOC.</p>
           </div>
-          <Button variant="primary" onClick={() => handleOpenModal()} className="d-flex align-items-center px-4 py-2">
-            <UserPlus size={18} className="me-2" /> Add New User
+          <Button variant="primary" onClick={() => handleOpenModal()} className="shadow-sm fw-bold">
+            <UserPlus size={18} className="me-2" /> NUEVO USUARIO
           </Button>
         </div>
 
-        <Card className="shadow-sm border-0">
-          <Card.Body className="p-0">
-            <Table responsive hover className="mb-0">
-              <thead className="bg-light">
-                <tr>
-                  <th className="ps-4">User</th>
-                  <th>Username</th>
-                  <th>Role</th>
-                  <th>Group</th>
-                  <th>Status</th>
-                  <th className="text-center">Actions</th>
-                </tr>
-              </thead>
-                                <tbody>
-                                  {Array.isArray(users) && users.length > 0 ? users.map((u: any) => (                  <tr key={u.id} className="align-middle">
-                    <td className="ps-4 py-3">
-                      <div className="d-flex align-items-center">
-                        <div className="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center me-3" style={{ width: '40px', height: '40px' }}>
-                          <UserIcon size={20} />
-                        </div>
-                        <div>
-                          <div className="fw-bold">{u.first_name} {u.last_name}</div>
-                          <div className="small text-muted d-flex align-items-center">
-                            <Mail size={12} className="me-1" /> {u.email}
-                          </div>
-                        </div>
+        <Card className="border-0 shadow-sm overflow-hidden">
+          <Table hover responsive variant={isDark ? 'dark' : undefined} className="align-middle mb-0">
+            <thead className={isDark ? 'bg-black' : 'bg-light'}>
+              <tr className="small text-uppercase text-muted opacity-75">
+                <th className="ps-4 py-3">Identidad</th>
+                <th>Usuario</th>
+                <th>Roles / Nivel</th>
+                <th>Área / Grupo</th>
+                <th className="text-end pe-4">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={5} className="text-center py-5"><Spinner animation="border" variant="primary" /></td></tr>
+              ) : users.map(u => (
+                <tr key={u.id}>
+                  <td className="ps-4 py-3">
+                    <div className="d-flex align-items-center gap-3">
+                      <div className="avatar bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center" style={{width:32, height:32}}>
+                        <UserIcon size={16} />
                       </div>
-                    </td>
-                    <td><code className="small">@{u.username}</code></td>
-                    <td>
-                      {u.is_superuser ? (
-                        <Badge bg="danger" className="d-flex align-items-center w-fit">
-                          <Shield size={12} className="me-1" /> Administrator
-                        </Badge>
-                      ) : (
-                        <Badge bg="primary">Staff Member</Badge>
-                      )}
-                    </td>
-                    <td className="small">{u.group_name || 'No group'}</td>
-                    <td>
-                      <Badge bg={u.is_active ? 'success' : 'secondary'}>
-                        {u.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </td>
-                    <td className="text-center">
-                      <Button variant="outline-secondary" size="sm" className="me-2 border-0" onClick={() => handleOpenModal(u)}><Edit size={16} /></Button>
-                      <Button variant="outline-danger" size="sm" className="border-0" onClick={() => handleDeactivate(u.id)}><Trash2 size={16} /></Button>
-                    </td>
-                  </tr>
-                )) : (
-                  <tr><td colSpan={6} className="text-center py-5 text-muted">No users found.</td></tr>
-                )}
-              </tbody>
-            </Table>
-          </Card.Body>
+                      <div>
+                        <div className="fw-bold">{u.first_name} {u.last_name}</div>
+                        <div className="x-small text-muted">{u.email}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><code className="small">@{u.username}</code></td>
+                  <td>
+                    <div className="d-flex flex-wrap gap-1">
+                        {u.is_superuser && <Badge bg="danger" className="bg-opacity-10 text-danger border border-danger border-opacity-25 x-small fw-black">SUPERADMIN</Badge>}
+                        {u.roles?.map((r: any) => (
+                            <Badge key={r.id} bg="primary" className="bg-opacity-10 text-primary border border-primary border-opacity-25 x-small fw-bold">{r.name}</Badge>
+                        ))}
+                        {(!u.is_superuser && (!u.roles || u.roles.length === 0)) && <span className="text-muted small italic opacity-50">Sin rol</span>}
+                    </div>
+                  </td>
+                  <td className="small">{u.group_name || '-'}</td>
+                  <td className="text-end pe-4">
+                    <Button variant={isDark ? "dark" : "light"} size="sm" onClick={() => handleOpenModal(u)} className="border border-opacity-10"><Edit size={14} /></Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
         </Card>
-
-        <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
-          <Modal.Header closeButton className="border-0 pb-0">
-            <Modal.Title className="fw-bold">{editingUserId ? 'Edit User Account' : 'Create New User Account'}</Modal.Title>
-          </Modal.Header>
-          <Modal.Body className="pt-0">
-            <p className="text-muted small mb-4">{editingUserId ? 'Update the details for this existing user.' : 'Provide the details to create a new user and assign them to a group.'}</p>
-            <Form>
-              <Row className="g-3">
-                <Col md={6}>
-                  <Form.Group className="mb-3" controlId="user-first-name">
-                    <Form.Label className="small fw-bold">First Name</Form.Label>
-                    <Form.Control type="text" name="first_name" placeholder="John" value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group className="mb-3" controlId="user-last-name">
-                    <Form.Label className="small fw-bold">Last Name</Form.Label>
-                    <Form.Control type="text" name="last_name" placeholder="Doe" value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group className="mb-3" controlId="user-username">
-                    <Form.Label className="small fw-bold">Username</Form.Label>
-                    <Form.Control type="text" name="username" placeholder="jdoe" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group className="mb-3" controlId="user-email">
-                    <Form.Label className="small fw-bold">Email</Form.Label>
-                    <Form.Control type="email" name="email" placeholder="jdoe@ticketera.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group className="mb-3" controlId="user-password">
-                    <Form.Label className="small fw-bold">{editingUserId ? 'New Password (leave blank to keep current)' : 'Temporary Password'}</Form.Label>
-                    <Form.Control type="password" name="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group className="mb-3" controlId="user-group">
-                    <Form.Label className="small fw-bold">Group / Department</Form.Label>
-                    <Form.Select name="group_id" value={formData.group_id} onChange={e => setFormData({...formData, group_id: e.target.value})}>
-                      <option value="">Select Group...</option>
-                      {Array.isArray(groups) && groups.map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-                <Col md={12}>
-                  <Form.Check 
-                    type="switch" 
-                    id="is-superuser-switch" 
-                    label="Grant Super Administrator privileges" 
-                    className="fw-bold text-danger"
-                    checked={formData.is_superuser}
-                    onChange={e => setFormData({...formData, is_superuser: e.target.checked})}
-                  />
-                  <p className="text-muted small ps-4 ms-2 mt-1">This user will have full access to all system settings and security logs.</p>
-                </Col>
-              </Row>
-            </Form>
-          </Modal.Body>
-          <Modal.Footer className="border-0">
-            <Button variant="light" onClick={() => setShowModal(false)} className="px-4">Cancel</Button>
-            <Button variant="primary" onClick={handleSubmit} className="px-4 fw-bold">{editingUserId ? 'Save Changes' : 'Create User'}</Button>
-          </Modal.Footer>
-        </Modal>
       </Container>
+
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered>
+        <Modal.Header closeButton><Modal.Title className="h6 fw-bold">PERFIL DE USUARIO</Modal.Title></Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Row className="g-3 mb-4">
+              <Col md={6}><Form.Label className="x-small fw-bold text-muted">NOMBRE</Form.Label><Form.Control size="sm" value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} /></Col>
+              <Col md={6}><Form.Label className="x-small fw-bold text-muted">APELLIDO</Form.Label><Form.Control size="sm" value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} /></Col>
+              <Col md={6}><Form.Label className="x-small fw-bold text-muted">USERNAME</Form.Label><Form.Control size="sm" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} /></Col>
+              <Col md={6}><Form.Label className="x-small fw-bold text-muted">EMAIL</Form.Label><Form.Control size="sm" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></Col>
+              <Col md={6}><Form.Label className="x-small fw-bold text-muted">PASSWORD</Form.Label><Form.Control size="sm" type="password" placeholder={editingUserId ? "Dejar en blanco..." : "Clave temporal"} value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /></Col>
+              <Col md={6}><Form.Label className="x-small fw-bold text-muted">GRUPO</Form.Label><Form.Select size="sm" value={formData.group_id} onChange={e => setFormData({...formData, group_id: e.target.value})}><option value="">Seleccionar...</option>{groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</Form.Select></Col>
+            </Row>
+
+            <h6 className="fw-bold mb-3 d-flex align-items-center gap-2 x-small uppercase opacity-75"><Lock size={14} /> Asignación de Roles</h6>
+            <div className="border rounded p-3 mb-4 bg-light bg-opacity-10">
+                <Row className="g-2">
+                    {roles.map(role => (
+                        <Col md={6} key={role.id}>
+                            <Form.Check 
+                                type="checkbox" id={`role-${role.id}`} label={<span className="small">{role.name}</span>}
+                                checked={formData.role_ids.includes(role.id)}
+                                onChange={() => toggleRole(role.id)}
+                            />
+                        </Col>
+                    ))}
+                </Row>
+            </div>
+
+            <Form.Check 
+              type="switch" label={<span className="fw-bold text-danger small">OTORGAR PERMISOS DE SUPERADMINISTRADOR</span>}
+              checked={formData.is_superuser} onChange={e => setFormData({...formData, is_superuser: e.target.checked})} 
+            />
+
+            {editingUserId && (
+                <div className="mt-4 pt-4 border-top">
+                    <h6 className="fw-bold mb-3 x-small uppercase text-danger"><Shield size={14} /> Acciones de Seguridad Críticas</h6>
+                    <div className="d-flex flex-wrap gap-2">
+                        <Button variant="outline-danger" size="sm" className="fw-bold x-small" onClick={() => handleSecurityAction('reset-password')}>RESET PASSWORD (NUEVA CLAVE)</Button>
+                        <Button variant="outline-warning" size="sm" className="fw-bold x-small" onClick={() => handleSecurityAction('force-password-change')}>FORZAR CAMBIO CLAVE</Button>
+                        <Button variant="outline-secondary" size="sm" className="fw-bold x-small" onClick={() => handleSecurityAction('reset-2fa')}>RESETEAR 2FA LOGIN</Button>
+                        <Button variant="outline-dark" size="sm" className="fw-bold x-small" onClick={() => handleSecurityAction('disable-2fa')}>DESACTIVAR 2FA</Button>
+                    </div>
+                </div>
+            )}
+          </Form>
+        </Modal.Body>
+        <Modal.Footer className="border-0 pt-0">
+          <Button variant="primary" className="w-100 fw-bold" onClick={handleSubmit}>GUARDAR USUARIO</Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Modal para mostrar contraseña generada */}
+      <Modal show={!!generatedPassword} onHide={() => setGeneratedPassword(null)} centered>
+        <Modal.Header closeButton className="bg-danger text-white"><Modal.Title className="h6 fw-bold">NUEVA CONTRASEÑA GENERADA</Modal.Title></Modal.Header>
+        <Modal.Body className="text-center py-4">
+            <p className="text-muted small">Copie esta clave y entréguela al usuario. Se le obligará a cambiarla al iniciar sesión.</p>
+            <div className="bg-light p-3 rounded border font-monospace h4 fw-bold mb-0 text-dark select-all">
+                {generatedPassword}
+            </div>
+        </Modal.Body>
+        <Modal.Footer>
+            <Button variant="secondary" onClick={() => setGeneratedPassword(null)}>CERRAR</Button>
+        </Modal.Footer>
+      </Modal>
     </Layout>
   );
 }

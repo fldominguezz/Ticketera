@@ -5,6 +5,19 @@ from uuid import UUID
 from typing import Optional
 
 class CRUDAuditLog:
+    def _clean_details(self, details: Optional[dict]) -> Optional[dict]:
+        if not details:
+            return details
+        
+        # Copia profunda simple para no modificar el original
+        cleaned = {**details}
+        sensitive_keys = ["password", "token", "secret", "hashed_password", "interim_token", "access_token"]
+        
+        for key in list(cleaned.keys()):
+            if any(s in key.lower() for s in sensitive_keys):
+                cleaned[key] = "********"
+        return cleaned
+
     async def create_log(
         self,
         db: AsyncSession,
@@ -18,7 +31,7 @@ class CRUDAuditLog:
             user_id=user_id,
             event_type=event_type,
             ip_address=ip_address,
-            details=details
+            details=self._clean_details(details)
         )
         db.add(log_entry)
         await db.commit()

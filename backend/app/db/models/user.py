@@ -27,6 +27,10 @@ class User(Base):
     
     failed_login_attempts = Column(Integer, default=0, nullable=False)
     locked_until = Column(DateTime(timezone=True), nullable=True)
+    
+    force_password_change = Column(Boolean, default=False, nullable=False)
+    reset_2fa_next_login = Column(Boolean, default=False, nullable=False)
+    enroll_2fa_mandatory = Column(Boolean, default=False, nullable=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

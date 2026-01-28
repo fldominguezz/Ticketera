@@ -31,6 +31,7 @@ class Ticket(Base):
     
     status = Column(String(50), default="open") # open, in_progress, pending, resolved, closed
     priority = Column(String(50), default="medium") # low, medium, high, critical
+    platform = Column(String(100), nullable=True) # Forti-EMS, ESET CLOUD, etc.
     
     ticket_type_id = Column(UUID(as_uuid=True), ForeignKey("ticket_types.id"), nullable=False)
     group_id = Column(UUID(as_uuid=True), ForeignKey("groups.id"), nullable=False)
@@ -41,6 +42,15 @@ class Ticket(Base):
     parent_ticket_id = Column(UUID(as_uuid=True), ForeignKey("tickets.id"), nullable=True)
     sla_deadline = Column(DateTime(timezone=True), nullable=True)
     extra_data = Column(JSON, nullable=True)
+
+    # SOC / SIEM Alert Enrichment
+    raw_event = Column(Text, nullable=True)
+    parsed_event = Column(JSON, nullable=True)
+    enrichment = Column(JSON, nullable=True)
+    remediation_suggestions = Column(JSON, nullable=True) # Array of steps/markdown
+    siem_metadata = Column(JSON, nullable=True) # rule, mitre, original_sev
+    final_severity = Column(String(20), nullable=True) # LOW, MEDIUM, HIGH, CRITICAL
+    correlation_tags = Column(JSON, nullable=True) # []
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

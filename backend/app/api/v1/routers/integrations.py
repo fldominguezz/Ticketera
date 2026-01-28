@@ -86,7 +86,7 @@ async def fortisiem_incident_webhook(
         raise HTTPException(status_code=400, detail="Formato no válido. Se requiere XML.")
 
     # 3. Procesar con el servicio (Idempotencia incluida)
-    root_group_id = uuid.UUID("2eca92c4-06a1-4bd8-a653-825ecd3a0cd1")
+    root_group_id = uuid.UUID("bcddaa20-125e-403f-8025-05c0f69ead52") # Área SOC
     try:
         ticket = await siem_service.process_event(db, xml_data, root_group_id)
         
@@ -96,7 +96,7 @@ async def fortisiem_incident_webhook(
         # 4. Auditoría inmutable
         await crud_audit.audit_log.create_log(
             db,
-            user_id=uuid.UUID("852d2452-e98a-48eb-9d41-9281e03f1cf0"), # fortisiem user
+            user_id=uuid.UUID("1aec092c-51c1-4475-b652-f52093ec188c"), # fortisiem user
             event_type="siem_incident_received",
             ip_address=client_ip,
             details={"incident_id": ticket.extra_data.get("incident_id"), "ticket_id": str(ticket.id)}
@@ -126,6 +126,6 @@ async def legacy_webhook(event: dict, db: AsyncSession = Depends(deps.get_db)):
 
 async def fortisiem_webhook(event: dict, db: AsyncSession):
     # Función auxiliar para la compatibilidad anterior
-    root_group_id = uuid.UUID("2eca92c4-06a1-4bd8-a653-825ecd3a0cd1")
+    root_group_id = uuid.UUID("bcddaa20-125e-403f-8025-05c0f69ead52") # Área SOC
     ticket = await siem_service.process_event(db, event, root_group_id)
     return {"status": "success", "ticket_id": ticket.id}

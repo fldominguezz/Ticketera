@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
 import LocationSelector from '../../components/inventory/LocationSelector';
@@ -9,7 +9,10 @@ import {
   MapPin, 
   Save, 
   ChevronLeft,
-  FileText
+  FileText,
+  UserCheck,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { 
   Container, 
@@ -27,30 +30,97 @@ const AssetInstallPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<any>(null);
+  const [users, setUsers] = useState<any[]>([]);
 
-  const [formData, setFormData] = useState({
-    // Asset Data
+  const [globalData, setGlobalData] = useState({
+    responsible_user_id: '',
+    gde_number: '',
+    status: 'tagging_pending',
+  });
+
+  const [devices, setDevices] = useState([{
+    id: Math.random().toString(36).substr(2, 9),
     hostname: '',
     serial: '',
-    asset_tag: '',
     mac_address: '',
     ip_address: '',
     device_type: 'desktop',
     os_name: 'Windows 10',
     os_version: '',
-    av_product: 'ESET Endpoint Security',
-    status: 'operative',
-    criticality: 'medium',
+    av_product: 'ESET CLOUD',
     observations: '',
-    
-    // Install Record Data
-    gde_number: '',
-    install_details: {},
-  });
+  }]);
 
-  const handleChange = (e: any) => {
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch('/api/v1/users', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Filtrar usuarios: fortisiem, admin, system
+        const filtered = data.filter((u: any) => 
+          !['fortisiem', 'admin', 'system'].includes(u.username.toLowerCase())
+        );
+        setUsers(filtered);
+      }
+    } catch (err) {
+      console.error("Error fetching users:", err);
+    }
+  };
+
+  const formatMac = (value: string) => {
+    let cleaned = value.replace(/[^0-9a-fA-F]/g, '');
+    cleaned = cleaned.substring(0, 12);
+    let formatted = cleaned.match(/.{1,2}/g)?.join(':') || cleaned;
+    return formatted.toUpperCase();
+  };
+
+  const formatIp = (value: string) => {
+    return value.replace(/[^0-9.]/g, '');
+  };
+
+  const handleGlobalChange = (e: any) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setGlobalData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleDeviceChange = (id: string, e: any) => {
+    const { name, value } = e.target;
+    setDevices(prev => prev.map(dev => {
+      if (dev.id === id) {
+        if (name === 'mac_address') return { ...dev, [name]: formatMac(value) };
+        if (name === 'ip_address') return { ...dev, [name]: formatIp(value) };
+        return { ...dev, [name]: value };
+      }
+      return dev;
+    }));
+  };
+
+  const addDevice = () => {
+    setDevices(prev => [...prev, {
+      id: Math.random().toString(36).substr(2, 9),
+      hostname: '',
+      serial: '',
+      mac_address: '',
+      ip_address: '',
+      device_type: 'desktop',
+      os_name: 'Windows 10',
+      os_version: '',
+      av_product: 'ESET CLOUD',
+      observations: '',
+    }]);
+  };
+
+  const removeDevice = (id: string) => {
+    if (devices.length > 1) {
+      setDevices(prev => prev.filter(dev => dev.id !== id));
+    }
   };
 
   const handleSubmit = async (e: any) => {
@@ -65,34 +135,48 @@ const AssetInstallPage = () => {
 
     try {
       const token = localStorage.getItem('access_token');
-      const payload = {
-        asset_data: {
-          ...formData,
-          location_node_id: selectedNode.id
-        },
-        install_data: {
-          gde_number: formData.gde_number,
-          observations: formData.observations,
-          install_details: {
-            os: formData.os_name,
-            version: formData.os_version,
-            av: formData.av_product
+      
+      // Enviar una petición por cada equipo
+      for (const dev of devices) {
+        const payload = {
+          asset_data: {
+            hostname: dev.hostname,
+            serial: dev.serial,
+            mac_address: dev.mac_address,
+            ip_address: dev.ip_address,
+            device_type: dev.device_type,
+            os_name: dev.os_name,
+            os_version: dev.os_version,
+            av_product: dev.av_product,
+            status: globalData.status,
+            observations: dev.observations,
+            responsible_user_id: globalData.responsible_user_id || null,
+            location_node_id: selectedNode.id
+          },
+          install_data: {
+            gde_number: globalData.gde_number,
+            observations: dev.observations,
+            install_details: {
+              os: dev.os_name,
+              version: dev.os_version,
+              av: dev.av_product
+            }
           }
+        };
+
+        const res = await fetch('/api/v1/assets/install', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(`Error en equipo ${dev.hostname || '(sin nombre)'}: ${data.detail || 'Error desconocido'}`);
         }
-      };
-
-      const res = await fetch('/api/v1/assets/install', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || 'Error al procesar la instalación');
       }
 
       router.push('/inventory');
@@ -110,7 +194,7 @@ const AssetInstallPage = () => {
           <Button variant="link" onClick={() => router.back()} className="p-0 me-3 text-dark">
             <ChevronLeft size={24} />
           </Button>
-          <h4 className="mb-0 fw-bold">Registro de Instalación / Etiquetado</h4>
+          <h4 className="mb-0 fw-bold">Registro de Instalación Multi-Equipo</h4>
         </div>
 
         {error && <Alert variant="danger" onClose={() => setError(null)} dismissible>{error}</Alert>}
@@ -119,159 +203,167 @@ const AssetInstallPage = () => {
           <Row>
             {/* Left Column: Form Details */}
             <Col lg={8}>
-              {/* 1. Información del Equipo */}
-              <Card className="border-0 shadow-sm mb-4">
-                <Card.Header className="bg-white py-3 border-0 d-flex align-items-center">
-                  <Monitor className="me-2 text-primary" size={20} />
-                  <h6 className="mb-0 fw-bold">Identificación del Activo</h6>
+              
+              {/* Información General de la Instalación */}
+              <Card className="border-0 shadow-sm mb-4 bg-light">
+                <Card.Header className="bg-transparent py-3 border-0 d-flex align-items-center">
+                  <UserCheck className="me-2 text-primary" size={20} />
+                  <h6 className="mb-0 fw-bold">Información General de la Instalación</h6>
                 </Card.Header>
                 <Card.Body>
                   <Row className="g-3">
                     <Col md={6}>
-                      <Form.Group controlId="asset-hostname">
-                        <Form.Label className="small fw-bold">Hostname *</Form.Label>
-                        <Form.Control 
-                          name="hostname" value={formData.hostname} onChange={handleChange}
-                          placeholder="p.ej. WS-DSI-01" required 
-                        />
-                      </Form.Group>
-                    </Col>
-                    <Col md={6}>
-                      <Form.Group controlId="asset-serial">
-                        <Form.Label className="small fw-bold">Nro Serial</Form.Label>
-                        <Form.Control name="serial" value={formData.serial} onChange={handleChange} placeholder="S/N" />
-                      </Form.Group>
-                    </Col>
-                    <Col md={6}>
-                      <Form.Group controlId="asset-tag">
-                        <Form.Label className="small fw-bold">Asset Tag (Etiqueta)</Form.Label>
-                        <Form.Control name="asset_tag" value={formData.asset_tag} onChange={handleChange} placeholder="TAG-12345" />
-                      </Form.Group>
-                    </Col>
-                    <Col md={6}>
-                      <Form.Group controlId="asset-type">
-                        <Form.Label className="small fw-bold">Tipo de Dispositivo</Form.Label>
-                        <Form.Select name="device_type" value={formData.device_type} onChange={handleChange}>
-                          <option value="desktop">PC de Escritorio</option>
-                          <option value="notebook">Notebook</option>
-                          <option value="server">Servidor</option>
-                          <option value="tablet">Tablet</option>
-                        </Form.Select>
-                      </Form.Group>
-                    </Col>
-                  </Row>
-                </Card.Body>
-              </Card>
-
-              {/* 2. Red y Software */}
-              <Card className="border-0 shadow-sm mb-4">
-                <Card.Header className="bg-white py-3 border-0 d-flex align-items-center">
-                  <Network className="me-2 text-info" size={20} />
-                  <h6 className="mb-0 fw-bold">Red y Sistema</h6>
-                </Card.Header>
-                <Card.Body>
-                  <Row className="g-3">
-                    <Col md={6}>
-                      <Form.Group controlId="asset-ip">
-                        <Form.Label className="small fw-bold">Dirección IP</Form.Label>
-                        <Form.Control name="ip_address" value={formData.ip_address} onChange={handleChange} placeholder="10.x.x.x" />
-                      </Form.Group>
-                    </Col>
-                    <Col md={6}>
-                      <Form.Group controlId="asset-mac">
-                        <Form.Label className="small fw-bold">Dirección MAC</Form.Label>
-                        <Form.Control name="mac_address" value={formData.mac_address} onChange={handleChange} placeholder="00:00:00:00:00:00" />
-                      </Form.Group>
-                    </Col>
-                    <Col md={6}>
-                      <Form.Group controlId="asset-os-name">
-                        <Form.Label className="small fw-bold">Sistema Operativo</Form.Label>
-                        <Form.Control name="os_name" value={formData.os_name} onChange={handleChange} placeholder="Windows 11 / Debian 12" />
-                      </Form.Group>
-                    </Col>
-                    <Col md={6}>
-                      <Form.Group controlId="asset-os-version">
-                        <Form.Label className="small fw-bold">Versión / Build</Form.Label>
-                        <Form.Control name="os_version" value={formData.os_version} onChange={handleChange} placeholder="22H2" />
-                      </Form.Group>
-                    </Col>
-                  </Row>
-                </Card.Body>
-              </Card>
-
-              {/* 3. Seguridad y SOC */}
-              <Card className="border-0 shadow-sm mb-4">
-                <Card.Header className="bg-white py-3 border-0 d-flex align-items-center">
-                  <ShieldCheck className="me-2 text-success" size={20} />
-                  <h6 className="mb-0 fw-bold">Protección y Seguridad</h6>
-                </Card.Header>
-                <Card.Body>
-                  <Row className="g-3">
-                    <Col md={12}>
-                      <Form.Group controlId="asset-av">
-                        <Form.Label className="small fw-bold">Solución Antivirus / EDR</Form.Label>
-                        <Form.Select name="av_product" value={formData.av_product} onChange={handleChange}>
-                          <option value="ESET Endpoint Security">ESET Endpoint Security</option>
-                          <option value="ESET Cloud">ESET Inspect (Cloud)</option>
-                          <option value="FortiEDR">FortiEDR</option>
-                          <option value="FortiClient EMS">FortiClient EMS</option>
-                          <option value="AV Free">Antivirus Gratuito / Windows Defender</option>
-                          <option value="None">Ninguno (Aclarar en obs)</option>
+                      <Form.Group controlId="global-technician">
+                        <Form.Label className="small fw-bold">Técnico a cargo *</Form.Label>
+                        <Form.Select 
+                          name="responsible_user_id" 
+                          value={globalData.responsible_user_id} 
+                          onChange={handleGlobalChange}
+                          required
+                        >
+                          <option value="">Seleccione un usuario...</option>
+                          {users.map(u => (
+                            <option key={u.id} value={u.id}>
+                              {u.first_name} {u.last_name} ({u.username})
+                            </option>
+                          ))}
                         </Form.Select>
                       </Form.Group>
                     </Col>
                     <Col md={6}>
-                      <Form.Group controlId="asset-criticality">
-                        <Form.Label className="small fw-bold">Criticidad del Activo</Form.Label>
-                        <Form.Select name="criticality" value={formData.criticality} onChange={handleChange}>
-                          <option value="low">Baja (Puesto común)</option>
-                          <option value="medium">Media (Oficinas/Adm)</option>
-                          <option value="high">Alta (Jefaturas/Dirección)</option>
-                          <option value="critical">Crítica (Servidores/Infra)</option>
-                        </Form.Select>
-                      </Form.Group>
-                    </Col>
-                    <Col md={6}>
-                      <Form.Group controlId="asset-status">
-                        <Form.Label className="small fw-bold">Estado Actual</Form.Label>
-                        <Form.Select name="status" value={formData.status} onChange={handleChange}>
+                      <Form.Group controlId="global-status">
+                        <Form.Label className="small fw-bold">Estado Inicial</Form.Label>
+                        <Form.Select name="status" value={globalData.status} onChange={handleGlobalChange}>
+                          <option value="tagging_pending">Pendiente a Etiquetar</option>
                           <option value="operative">Operativo</option>
-                          <option value="tagging_pending">A Etiquetar</option>
                           <option value="maintenance">Mantenimiento</option>
                         </Form.Select>
                       </Form.Group>
                     </Col>
-                  </Row>
-                </Card.Body>
-              </Card>
-
-              {/* 5. GDE / Administrativo */}
-              <Card className="border-0 shadow-sm mb-4">
-                <Card.Header className="bg-white py-3 border-0 d-flex align-items-center">
-                  <FileText className="me-2 text-warning" size={20} />
-                  <h6 className="mb-0 fw-bold">Documentación y GDE</h6>
-                </Card.Header>
-                <Card.Body>
-                  <Row className="g-3">
                     <Col md={12}>
-                      <Form.Group controlId="asset-gde">
-                        <Form.Label className="small fw-bold">Número de GDE / Expediente (Opcional)</Form.Label>
-                        <Form.Control name="gde_number" value={formData.gde_number} onChange={handleChange} placeholder="EX-202X-00000000- -APN-..." />
-                      </Form.Group>
-                    </Col>
-                    <Col md={12}>
-                      <Form.Group controlId="asset-observations">
-                        <Form.Label className="small fw-bold">Observaciones Obligatorias</Form.Label>
+                      <Form.Group controlId="global-gde">
+                        <Form.Label className="small fw-bold">Número de GDE / Expediente</Form.Label>
                         <Form.Control 
-                          as="textarea" rows={3} name="observations" value={formData.observations} onChange={handleChange}
-                          placeholder="Detallar particularidades, por qué se eligió X antivirus, etc." 
-                          required
+                          name="gde_number" value={globalData.gde_number} onChange={handleGlobalChange} 
+                          placeholder="EX-202X-..." 
                         />
                       </Form.Group>
                     </Col>
                   </Row>
                 </Card.Body>
               </Card>
+
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h5 className="fw-bold mb-0">Equipos a Instalar ({devices.length})</h5>
+                <Button variant="outline-primary" size="sm" onClick={addDevice} className="fw-bold">
+                  <Plus size={16} className="me-1" /> AGREGAR OTRO EQUIPO
+                </Button>
+              </div>
+
+              {devices.map((device, index) => (
+                <Card key={device.id} className="border-0 shadow-sm mb-4 border-start border-4 border-primary">
+                  <Card.Body>
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                      <div className="d-flex align-items-center">
+                        <Badge bg="primary" className="me-2">#{index + 1}</Badge>
+                        <h6 className="mb-0 fw-bold text-uppercase text-primary small">Detalles del Activo</h6>
+                      </div>
+                      {devices.length > 1 && (
+                        <Button variant="link" className="text-danger p-0" onClick={() => removeDevice(device.id)}>
+                          <Trash2 size={18} />
+                        </Button>
+                      )}
+                    </div>
+
+                    <Row className="g-3">
+                      <Col md={4}>
+                        <Form.Group>
+                          <Form.Label className="x-small fw-bold">Hostname *</Form.Label>
+                          <Form.Control 
+                            size="sm" name="hostname" value={device.hostname} 
+                            onChange={(e) => handleDeviceChange(device.id, e)} required 
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Group>
+                          <Form.Label className="x-small fw-bold">IP Address *</Form.Label>
+                          <Form.Control 
+                            size="sm" name="ip_address" value={device.ip_address} 
+                            onChange={(e) => handleDeviceChange(device.id, e)} required
+                            placeholder="0.0.0.0"
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Group>
+                          <Form.Label className="x-small fw-bold">MAC Address</Form.Label>
+                          <Form.Control 
+                            size="sm" name="mac_address" value={device.mac_address} 
+                            onChange={(e) => handleDeviceChange(device.id, e)}
+                            placeholder="00:00:00..." maxLength={17}
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Group>
+                          <Form.Label className="x-small fw-bold">Tipo</Form.Label>
+                          <Form.Select 
+                            size="sm" name="device_type" value={device.device_type} 
+                            onChange={(e) => handleDeviceChange(device.id, e)}
+                          >
+                            <option value="desktop">PC Escritorio</option>
+                            <option value="notebook">Notebook</option>
+                            <option value="server">Servidor</option>
+                            <option value="mobile">Celular</option>
+                          </Form.Select>
+                        </Form.Group>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Group>
+                          <Form.Label className="x-small fw-bold">S.O. *</Form.Label>
+                          <Form.Control 
+                            size="sm" name="os_name" value={device.os_name} 
+                            onChange={(e) => handleDeviceChange(device.id, e)} required
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Group>
+                          <Form.Label className="x-small fw-bold">Antivirus</Form.Label>
+                          <Form.Select 
+                            size="sm" name="av_product" value={device.av_product} 
+                            onChange={(e) => handleDeviceChange(device.id, e)}
+                          >
+                            <option value="ESET CLOUD">ESET Cloud</option>
+                            <option value="FortiClient EMS">FortiClient EMS</option>
+                            <option value="Windows Defender">Windows Defender</option>
+                            <option value="FortiEDR">FortiEDR</option>
+                            <option value="Sin Protección">Sin Protección</option>
+                          </Form.Select>
+                        </Form.Group>
+                      </Col>
+                      <Col md={12}>
+                        <Form.Group>
+                          <Form.Label className="x-small fw-bold">Observaciones de la Instalación *</Form.Label>
+                          <Form.Control 
+                            size="sm" as="textarea" rows={1} name="observations" value={device.observations} 
+                            onChange={(e) => handleDeviceChange(device.id, e)} required
+                            placeholder="Particularidades de este equipo..."
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
+                  </Card.Body>
+                </Card>
+              ))}
+
+              <div className="d-grid mb-5">
+                <Button variant="outline-primary" onClick={addDevice} className="py-3 border-dashed">
+                  <Plus size={20} className="me-2" /> AGREGAR OTRO EQUIPO A ESTA UBICACIÓN
+                </Button>
+              </div>
+
             </Col>
 
             {/* Right Column: Location Selector */}
@@ -279,17 +371,17 @@ const AssetInstallPage = () => {
               <Card className="border-0 shadow-sm sticky-top" style={{ top: '100px' }}>
                 <Card.Header className="bg-white py-3 border-0 d-flex align-items-center">
                   <MapPin className="me-2 text-danger" size={20} />
-                  <h6 className="mb-0 fw-bold">Ubicación en el Árbol *</h6>
+                  <h6 className="mb-0 fw-bold">Ubicación *</h6>
                 </Card.Header>
                 <Card.Body>
                   <div className="mb-3">
                     {selectedNode ? (
                       <div className="p-2 border rounded bg-light mb-3">
-                        <small className="text-muted d-block">Ubicación seleccionada:</small>
+                        <small className="text-muted d-block">Ubicación destino:</small>
                         <span className="fw-bold text-primary">{selectedNode.path}</span>
                       </div>
                     ) : (
-                      <Alert variant="warning" className="small py-2">Seleccione una carpeta del árbol para ubicar el equipo.</Alert>
+                      <Alert variant="warning" className="small py-2">Seleccione una carpeta para todos los equipos.</Alert>
                     )}
                   </div>
                   <LocationSelector 
@@ -301,9 +393,9 @@ const AssetInstallPage = () => {
                   
                   <div className="d-grid">
                     <Button variant="primary" size="lg" type="submit" disabled={loading}>
-                      {loading ? 'Guardando...' : <><Save size={18} className="me-2"/> Guardar Ficha</>}
+                      {loading ? 'Guardando instalaciones...' : <><Save size={18} className="me-2"/> Finalizar y Guardar Todo</>}
                     </Button>
-                    <small className="text-center text-muted mt-2">Se creará/actualizará el activo y quedará auditado.</small>
+                    <small className="text-center text-muted mt-2">Se crearán {devices.length} activos.</small>
                   </div>
                 </Card.Body>
               </Card>
@@ -311,6 +403,16 @@ const AssetInstallPage = () => {
           </Row>
         </Form>
       </Container>
+
+      <style jsx>{`
+        .border-dashed {
+          border-style: dashed !important;
+          border-width: 2px !important;
+        }
+        .x-small {
+          font-size: 0.75rem;
+        }
+      `}</style>
     </Layout>
   );
 };

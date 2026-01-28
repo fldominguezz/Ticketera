@@ -16,15 +16,22 @@ class CRUDAsset:
         result = await db.execute(select(Asset).filter(Asset.id == id, Asset.deleted_at == None))
         return result.scalar_one_or_none()
 
-    async def get_multi(self, db: AsyncSession, skip: int = 0, limit: int = 100, location_node_id: Optional[UUID] = None) -> List[Asset]:
-        query = select(Asset).filter(Asset.deleted_at == None)
+    async def get_multi(self, db: AsyncSession, skip: int = 0, limit: int = 100, location_node_id: Optional[UUID] = None, show_decommissioned: bool = False) -> List[Asset]:
+        query = select(Asset)
+        if not show_decommissioned:
+            query = query.filter(Asset.deleted_at == None, Asset.status != "decommissioned")
+        
         if location_node_id:
             query = query.filter(Asset.location_node_id == location_node_id)
+        
         query = query.offset(skip).limit(limit)
         result = await db.execute(query)
         return result.scalars().all()
 
     async def remove(self, db: AsyncSession, id: UUID) -> Optional[Asset]:
+        """
+        Baja lógica: Marca como decommissioned y establece deleted_at.
+        """
         result = await db.execute(select(Asset).filter(Asset.id == id))
         db_obj = result.scalar_one_or_none()
         if db_obj:
@@ -32,16 +39,39 @@ class CRUDAsset:
             db_obj.status = "decommissioned"
             db.add(db_obj)
             await db.commit()
-            await db.refresh(db_obj)
+            await db.refresh(db_obj, attribute_names=[
+                "id", "hostname", "serial", "asset_tag", "mac_address", "ip_address",
+                "location_node_id", "division", "owner_group_id", "responsible_user_id",
+                "status", "criticality", "av_product", "source_system", "external_id",
+                "device_type", "os_name", "os_version", "observations", "last_seen",
+                "created_at", "updated_at", "deleted_at"
+            ])
         return db_obj
+
+    async def hard_delete(self, db: AsyncSession, id: UUID) -> bool:
+        """
+        Borrado físico: Elimina el registro de la base de datos.
+        """
+        result = await db.execute(select(Asset).filter(Asset.id == id))
+        db_obj = result.scalar_one_or_none()
+        if db_obj:
+            await db.delete(db_obj)
+            await db.commit()
+            return True
+        return False
 
     async def create(self, db: AsyncSession, obj_in: AssetCreate) -> Asset:
         db_obj = Asset(**obj_in.model_dump())
         db.add(db_obj)
         await db.commit()
-        await db.refresh(db_obj)
+        await db.refresh(db_obj, attribute_names=[
+            "id", "hostname", "serial", "asset_tag", "mac_address", "ip_address",
+            "location_node_id", "division", "owner_group_id", "responsible_user_id",
+            "status", "criticality", "av_product", "source_system", "external_id",
+            "device_type", "os_name", "os_version", "observations", "last_seen",
+            "created_at", "updated_at"
+        ])
         
-        # Initial History Records
         if db_obj.location_node_id:
             loc_history = AssetLocationHistory(
                 asset_id=db_obj.id,
@@ -71,7 +101,6 @@ class CRUDAsset:
             
         db.add(db_obj)
         
-        # Track Location Change
         if obj_in.location_node_id and obj_in.location_node_id != old_location_id:
             loc_history = AssetLocationHistory(
                 asset_id=db_obj.id,
@@ -82,7 +111,6 @@ class CRUDAsset:
             )
             db.add(loc_history)
             
-        # Track IP Change
         if obj_in.ip_address and obj_in.ip_address != old_ip:
              ip_history = AssetIPHistory(
                 asset_id=db_obj.id,
@@ -92,11 +120,16 @@ class CRUDAsset:
              db.add(ip_history)
 
         await db.commit()
-        await db.refresh(db_obj)
+        await db.refresh(db_obj, attribute_names=[
+            "id", "hostname", "serial", "asset_tag", "mac_address", "ip_address",
+            "location_node_id", "division", "owner_group_id", "responsible_user_id",
+            "status", "criticality", "av_product", "source_system", "external_id",
+            "device_type", "os_name", "os_version", "observations", "last_seen",
+            "created_at", "updated_at"
+        ])
         return db_obj
 
     async def find_existing_asset(self, db: AsyncSession, serial: str = None, mac: str = None, hostname: str = None, ip: str = None) -> Optional[Asset]:
-        # Deduplication Logic: Serial -> MAC -> Hostname -> IP
         if serial:
             res = await db.execute(select(Asset).filter(Asset.serial == serial))
             asset = res.scalar_one_or_none()
@@ -120,7 +153,6 @@ class CRUDAsset:
         return None
 
     async def process_installation(self, db: AsyncSession, asset_data: AssetCreate, install_data: AssetInstallRecordCreate, user_id: UUID) -> Asset:
-        # 1. Find or Create Asset
         existing_asset = await self.find_existing_asset(
             db, 
             serial=asset_data.serial, 
@@ -130,30 +162,28 @@ class CRUDAsset:
         )
         
         if existing_asset:
-            # Update existing
-            # Prepare update data from create data
             update_dict = asset_data.model_dump(exclude_unset=True)
-            # Remove fields strictly for creation if any, or just apply
-            # Note: We want to update location!
             asset_update = AssetUpdate(**update_dict)
             asset = await self.update(db, existing_asset, asset_update, user_id=user_id)
             asset.last_seen = datetime.now()
             db.add(asset)
         else:
-            # Create new
             asset = await self.create(db, asset_data)
             asset.last_seen = datetime.now()
             db.add(asset)
         
-        # 2. Create Install Record
+        install_record_data = install_data.model_dump()
+        
         install_record = AssetInstallRecord(
-            **install_data.model_dump(),
             asset_id=asset.id,
-            created_by_id=user_id
+            created_by_id=user_id,
+            gde_number=install_record_data.get("gde_number"),
+            install_details=install_record_data.get("install_details"),
+            observations=install_record_data.get("observations"),
+            snapshot_url=install_record_data.get("snapshot_url")
         )
         db.add(install_record)
 
-        # 3. Notify if status is tagging_pending
         if asset.status == "tagging_pending":
             from app.services.notification_service import notification_service
             await notification_service.notify_all_active(
@@ -164,7 +194,13 @@ class CRUDAsset:
             )
         
         await db.commit()
-        await db.refresh(asset)
+        await db.refresh(asset, attribute_names=[
+            "id", "hostname", "serial", "asset_tag", "mac_address", "ip_address",
+            "location_node_id", "division", "owner_group_id", "responsible_user_id",
+            "status", "criticality", "av_product", "source_system", "external_id",
+            "device_type", "os_name", "os_version", "observations", "last_seen",
+            "created_at", "updated_at"
+        ])
         return asset
 
 asset = CRUDAsset()

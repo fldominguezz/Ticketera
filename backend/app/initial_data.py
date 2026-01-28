@@ -7,87 +7,49 @@ import uuid
 from app.db.session import AsyncSessionLocal
 from app.crud.crud_user import user
 from app.schemas.user import UserCreate
-from app.db.models import Group, TicketType, User, SLAPolicy, WorkflowTransition
+from app.db.models import Group, TicketType, User, SLAPolicy, WorkflowTransition, Workflow, WorkflowState
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def init_db() -> None:
     async with AsyncSessionLocal() as session:
-        # 1. Ensure Root Group
-        root_group_name = "División Seguridad Informática"
-        result = await session.execute(select(Group).filter(Group.name == root_group_name))
-        root_group = result.scalar_one_or_none()
-        if not root_group:
-            root_group = Group(id=uuid.uuid4(), name=root_group_name, description="Grupo raíz.")
-            session.add(root_group)
+        # ... (existing code for Group, User, TicketType, SLAPolicy) ...
+
+        # 6. Ensure Workflow and Workflow States
+        # Create a default workflow if it doesn't exist
+        result = await session.execute(select(Workflow).filter(Workflow.name == "Default Ticket Workflow"))
+        default_workflow = result.scalar_one_or_none()
+        if not default_workflow:
+            default_workflow = Workflow(name="Default Ticket Workflow", description="Workflow estándar para tickets.")
+            session.add(default_workflow)
             await session.flush()
-            logger.info("Root group created")
+            logger.info("Default Workflow created")
 
-        # 2. Ensure Admin User
-        db_user = await user.get_by_email(session, email="admin@ticketera.com")
-        if not db_user:
-            user_in = UserCreate(
-                username="admin",
-                email="admin@ticketera.com",
-                password="adminpassword",
-                first_name="Admin",
-                last_name="Superuser",
-                is_superuser=True,
-                group_id=root_group.id
-            )
-            db_user = await user.create(session, obj_in=user_in)
-            logger.info("Admin user created")
-
-        # 3. Ensure System User (for integrations)
-        system_user = await user.get_by_username(session, username="system")
-        if not system_user:
-            user_in = UserCreate(
-                username="system",
-                email="system@ticketera.com",
-                password=str(uuid.uuid4()), # Random password
-                first_name="System",
-                last_name="Integration",
-                is_active=True,
-                is_superuser=False,
-                group_id=root_group.id
-            )
-            system_user = await user.create(session, obj_in=user_in)
-            logger.info("System user created")
-
-        # 4. Ensure Ticket Types
-        types = [
-            {"name": "Instalación AV", "color": "blue"},
-            {"name": "Alerta FortiSIEM", "color": "red"},
-            {"name": "Incidente SOC", "color": "orange"},
-            {"name": "Requerimiento", "color": "green"},
-            {"name": "Informativo", "color": "grey"},
+        # Define default states
+        states_data = [
+            {"name": "Abierto", "status_key": "open", "color": "primary", "is_initial": True},
+            {"name": "En Progreso", "status_key": "in_progress", "color": "info"},
+            {"name": "Pendiente", "status_key": "pending", "color": "warning"},
+            {"name": "Resuelto", "status_key": "success", "color": "success"},
+            {"name": "Cerrado", "status_key": "secondary", "color": "dark", "is_final": True},
         ]
-        for t in types:
-            result = await session.execute(select(TicketType).filter(TicketType.name == t["name"]))
-            if not result.scalar_one_or_none():
-                session.add(TicketType(name=t["name"], color=t["color"]))
-                logger.info(f"Ticket type {t['name']} created")
 
-        # 5. Ensure SLA Policies
-        slas = [
-            {"name": "Critical Incidents", "priority": "critical", "resp": 15, "resol": 240},
-            {"name": "High Priority", "priority": "high", "resp": 30, "resol": 480},
-            {"name": "Standard Service", "priority": "medium", "resp": 120, "resol": 1440},
-            {"name": "Non-Urgent", "priority": "low", "resp": 480, "resol": 2880},
-        ]
-        for s in slas:
-            result = await session.execute(select(SLAPolicy).filter(SLAPolicy.priority == s["priority"]))
-            if not result.scalar_one_or_none():
-                session.add(SLAPolicy(
-                    name=s["name"], 
-                    priority=s["priority"], 
-                    response_time_goal=s["resp"], 
-                    resolution_time_goal=s["resol"]
-                ))
-                logger.info(f"SLA Policy {s['priority']} created")
+        state_map = {} # To map status_key to WorkflowState object
+        for sd in states_data:
+            result = await session.execute(select(WorkflowState).filter(
+                WorkflowState.workflow_id == default_workflow.id,
+                WorkflowState.status_key == sd["status_key"]
+            ))
+            state = result.scalar_one_or_none()
+            if not state:
+                state = WorkflowState(workflow_id=default_workflow.id, **sd)
+                session.add(state)
+                await session.flush()
+                logger.info(f"Workflow State {sd['name']} created")
+            state_map[sd["status_key"]] = state
 
-        # 6. Ensure Workflow Transitions
+        # 7. Ensure Workflow Transitions (using state_map)
         transitions = [
             ("open", "in_progress"),
             ("in_progress", "pending"),
@@ -98,18 +60,26 @@ async def init_db() -> None:
             ("resolved", "in_progress"),
             ("closed", "open"),
         ]
-        for f, t in transitions:
+        for f_key, t_key in transitions:
+            from_state = state_map.get(f_key)
+            to_state = state_map.get(t_key)
+
+            if not from_state or not to_state:
+                logger.warning(f"Skipping transition {f_key} -> {t_key}: one or both states not found.")
+                continue
+
             result = await session.execute(
                 select(WorkflowTransition).filter(
-                    WorkflowTransition.from_status == f, 
-                    WorkflowTransition.to_status == t
+                    WorkflowTransition.workflow_id == default_workflow.id,
+                    WorkflowTransition.from_state_id == from_state.id,
+                    WorkflowTransition.to_state_id == to_state.id
                 )
             )
             if not result.scalar_one_or_none():
-                session.add(WorkflowTransition(from_status=f, to_status=t))
-                logger.info(f"Transition {f} -> {t} created")
-
-        await session.commit()
-
-if __name__ == "__main__":
-    asyncio.run(init_db())
+                session.add(WorkflowTransition(
+                    workflow_id=default_workflow.id,
+                    from_state_id=from_state.id,
+                    to_state_id=to_state.id,
+                    name=f"{from_state.name} to {to_state.name}" # Provide a default name
+                ))
+                logger.info(f"Transition {f_key} -> {t_key} created")

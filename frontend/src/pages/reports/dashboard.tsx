@@ -1,10 +1,19 @@
 import { useEffect, useState, useMemo } from 'react';
 import Layout from '../../components/Layout';
 import { Container, Row, Col, Card, Spinner, Button, Table, Badge } from 'react-bootstrap';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line
-} from 'recharts';
+import dynamic from 'next/dynamic';
+
+const ResponsiveContainer = dynamic(() => import('recharts').then((recharts) => recharts.ResponsiveContainer), { ssr: false });
+const BarChart = dynamic(() => import('recharts').then((recharts) => recharts.BarChart), { ssr: false });
+const Bar = dynamic(() => import('recharts').then((recharts) => recharts.Bar), { ssr: false });
+const XAxis = dynamic(() => import('recharts').then((recharts) => recharts.XAxis), { ssr: false });
+const YAxis = dynamic(() => import('recharts').then((recharts) => recharts.YAxis), { ssr: false });
+const CartesianGrid = dynamic(() => import('recharts').then((recharts) => recharts.CartesianGrid), { ssr: false });
+const Tooltip = dynamic(() => import('recharts').then((recharts) => recharts.Tooltip), { ssr: false });
+const Legend = dynamic(() => import('recharts').then((recharts) => recharts.Legend), { ssr: false });
+const PieChart = dynamic(() => import('recharts').then((recharts) => recharts.PieChart), { ssr: false });
+const Pie = dynamic(() => import('recharts').then((recharts) => recharts.Pie), { ssr: false });
+const Cell = dynamic(() => import('recharts').then((recharts) => recharts.Cell), { ssr: false });
 import { FileText, Download, Filter, ArrowLeft, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/router';
 
@@ -15,8 +24,10 @@ export default function ReportsDashboard() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [mounted, setMounted] = useState(false); // Add mounted state
 
   useEffect(() => {
+    setMounted(true); // Set mounted to true after component mounts
     fetchStats();
   }, []);
 
@@ -64,7 +75,7 @@ export default function ReportsDashboard() {
 
   const priorityData = useMemo(() => {
     if (!stats?.priority || typeof stats.priority !== 'object') return [];
-    return Object.entries(stats.priority).map(([name, value]) => ({ 
+    return Object.entries(stats.priority).map(([name, value]) => ({
       name: name.toUpperCase(), 
       value 
     }));
@@ -145,26 +156,29 @@ export default function ReportsDashboard() {
                 <h6 className="mb-0 fw-bold">Distribución por Estado</h6>
               </Card.Header>
               <Card.Body style={{ minHeight: '350px', width: '100%' }}>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={statusData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                      label
-                    >
-                      {Array.isArray(statusData) && statusData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
+                 {mounted && ( // Conditionally render ResponsiveContainer
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={statusData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                        label
+                      >
+                        {Array.isArray(statusData) && statusData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+
               </Card.Body>
             </Card>
           </Col>
@@ -174,15 +188,17 @@ export default function ReportsDashboard() {
                 <h6 className="mb-0 fw-bold">Carga por Prioridad</h6>
               </Card.Header>
               <Card.Body style={{ minHeight: '350px', width: '100%' }}>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={priorityData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip cursor={{fill: '#f8f9fa'}} />
-                    <Bar dataKey="value" fill="#0d6efd" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                {mounted && ( // Conditionally render ResponsiveContainer
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={priorityData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip cursor={{fill: '#f8f9fa'}} />
+                      <Bar dataKey="value" fill="#0d6efd" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </Card.Body>
             </Card>
           </Col>
@@ -232,3 +248,4 @@ export default function ReportsDashboard() {
     </Layout>
   );
 }
+

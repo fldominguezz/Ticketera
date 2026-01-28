@@ -9,6 +9,7 @@ from app.schemas.user import User as UserSchema, UserCreate, UserUpdate
 from app.crud.crud_user import user as crud_user
 from app.api.deps import get_db, get_current_superuser
 from app.db.models import User
+from app.db.models.iam import UserRole, Role, RolePermission
 from app.crud import crud_audit
 from fastapi import Request
 
@@ -27,20 +28,19 @@ async def list_users(
     List all users. (Superuser only)
     """
     query = (
-        select(User, Group.name.label("group_name"))
-        .outerjoin(Group, User.group_id == Group.id)
+        select(User)
+        .options(
+            selectinload(User.roles)
+            .selectinload(UserRole.role)
+            .selectinload(Role.permissions)
+            .selectinload(RolePermission.permission),
+            selectinload(User.group)
+        )
         .offset(skip)
         .limit(limit)
     )
     result = await db.execute(query)
-    
-    users_data = []
-    for user_obj, group_name in result.all():
-        u_dict = UserSchema.model_validate(user_obj).model_dump()
-        u_dict["group_name"] = group_name
-        users_data.append(UserSchema(**u_dict))
-        
-    return users_data
+    return result.scalars().all()
 
 @router.post("", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
 async def create_user_admin(
@@ -62,9 +62,17 @@ async def create_user_admin(
 
     new_user = await crud_user.create(db, obj_in=user_in)
     
-    # Load group for response
+    # Load roles and group for response
     result = await db.execute(
-        select(User).where(User.id == new_user.id).options(selectinload(User.group))
+        select(User)
+        .where(User.id == new_user.id)
+        .options(
+            selectinload(User.roles)
+            .selectinload(UserRole.role)
+            .selectinload(Role.permissions)
+            .selectinload(RolePermission.permission),
+            selectinload(User.group)
+        )
     )
     new_user = result.scalar_one()
 
@@ -94,9 +102,17 @@ async def update_user_admin(
     
     updated_user = await crud_user.update(db, db_obj=db_user, obj_in=user_in)
     
-    # Load group for response
+    # Load roles and group for response
     result = await db.execute(
-        select(User).where(User.id == updated_user.id).options(selectinload(User.group))
+        select(User)
+        .where(User.id == updated_user.id)
+        .options(
+            selectinload(User.roles)
+            .selectinload(UserRole.role)
+            .selectinload(Role.permissions)
+            .selectinload(RolePermission.permission),
+            selectinload(User.group)
+        )
     )
     updated_user = result.scalar_one()
 
@@ -135,3 +151,82 @@ async def delete_user_admin(
         details={"deactivated_user_id": str(user_id)}
     )
     return {"status": "success", "detail": "User deactivated"}
+
+@router.post("/{user_id}/reset-password")
+async def reset_password_admin(
+    request: Request,
+    user_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_superuser)],
+):
+    db_user = await crud_user.get(db, user_id=user_id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    new_password = crud_user.generate_random_password()
+    from app.core.security import get_password_hash
+    db_user.hashed_password = get_password_hash(new_password)
+    db_user.force_password_change = True
+    db.add(db_user)
+    await db.commit()
+    
+    await crud_audit.audit_log.create_log(
+        db,
+        user_id=current_user.id,
+        event_type="admin_password_reset",
+        ip_address=request.client.host,
+        details={"reset_user_id": str(user_id)}
+    )
+    return {"status": "success", "new_password": new_password}
+
+@router.post("/{user_id}/reset-2fa")
+async def reset_2fa_admin(
+    request: Request,
+    user_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_superuser)],
+):
+    db_user = await crud_user.get(db, user_id=user_id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    db_user.reset_2fa_next_login = True
+    db.add(db_user)
+    await db.commit()
+    
+    return {"status": "success", "detail": "User will be forced to reset 2FA on next login"}
+
+@router.post("/{user_id}/disable-2fa")
+async def disable_2fa_admin(
+    request: Request,
+    user_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_superuser)],
+):
+    db_user = await crud_user.get(db, user_id=user_id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    db_user.is_2fa_enabled = False
+    db_user.totp_secret = None
+    db.add(db_user)
+    await db.commit()
+    
+    return {"status": "success", "detail": "2FA disabled for user"}
+
+@router.post("/{user_id}/force-password-change")
+async def force_password_change_admin(
+    request: Request,
+    user_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_superuser)],
+):
+    db_user = await crud_user.get(db, user_id=user_id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    db_user.force_password_change = True
+    db.add(db_user)
+    await db.commit()
+    
+    return {"status": "success", "detail": "User will be forced to change password on next login"}

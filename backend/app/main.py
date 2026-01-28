@@ -13,7 +13,7 @@ from app.api.v1.routers import (
     auth, users, sessions, endpoints, integrations, 
     groups, tickets, audit, ticket_types, admin_users,
     sla, reports, notifications, attachments, ticket_ops,
-    views, plugins, assets, locations, soc_ws, forms
+    views, plugins, assets, locations, soc_ws, forms, dashboard, iam
 )
 from app.services.background_tasks import check_sla_breaches, poll_incoming_emails
 
@@ -64,4 +64,6 @@ app.include_router(plugins.router, prefix=f"{settings.API_V1_STR}/plugins", tags
 app.include_router(assets.router, prefix=f"{settings.API_V1_STR}/assets", tags=["assets"])
 app.include_router(locations.router, prefix=f"{settings.API_V1_STR}/locations", tags=["locations"])
 app.include_router(forms.router, prefix=f"{settings.API_V1_STR}/forms", tags=["forms"])
+app.include_router(dashboard.router, prefix=f"{settings.API_V1_STR}/dashboard", tags=["dashboard"])
+app.include_router(iam.router, prefix=f"{settings.API_V1_STR}/iam", tags=["iam"])
 app.include_router(soc_ws.router, tags=["websocket"])

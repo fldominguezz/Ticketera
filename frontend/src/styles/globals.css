@@ -1,59 +1,112 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;900&family=JetBrains+Mono:wght@400;700&display=swap');
+/* TICKETRA SOC - GLOBAL THEME SYSTEM */
 
 :root {
-  --bg-dark: #05070a;
-  --bg-card: #0c1016;
+  --transition-speed: 0.25s;
+}
+
+/* VARIABLES POR TEMA */
+[data-bs-theme='dark'] {
+  --body-bg: #05070a;
+  --card-bg: #0c1016;
   --sidebar-bg: #0a0d12;
+  --topbar-bg: #0c1016;
+  --text-main: #ffffff;
+  --text-muted: #8a8f98;
   --border-color: rgba(255, 255, 255, 0.08);
+  --table-hover: rgba(255, 255, 255, 0.02);
+  --input-bg: #0a0d12;
 }
 
-body {
-  background-color: var(--bg-dark) !important;
-  color: #ffffff !important;
-  font-family: 'Inter', sans-serif !important;
+[data-bs-theme='light'] {
+  --body-bg: #f0f2f5;
+  --card-bg: #ffffff;
+  --sidebar-bg: #ffffff;
+  --topbar-bg: #ffffff;
+  --text-main: #1a1f26;
+  --text-muted: #64748b;
+  --border-color: rgba(0, 0, 0, 0.08);
+  --table-hover: rgba(0, 0, 0, 0.02);
+  --input-bg: #ffffff;
 }
 
-/* Custom scrollbar for technical look */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* REGLAS GLOBALES OBLIGATORIAS */
+html, body {
+  background-color: var(--body-bg) !important;
+  color: var(--text-main) !important;
+  transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
+  min-height: 100vh;
 }
 
-::-webkit-scrollbar-track {
-  background: var(--bg-dark);
+/* FORZAR CARDS Y SUS CABECERAS */
+.card {
+  background-color: var(--card-bg) !important;
+  color: var(--text-main) !important;
+  border: 1px solid var(--border-color) !important;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #1a1f26;
-  border-radius: 10px;
+.card-header {
+  background-color: transparent !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  color: var(--text-main) !important;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #2a2f36;
-}
-
-.bg-card {
-  background-color: var(--bg-card) !important;
-}
-
-.border-technical {
+/* FORZAR MODALES */
+.modal-content, .modal-header, .modal-footer {
+  background-color: var(--card-bg) !important;
+  color: var(--text-main) !important;
   border-color: var(--border-color) !important;
 }
 
-.tech-font {
-  font-family: 'JetBrains Mono', monospace !important;
-}
-
-.fw-black {
-  font-weight: 900 !important;
-}
-
-/* Fix for Bootstrap table in dark mode */
+/* FORZAR TABLAS */
 .table {
-  color: #ffffff !important;
+  --bs-table-color: var(--text-main) !important;
+  --bs-table-bg: transparent !important;
+  --bs-table-border-color: var(--border-color) !important;
+  color: var(--text-main) !important;
 }
 
-.table-hover tbody tr:hover {
-  background-color: rgba(255, 255, 255, 0.02) !important;
-  color: #ffffff !important;
+.table thead, .table thead tr, .table thead th {
+  background-color: rgba(128, 128, 128, 0.05) !important;
+  color: var(--text-muted) !important;
+  border-color: var(--border-color) !important;
 }
+
+/* FORZAR FORMULARIOS */
+.form-control, .form-select {
+  background-color: var(--input-bg) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-color) !important;
+}
+
+.form-control:focus, .form-select:focus {
+  background-color: var(--input-bg) !important;
+  color: var(--text-main) !important;
+  border-color: #0d6efd !important;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15) !important;
+}
+
+/* FORZAR DROPDOWNS */
+.dropdown-menu {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+}
+
+.dropdown-item {
+  color: var(--text-main) !important;
+}
+
+.dropdown-item:hover {
+  background-color: rgba(13, 110, 253, 0.1) !important;
+}
+
+/* ELIMINAR CLASES FIJAS DE BOOTSTRAP */
+.bg-white, .bg-light { background-color: var(--card-bg) !important; }
+.text-dark { color: var(--text-main) !important; }
+.text-muted { color: var(--text-muted) !important; }
+
+/* SCROLLBAR THEME */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--body-bg); }
+::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(128,128,128,0.5); }

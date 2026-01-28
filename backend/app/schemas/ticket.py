@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 from uuid import UUID
 from typing import Optional, Any, List, Dict
 from datetime import datetime
@@ -8,6 +8,7 @@ class TicketBase(BaseModel):
     description: Optional[str] = None
     status: Optional[str] = "open"
     priority: Optional[str] = "medium"
+    platform: Optional[str] = None
     ticket_type_id: UUID
     group_id: UUID
     asset_id: Optional[UUID] = None
@@ -23,7 +24,9 @@ class TicketUpdate(BaseModel):
     description: Optional[str] = None
     status: Optional[str] = None
     priority: Optional[str] = None
+    platform: Optional[str] = None
     assigned_to_id: Optional[UUID] = None
+    group_id: Optional[UUID] = None
     extra_data: Optional[Any] = None
 
 class TicketInDBBase(TicketBase):
@@ -36,8 +39,77 @@ class TicketInDBBase(TicketBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+class TicketTypeSchema(BaseModel):
+    id: UUID
+    name: str
+    color: Optional[str] = None
+    icon: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class GroupSchema(BaseModel):
+    id: UUID
+    name: str
+    model_config = ConfigDict(from_attributes=True)
+
+class UserSchemaMinimal(BaseModel):
+    id: UUID
+    username: str
+    first_name: str
+    last_name: str
+    model_config = ConfigDict(from_attributes=True)
+
 class Ticket(TicketInDBBase):
-    pass
+    ticket_type_name: Optional[str] = None
+    group_name: Optional[str] = None
+    assigned_to_name: Optional[str] = None
+    
+    # Objetos anidados para compatibilidad con frontend
+    ticket_type: Optional[TicketTypeSchema] = None
+    group: Optional[GroupSchema] = None
+    assigned_to: Optional[UserSchemaMinimal] = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def flatten_relations(cls, data: Any) -> Any:
+        if hasattr(data, "id") and not isinstance(data, dict):
+            # Si es un objeto de SQLAlchemy
+            def safe_getattr(obj, attr, default=None):
+                try:
+                    return getattr(obj, attr)
+                except Exception:
+                    return default
+
+            ticket_type = safe_getattr(data, "ticket_type")
+            group = safe_getattr(data, "group")
+            assigned_to = safe_getattr(data, "assigned_to")
+
+            return {
+                "id": data.id,
+                "title": data.title,
+                "description": data.description,
+                "status": data.status,
+                "priority": data.priority,
+                "platform": data.platform,
+                "ticket_type_id": data.ticket_type_id,
+                "ticket_type_name": ticket_type.name if ticket_type else None,
+                "ticket_type": ticket_type if ticket_type else None,
+                "group_id": data.group_id,
+                "group_name": group.name if group else None,
+                "group": group if group else None,
+                "asset_id": data.asset_id,
+                "created_by_id": data.created_by_id,
+                "assigned_to_id": data.assigned_to_id,
+                "assigned_to_name": f"{assigned_to.first_name} {assigned_to.last_name}" if assigned_to else None,
+                "assigned_to": assigned_to if assigned_to else None,
+                "parent_ticket_id": data.parent_ticket_id,
+                "sla_deadline": data.sla_deadline,
+                "extra_data": data.extra_data,
+                "created_at": data.created_at,
+                "updated_at": data.updated_at,
+                "closed_at": data.closed_at,
+                "deleted_at": data.deleted_at
+            }
+        return data
 
 class TicketCommentBase(BaseModel):
     content: str

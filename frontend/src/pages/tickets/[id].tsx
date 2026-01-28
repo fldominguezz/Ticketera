@@ -111,6 +111,7 @@ export default function TicketPage() {
   };
 
   const handleUploadFile = async (file: File) => {
+    // Esta función ahora será llamada por el botón "Guardar" de evidencias
     const token = localStorage.getItem('access_token');
     const formData = new FormData();
     formData.append('file', file);
@@ -122,7 +123,25 @@ export default function TicketPage() {
       });
       if (res.ok) {
         const newAtt = await res.json();
-        setAttachments([...attachments, newAtt]);
+        setAttachments(prev => [...prev, newAtt]);
+        return true;
+      }
+    } catch (e) { console.error(e); }
+    return false;
+  };
+
+  const handleDeleteTicket = async () => {
+    if (!confirm('¿Está seguro de que desea eliminar este ticket de forma permanente?')) return;
+    const token = localStorage.getItem('access_token');
+    try {
+      const res = await fetch(`/api/v1/tickets/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        router.push('/tickets');
+      } else {
+        alert('No tiene permisos para eliminar este ticket.');
       }
     } catch (e) { console.error(e); }
   };
@@ -244,7 +263,7 @@ export default function TicketPage() {
   }
 
   return (
-    <Layout title={`Ticket: ${ticket.title}`}>
+    <Layout title={ticket?.title ? `Ticket: ${ticket.title}` : 'Ticket'}>
       <Container fluid className="px-0">
         <div className="mb-4 d-flex align-items-center">
           <Button variant="link" className="text-dark p-0 me-3" onClick={() => router.push('/tickets')}>
@@ -274,6 +293,7 @@ export default function TicketPage() {
           onAddSubtask={handleAddSubtask}
           onDeleteSubtask={handleDeleteSubtask}
           onUpdateTicket={handleUpdateTicket}
+          onDeleteTicket={handleDeleteTicket}
         />
       </Container>
     </Layout>

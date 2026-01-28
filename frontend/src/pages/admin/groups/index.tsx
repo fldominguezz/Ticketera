@@ -5,6 +5,18 @@ import { Container, Table, Button, Card, Modal, Form, Row, Col, Badge, Spinner }
 import { Users, Plus, Edit, Trash2, FolderTree, Info } from 'lucide-react';
 import Layout from '../../../components/Layout';
 
+// Define a constant for all possible navigation items that can be hidden
+const NAV_ITEMS = [
+  { id: 'siem-alerts', name: 'Alertas SIEM' },
+  { id: 'tickets', name: 'Tickets' },
+  { id: 'inventory', name: 'Inventario' },
+  { id: 'users', name: 'Usuarios' },
+  { id: 'roles', name: 'Roles' },
+  { id: 'groups', name: 'Grupos' },
+  { id: 'settings', name: 'Configuración General' },
+  // Add other navigation items as needed
+];
+
 export default function AdminGroupsPage() {
   const router = useRouter();
   const [groups, setGroups] = useState<any[]>([]);
@@ -15,7 +27,8 @@ export default function AdminGroupsPage() {
   const [newGroup, setNewGroup] = useState({
     name: '',
     description: '',
-    parent_id: ''
+    parent_id: '',
+    hidden_nav_items: [] as string[] // Initialize as empty array of strings
   });
 
   const fetchGroups = async () => {
@@ -49,11 +62,12 @@ export default function AdminGroupsPage() {
       setNewGroup({
         name: group.name,
         description: group.description || '',
-        parent_id: group.parent_id || ''
+        parent_id: group.parent_id || '',
+        hidden_nav_items: group.hidden_nav_items || [] // Load existing hidden items
       });
     } else {
       setEditingGroupId(null);
-      setNewGroup({ name: '', description: '', parent_id: '' });
+      setNewGroup({ name: '', description: '', parent_id: '', hidden_nav_items: [] });
     }
     setShowModal(true);
   };
@@ -81,9 +95,20 @@ export default function AdminGroupsPage() {
         setShowModal(false);
         fetchGroups();
         setEditingGroupId(null);
-        setNewGroup({ name: '', description: '', parent_id: '' });
+        setNewGroup({ name: '', description: '', parent_id: '', hidden_nav_items: [] });
       }
     } catch (e) { console.error(e); }
+  };
+
+  const handleNavItemChange = (itemId: string) => {
+    setNewGroup(prevGroup => {
+      const currentHidden = prevGroup.hidden_nav_items;
+      if (currentHidden.includes(itemId)) {
+        return { ...prevGroup, hidden_nav_items: currentHidden.filter(id => id !== itemId) };
+      } else {
+        return { ...prevGroup, hidden_nav_items: [...currentHidden, itemId] };
+      }
+    });
   };
 
   return (
@@ -109,12 +134,13 @@ export default function AdminGroupsPage() {
                       <th className="ps-4">Nombre del Grupo</th>
                       <th>Grupo Padre</th>
                       <th>Descripción</th>
+                      <th>Nav Ocultos</th> {/* Added column for hidden nav items */}
                       <th className="text-center">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
-                      <tr><td colSpan={4} className="text-center py-5"><Spinner animation="border" size="sm" /></td></tr>
+                      <tr><td colSpan={5} className="text-center py-5"><Spinner animation="border" size="sm" /></td></tr>
                     ) : groups.length > 0 ? (
                       groups.map((g: any) => (
                         <tr key={g.id} className="align-middle">
@@ -132,6 +158,15 @@ export default function AdminGroupsPage() {
                             )}
                           </td>
                           <td className="small text-muted">{g.description}</td>
+                          <td>
+                            {g.hidden_nav_items && g.hidden_nav_items.length > 0 ? (
+                                g.hidden_nav_items.map((item: string) => (
+                                    <Badge key={item} bg="secondary" className="me-1">{NAV_ITEMS.find(n => n.id === item)?.name || item}</Badge>
+                                ))
+                            ) : (
+                                <span className="text-muted small">Ninguno</span>
+                            )}
+                          </td>
                           <td className="text-center">
                             <Button variant="outline-secondary" size="sm" className="me-2 border-0" onClick={() => handleOpenModal(g)}>
                               <Edit size={16} />
@@ -143,7 +178,7 @@ export default function AdminGroupsPage() {
                         </tr>
                       ))
                     ) : (
-                      <tr><td colSpan={4} className="text-center py-5 text-muted">No se encontraron grupos.</td></tr>
+                      <tr><td colSpan={5} className="text-center py-5 text-muted">No se encontraron grupos.</td></tr>
                     )}
                   </tbody>
                 </Table>
@@ -206,6 +241,21 @@ export default function AdminGroupsPage() {
                   value={newGroup.description} 
                   onChange={e => setNewGroup({...newGroup, description: e.target.value})} 
                 />
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label className="small fw-bold">Ocultar Elementos de Navegación</Form.Label>
+                <div>
+                  {NAV_ITEMS.map(item => (
+                    <Form.Check
+                      key={item.id}
+                      type="checkbox"
+                      id={`nav-item-${item.id}`}
+                      label={item.name}
+                      checked={newGroup.hidden_nav_items.includes(item.id)}
+                      onChange={() => handleNavItemChange(item.id)}
+                    />
+                  ))}
+                </div>
               </Form.Group>
             </Form>
           </Modal.Body>

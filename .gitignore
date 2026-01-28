@@ -1,6 +1,7 @@
 # Environments
 .env
 .env.*
+*.env
 
 # Python
 __pycache__/
@@ -9,6 +10,8 @@ __pycache__/
 venv/
 .venv/
 .pytest_cache/
+backend/app/uploads/*
+!backend/app/uploads/.gitkeep
 
 # Node
 node_modules/
@@ -16,9 +19,21 @@ node_modules/
 out/
 build/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Docker
 *.log
+db_data/
+redis_data/
+uploads_data/
+
+# Backend Logs & Temp
+backend/*.txt
+backend/*.log
+backend/uploads/*
 
 # OS
 .DS_Store
+Thumbs.db

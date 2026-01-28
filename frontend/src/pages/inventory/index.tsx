@@ -1,667 +1,686 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
-import LocationSelector from '../../components/inventory/LocationSelector';
+import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import { 
-  Folder, 
-  ChevronRight, 
-  ChevronDown, 
-  Plus, 
-  MoreVertical, 
-  Search,
-  Monitor,
-  Shield,
-  Activity,
-  ArrowRightLeft,
-  Filter,
-  FolderPlus,
-  CheckSquare,
-  Square,
-  Trash2,
-  Download,
-  GripVertical
+  Folder, ChevronRight, ChevronDown, Plus, MoreVertical, Search,
+  Monitor, Shield, Activity, FolderPlus,
+  RefreshCw, HardDrive, Edit2, Trash2, Move, Layers, CheckCircle2,
+  XCircle, AlertTriangle, FileText, UploadCloud
 } from 'lucide-react';
 import { 
-  Row, 
-  Col, 
-  Card, 
-  Table, 
-  Button, 
-  InputGroup, 
-  Form, 
-  Badge,
-  Dropdown,
-  Spinner,
-  Container,
-  Offcanvas,
-  Modal,
-  Alert
+  Row, Col, Card, Table, Button, InputGroup, Form, Badge,
+  Dropdown, Spinner, Container, Modal, ListGroup, Alert
 } from 'react-bootstrap';
+import api from '../../lib/api';
+import { getStatusBadge } from '../../lib/ui/badges';
+import FolderModal from '../../components/inventory/FolderModal';
 
 interface LocationNode {
   id: string;
   name: string;
   path: string;
   parent_id: string | null;
+  total_assets: number;
+  direct_assets: number;
 }
 
-const InventoryPage = () => {
+export default function InventoryPage() {
+  const { theme } = useTheme();
+  const { isSuperuser, user: currentUser } = useAuth();
+  const isDark = theme === 'dark';
   const router = useRouter();
+  
   const [locations, setLocations] = useState<LocationNode[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [locLoading, setLocLoading] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [showMobileFolders, setShowMobileFolders] = useState(false);
+  const [showDecommissioned, setShowDecommissioned] = useState(false);
+  const [stateFilter, setStateFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [folderSearch, setFolderSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<{assets: any[], locations: any[]} | null>(null);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   
-  // Selección
-  const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
-  
-  // Modales
-  const [showFolderModal, setShowFolderModal] = useState(false);
-  const [newFolderName, setNewFolderName] = useState('');
+  const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
   const [showMoveModal, setShowMoveModal] = useState(false);
-  const [moveDestination, setMoveDestination] = useState<LocationNode | null>(null);
-  const [moving, setMoving] = useState(false);
-  const [editingLocation, setEditingLocation] = useState<LocationNode | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deletingLocation, setDeletingLocation] = useState<{id: string, name: string} | null>(null);
-
-  // Drag & Drop State
-  const [draggedAssetId, setDraggedAssetId] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchLocations();
-  }, []);
-
-  useEffect(() => {
-    if (router.query.location_id) {
-      setSelectedLocation(router.query.location_id as string);
-      // Opcional: Expandir los padres de este nodo
-    }
-  }, [router.query.location_id]);
-
-  useEffect(() => {
-    fetchAssets(selectedLocation || undefined);
-    setSelectedAssets([]);
-  }, [selectedLocation]);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [newStatus, setNewStatus] = useState('operative');
+  
+  const [showFolderModal, setShowFolderModal] = useState(false);
+  const [editingNode, setEditingNode] = useState<any>(null);
+  const [newFolderName, setNewFolderName] = useState('');
+  
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importPreview, setImportPreview] = useState<any[] | null>(null);
+  const [importData, setImportData] = useState<any[] | null>(null);
+  const [importSummary, setImportSummary] = useState<any | null>(null);
+  const [importSource, setImportSource] = useState<string>('auto');
+  const getBreadcrumbs = () => {
+      if (!selectedLocation) return [{ id: null, name: 'TODO EL INVENTARIO' }];
+      const crumbs = [];
+      let current = locations.find(l => l.id === selectedLocation);
+      while (current) {
+          crumbs.unshift({ id: current.id, name: current.name });
+          current = locations.find(l => l.id === current?.parent_id);
+      }
+      crumbs.unshift({ id: null, name: 'INVENTARIO' });
+      return crumbs;
+  };
 
   const fetchLocations = async () => {
+    setLocLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch('/api/v1/locations', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setLocations(Array.isArray(data) ? data : []);
-    } catch (err) { console.error(err); }
+      const res = await api.get('/locations');
+      setLocations(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLocLoading(false);
+    }
   };
 
-  const fetchAssets = async (locId?: string) => {
+  const fetchAssets = async (locationId: string | null, search: string = '') => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
-      let url = '/api/v1/assets';
-      if (locId) url += `?location_node_id=${locId}`;
-      const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setAssets(Array.isArray(data) ? data : []);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
-  };
-
-  const exportToCSV = () => {
-    if (assets.length === 0) return;
-    const headers = ["Hostname", "IP Address", "MAC Address", "Status", "Protection", "OS"];
-    const rows = assets.map(a => [
-      a.hostname, 
-      a.ip_address, 
-      a.mac_address, 
-      a.status, 
-      a.av_product || "None", 
-      a.os_name || "Unknown"
-    ]);
-    
-    let csvContent = "data:text/csv;charset=utf-8," 
-      + headers.join(",") + "\n"
-      + rows.map(e => e.join(",")).join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `inventory_${selectedLocation || 'all'}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleBulkMove = async (asset_ids: string[], destId: string) => {
-    setMoving(true);
-    try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch('/api/v1/assets/bulk-move', {
-        method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          asset_ids: asset_ids,
-          new_location_id: destId
-        })
-      });
-      if (res.ok) {
-        setShowMoveModal(false);
-        setSelectedAssets([]);
-        setMoveDestination(null);
-        fetchAssets(selectedLocation || undefined);
-      }
-    } catch (err) { console.error(err); }
-    finally { setMoving(false); }
-  };
-
-  const handleBulkDelete = async (asset_ids: string[]) => {
-    if (!confirm(`¿Está seguro de que desea dar de baja ${asset_ids.length} equipos?`)) return;
-    try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch('/api/v1/assets/bulk-delete', {
-        method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(asset_ids)
-      });
-      if (res.ok) {
-        setSelectedAssets([]);
-        fetchAssets(selectedLocation || undefined);
-      }
-    } catch (err) { console.error(err); }
-  };
-
-  const handleSingleDelete = async (id: string) => {
-    if (!confirm("¿Está seguro de que desea dar de baja este equipo?")) return;
-    try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch(`/api/v1/assets/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        fetchAssets(selectedLocation || undefined);
-      }
-    } catch (err) { console.error(err); }
-  };
-
-  // Drag handlers
-  const onDragStart = (e: React.DragEvent, id: string) => {
-    setDraggedAssetId(id);
-    e.dataTransfer.setData("assetId", id);
-  };
-
-  const onDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
-  const onDrop = async (e: React.DragEvent, destLocationId: string) => {
-    e.preventDefault();
-    const assetId = e.dataTransfer.getData("assetId");
-    if (assetId && assetId !== "") {
-      await handleBulkMove([assetId], destLocationId);
+      const params: any = { show_decommissioned: showDecommissioned };
+      if (locationId) params.location_node_id = locationId;
+      if (search) params.search = search;
+      const res = await api.get('/assets', { params });
+      setAssets(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-    setDraggedAssetId(null);
   };
 
-  const toggleSelectAsset = (id: string) => {
-    setSelectedAssets(prev => 
-      prev.includes(id) ? prev.filter(aid => aid !== id) : [...prev, id]
-    );
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedAssets.length === assets.length) setSelectedAssets([]);
-    else setSelectedAssets(assets.map(a => a.id));
-  };
-
-  const handleCreateFolder = async () => {
-    if (!newFolderName) return;
-    try {
-      const token = localStorage.getItem('access_token');
-      const method = editingLocation ? 'PUT' : 'POST';
-      const url = editingLocation ? `/api/v1/locations/${editingLocation.id}` : '/api/v1/locations';
-      
-      const payload: any = { name: newFolderName };
-      if (!editingLocation) {
-        payload.parent_id = selectedLocation;
-        payload.path = selectedLocation ? `${locations.find(l => l.id === selectedLocation)?.path}/${newFolderName}` : newFolderName;
-      }
-
-      const res = await fetch(url, {
-        method,
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        setNewFolderName('');
-        setEditingLocation(null);
-        setShowFolderModal(false);
-        fetchLocations();
-      }
-    } catch (err) { console.error(err); }
-  };
-
-  const handleDeleteFolder = (id: string, name: string) => {
-    setDeletingLocation({ id, name });
-    setShowDeleteModal(true);
-  };
-
-  const confirmDeleteFolder = async () => {
-    if (!deletingLocation) return;
-    try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch(`/api/v1/locations/${deletingLocation.id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        if (selectedLocation === deletingLocation.id) setSelectedLocation(null);
-        setShowDeleteModal(false);
-        setDeletingLocation(null);
-        fetchLocations();
+  useEffect(() => { fetchLocations(); }, []);
+  
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      if (searchTerm.length >= 2) {
+          performSearch(searchTerm);
       } else {
-        const data = await res.json();
-        alert(data.detail || "Error al eliminar la carpeta. Asegúrese de que esté vacía.");
+          setSearchResults(null);
+          setShowSearchDropdown(false);
       }
-    } catch (err) { console.error(err); }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const performSearch = async (term: string) => {
+      try {
+          const res = await api.get('/assets/search', { params: { search: term } });
+          setSearchResults(res.data);
+          setShowSearchDropdown(true);
+      } catch (err) {
+          console.error(err);
+      }
   };
 
-  const toggleExpand = (id: string) => {
-    setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
+  const toggleAssetSelection = (id: string) => {
+      const newSet = new Set(selectedAssets);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      setSelectedAssets(newSet);
+  };
+
+  const handleBulkAction = async (action: 'move' | 'status' | 'delete', value?: string) => {
+      if (selectedAssets.size === 0) return;
+      
+      const assetIds = Array.from(selectedAssets);
+      
+      try {
+          if (action === 'delete') {
+              if (!confirm(`¿Eliminar ${assetIds.length} equipos?`)) return;
+              await api.delete('/assets/bulk-delete', { data: assetIds });
+          } else if (action === 'move' && value) {
+              await api.post('/assets/bulk-action', { 
+                  asset_ids: assetIds, 
+                  location_node_id: value 
+              });
+              setShowMoveModal(false);
+          } else if (action === 'status' && value) {
+              await api.post('/assets/bulk-action', { 
+                  asset_ids: assetIds, 
+                  status: value 
+              });
+              setShowStatusModal(false);
+          }
+          
+          setSelectedAssets(new Set());
+          fetchAssets(selectedLocation, debouncedSearch);
+          fetchLocations();
+      } catch (err: any) {
+          alert("Error: " + err.message);
+      }
+  };
+
+  useEffect(() => { 
+    fetchAssets(selectedLocation, debouncedSearch); 
+  }, [selectedLocation, showDecommissioned, debouncedSearch]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const buffer = event.target?.result as ArrayBuffer;
+        const uint8 = new Uint8Array(buffer);
+        let encoding = 'utf-8';
+        if (uint8[0] === 0xFF && uint8[1] === 0xFE) encoding = 'utf-16le';
+        else if (uint8[0] === 0xFE && uint8[1] === 0xFF) encoding = 'utf-16be';
+        
+        const text = new TextDecoder(encoding).decode(buffer);
+        const lines = text.split(/\r?\n/).filter(l => l.trim());
+        if (lines.length < 2) return alert("Archivo inválido");
+
+        const firstLine = lines[0];
+        const delimiter = firstLine.indexOf(';') !== -1 ? ';' : ',';
+
+        const parseLine = (line: string) => {
+            const row = [];
+            let inQuotes = false, cell = '';
+            for (let i = 0; i < line.length; i++) {
+                if (line[i] === '"') inQuotes = !inQuotes;
+                else if (line[i] === delimiter && !inQuotes) { row.push(cell.trim()); cell = ''; }
+                else cell += line[i];
+            }
+            row.push(cell.trim());
+            return row;
+        };
+
+        const rawHeaders = parseLine(lines[0]);
+        const cleanHeaders = rawHeaders.map(h => h.toLowerCase().replace(/["']/g, '').trim());
+        
+        const data = lines.slice(1).map(line => {
+            const values = parseLine(line);
+            const obj: any = {};
+            cleanHeaders.forEach((h, i) => {
+                if (h) obj[h] = values[i] || "";
+            });
+            return obj;
+        });
+
+        setImportPreview(data.slice(0, 10));
+        setImportData(data);
+        setImportSummary(null);
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const confirmImport = async () => {
+    const dataToImport = importData;
+    if (!dataToImport) return;
+    setImportLoading(true);
+    try {
+        const res = await api.post(`/assets/import?source=${importSource}`, dataToImport);
+        setImportSummary(res.data);
+        setImportData(null);
+        setImportPreview(null);
+        fetchLocations();
+        fetchAssets(selectedLocation);
+    } catch (err) {
+        alert("Error procesando importación");
+    } finally {
+        setImportLoading(false);
+    }
+  };
+
+  const filteredAssets = assets.filter(asset => {
+    if (stateFilter === 'all') return true;
+    if (stateFilter === 'no_folder') return !asset.location_node_id;
+    return asset.status === stateFilter;
+  });
+
+  const handleDeleteFolder = async (node: any) => {
+    if (!confirm(`¿Borrar carpeta "${node.name}"? Esto afectará la visualización.`)) return;
+    try {
+      await api.delete(`/locations/${node.id}`);
+      fetchLocations();
+    } catch (err: any) { alert(err.message); }
+  };
+
+  const handleSaveFolder = async () => {
+    if (!newFolderName.trim()) return;
+    try {
+      if (editingNode) {
+        // Simple rename: replace the last part of the path
+        const pathParts = editingNode.path.split(' / ');
+        pathParts[pathParts.length - 1] = newFolderName.trim();
+        const newPath = pathParts.join(' / ');
+        
+        await api.put(`/locations/${editingNode.id}`, { 
+          name: newFolderName.trim(), 
+          path: newPath 
+        });
+      } else {
+        const parent = locations.find(l => l.id === selectedLocation);
+        const path = parent ? `${parent.path} / ${newFolderName.trim()}` : newFolderName.trim();
+        await api.post('/locations', { 
+          name: newFolderName.trim(), 
+          parent_id: selectedLocation, 
+          path: path 
+        });
+      }
+      setShowFolderModal(false);
+      setEditingNode(null);
+      setNewFolderName('');
+      fetchLocations();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || err.message);
+    }
   };
 
   const renderTree = (parentId: string | null = null, level = 0) => {
-    const nodes = locations.filter(l => l.parent_id === parentId);
-    if (nodes.length === 0) return null;
+    let nodes = locations.filter(l => l.parent_id === parentId);
+    
+    if (folderSearch) {
+        const searchLower = folderSearch.toLowerCase();
+        const matchesSearch = (node: LocationNode): boolean => {
+            if (node.name.toLowerCase().includes(searchLower)) return true;
+            const children = locations.filter(l => l.parent_id === node.id);
+            return children.some(c => matchesSearch(c));
+        };
+        nodes = nodes.filter(n => matchesSearch(n));
+    }
 
     return (
-      <div className={`${level > 0 ? 'ms-3 border-start ps-2' : ''}`}>
-        {nodes.map(node => (
-          <div key={node.id} className="mb-1">
-            <div 
-              className={`d-flex align-items-center py-2 px-2 rounded cursor-pointer transition-all ${selectedLocation === node.id ? 'bg-primary text-white shadow-sm' : 'hover-bg-light'} folder-item`}
-              onDragOver={onDragOver}
-              onDrop={(e) => onDrop(e, node.id)}
-              onClick={() => {
-                setSelectedLocation(node.id);
-                setShowMobileFolders(false);
-              }}
-            >
-              <div onClick={(e) => { e.stopPropagation(); toggleExpand(node.id); }} className="me-2 opacity-75">
-                {expanded[node.id] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+      <div className={`${level > 0 ? 'ms-2 border-start ps-2' : ''}`} style={{ borderColor: 'rgba(var(--bs-primary-rgb), 0.2)' }}>
+        {nodes.map(node => {
+          const isExpanded = expanded[node.id] || (folderSearch !== "" && locations.some(l => l.parent_id === node.id));
+          const hasChildren = locations.some(l => l.parent_id === node.id);
+
+          return (
+            <div key={node.id} className="mb-1">
+              <div 
+                className={`d-flex align-items-center py-2 px-2 rounded cursor-pointer transition-all ${selectedLocation === node.id ? 'bg-primary text-white shadow-sm' : 'hover-bg'}`} 
+                onClick={() => setSelectedLocation(node.id)}
+              >
+                <div onClick={(e) => { e.stopPropagation(); setExpanded(prev => ({ ...prev, [node.id]: !prev[node.id] })); }} className={`me-1 ${hasChildren ? 'opacity-100' : 'opacity-0'}`} style={{ width: '16px' }}>
+                  {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                </div>
+                <Folder size={14} className={`me-2 ${selectedLocation === node.id ? 'text-white' : 'text-warning'}`} />
+                <span className={`x-small fw-bold text-truncate flex-grow-1 text-uppercase ${folderSearch && node.name.toLowerCase().includes(folderSearch.toLowerCase()) ? 'text-decoration-underline' : ''}`}>{node.name}</span>
+                <Badge bg={selectedLocation === node.id ? "light" : "primary"} text={selectedLocation === node.id ? "dark" : "white"} className="mx-2" style={{ fontSize: '9px' }}>{node.total_assets || 0}</Badge>
+                <Dropdown onClick={(e) => e.stopPropagation()} align="end">
+                  <Dropdown.Toggle as="div" className="p-1 opacity-50 cursor-pointer"><MoreVertical size={12} /></Dropdown.Toggle>
+                  <Dropdown.Menu className="shadow-lg border-0 small">
+                    <Dropdown.Item onClick={() => { setEditingNode(node); setNewFolderName(node.name); setShowFolderModal(true); }}><Edit2 size={12} className="me-2" /> Renombrar</Dropdown.Item>
+                    <Dropdown.Item className="text-danger" onClick={() => handleDeleteFolder(node)}><Trash2 size={12} className="me-2" /> Eliminar</Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown>
               </div>
-              <Folder size={16} className={`me-2 ${selectedLocation === node.id ? 'text-white' : 'text-warning'}`} />
-              <span className="small fw-medium text-truncate flex-grow-1">{node.name}</span>
-              
-              <Dropdown onClick={(e) => e.stopPropagation()} align="end">
-                <Dropdown.Toggle as="div" className="p-1 opacity-50 hover-opacity-100">
-                  <MoreVertical size={12} className={selectedLocation === node.id ? 'text-white' : 'text-dark'} />
-                </Dropdown.Toggle>
-                <Dropdown.Menu className="shadow border-0 small">
-                  <Dropdown.Item onClick={() => {
-                    setEditingLocation(node);
-                    setNewFolderName(node.name);
-                    setShowFolderModal(true);
-                  }}>
-                    Renombrar
-                  </Dropdown.Item>
-                  <Dropdown.Item className="text-danger" onClick={() => handleDeleteFolder(node.id, node.name)}>
-                    Eliminar
-                  </Dropdown.Item>
-                </Dropdown.Menu>
-              </Dropdown>
+              {isExpanded && renderTree(node.id, level + 1)}
             </div>
-            {expanded[node.id] && renderTree(node.id, level + 1)}
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };
 
-  const SidebarContent = () => (
-    <div className="p-3 p-lg-0">
-      <div 
-        className={`d-flex align-items-center py-2 px-2 mb-1 rounded cursor-pointer transition-all ${!selectedLocation ? 'bg-primary text-white shadow-sm' : 'hover-bg-light'}`}
-        onClick={() => {
-          setSelectedLocation(null);
-          setShowMobileFolders(false);
-        }}
-      >
-        <Activity size={16} className={`me-2 ${!selectedLocation ? 'text-white' : 'text-primary'}`} />
-        <span className="small fw-bold">Infraestructura (Raíz)</span>
-      </div>
-      
-      <div className="mt-3 mb-2 px-2 d-flex justify-content-between align-items-center">
-        <span className="text-uppercase x-small fw-bold text-muted">Explorar Jerarquía</span>
-        <Button 
-          variant="link" 
-          size="sm" 
-          className="p-0 text-primary d-flex align-items-center" 
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowFolderModal(true);
-          }}
-          title="Nueva Carpeta Raíz"
-        >
-          <FolderPlus size={16} />
-        </Button>
-      </div>
-
-      <div className="ms-1 border-start ps-1">
-        {renderTree()}
-      </div>
-
-      <div className="mt-4 pt-3 border-top px-2">
-        <Button 
-          variant="outline-primary" 
-          size="sm" 
-          className="w-100 d-flex align-items-center justify-content-center"
-          onClick={() => setShowFolderModal(true)}
-        >
-          <FolderPlus size={14} className="me-2" /> 
-          <span className="small">Nueva Subcarpeta</span>
-        </Button>
-      </div>
-    </div>
-  );
-
   return (
     <Layout title="Inventario de Activos">
-      <Container fluid className="px-0">
-        {selectedAssets.length > 0 && (
-          <div className="bg-primary text-white p-2 rounded mb-3 d-flex justify-content-between align-items-center shadow-sm sticky-top" style={{top: '70px', zIndex: 900}}>
-            <div className="ps-3 small fw-bold">
-              <CheckSquare size={16} className="me-2" /> {selectedAssets.length} equipos seleccionados
-            </div>
-            <div className="d-flex gap-2">
-              <Button variant="light" size="sm" className="fw-bold" onClick={() => setShowMoveModal(true)}>
-                <ArrowRightLeft size={14} className="me-1" /> Mover a...
-              </Button>
-              <Button variant="danger" size="sm" className="fw-bold border-white" onClick={() => handleBulkDelete(selectedAssets)}>
-                <Trash2 size={14} className="me-1" /> Dar de baja
-              </Button>
-              <Button variant="link" size="sm" className="text-white text-decoration-none" onClick={() => setSelectedAssets([])}>Cancelar</Button>
-            </div>
-          </div>
-        )}
+      <style jsx global>{`
+          .inventory-container { max-width: 100vw; overflow-x: hidden; }
+          .hover-row:hover { background-color: rgba(var(--bs-primary-rgb), 0.03); }
+          .sticky-actions { 
+              position: sticky; 
+              right: 0; 
+              background: var(--card-bg); 
+              box-shadow: -5px 0 10px rgba(0,0,0,0.05);
+              z-index: 10;
+          }
+          .table-fixed-layout { table-layout: fixed; min-width: 1000px; }
+          .breadcrumb-item + .breadcrumb-item::before { content: ">"; color: var(--text-muted); font-size: 10px; }
+          .z-index-1000 { z-index: 1000; }
+          .max-width-400 { max-width: 400px; }
+          .transition-all { transition: all 0.2s ease; }
+          @media (max-width: 1366px) {
+              .hide-tablet { display: none; }
+          }
+      `}</style>
 
-        <Row className="g-3">
-          <Col lg={3} className="d-none d-lg-block">
-            <Card className="border-0 shadow-sm sticky-top" style={{ top: '100px', height: 'calc(100vh - 140px)', overflowY: 'auto' }}>
-              <Card.Body className="p-3">
-                <SidebarContent />
-                <div className="mt-4 p-2 bg-light rounded border border-dashed text-center small text-muted">
-                  <ArrowRightLeft size={14} className="mb-1 d-block mx-auto" />
-                  Arrastre un equipo a una carpeta para moverlo.
+      <div className="inventory-container p-3 p-lg-4">
+        {/* Header Superior - Búsqueda & Breadcrumbs */}
+        <Card className="border-0 shadow-sm mb-4 overflow-visible">
+            <Card.Body className="py-2 px-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div className="d-flex align-items-center flex-grow-1 position-relative" style={{ maxWidth: '500px' }}>
+                    <InputGroup className="border rounded-pill px-3 py-1 bg-light">
+                        <InputGroup.Text className="bg-transparent border-0"><Search size={18} className="text-muted" /></InputGroup.Text>
+                        <Form.Control 
+                            className="bg-transparent border-0 shadow-none x-small fw-bold" 
+                            placeholder="Buscar por Hostname, IP o MAC..." 
+                            value={searchTerm}
+                            onChange={(e) => { setSearchTerm(e.target.value); setShowSearchDropdown(true); }}
+                            onFocus={() => (searchTerm.length >= 2 || searchResults) && setShowSearchDropdown(true)}
+                        />
+                        {searchTerm && (
+                          <Button variant="link" className="p-0 text-muted" onClick={() => { setSearchTerm(''); setSearchResults(null); setShowSearchDropdown(false); }}><XCircle size={16} /></Button>
+                        )}
+                    </InputGroup>
+
+                    {showSearchDropdown && searchResults && (
+                        <Card className="position-absolute w-100 shadow-lg border-0 z-index-1000 mt-2 overflow-hidden" style={{ top: '100%' }}>
+                            <div className="p-2 border-bottom bg-light d-flex justify-content-between align-items-center">
+                                <span className="x-small fw-bold text-muted text-uppercase">Resultados de búsqueda</span>
+                                <Button variant="link" size="sm" className="p-0 text-muted x-small text-decoration-none" onClick={() => setShowSearchDropdown(false)}>CERRAR</Button>
+                            </div>
+                            <div className="custom-scrollbar" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                                {searchResults.locations.length > 0 && (
+                                    <>
+                                        <div className="p-2 bg-light bg-opacity-50 x-small fw-bold border-bottom text-muted">📁 UBICACIONES</div>
+                                        {searchResults.locations.map(loc => (
+                                            <div key={loc.id} className="p-2 border-bottom hover-bg cursor-pointer d-flex align-items-center gap-2" onClick={() => { setSelectedLocation(loc.id); setShowSearchDropdown(false); setSearchTerm(''); }}>
+                                                <Folder size={14} className="text-warning flex-shrink-0" />
+                                                <div className="flex-grow-1 overflow-hidden">
+                                                    <div className="fw-bold text-primary small text-truncate">{loc.name}</div>
+                                                    <div className="x-small text-muted text-truncate font-monospace opacity-75">{loc.path}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </>
+                                )}
+                                {searchResults.assets.length > 0 && (
+                                    <>
+                                        <div className="p-2 bg-light bg-opacity-50 x-small fw-bold border-bottom text-muted">💻 EQUIPOS</div>
+                                        {searchResults.assets.map(asset => (
+                                            <div key={asset.id} className="p-2 border-bottom hover-bg cursor-pointer d-flex align-items-center gap-2" onClick={() => { router.push(`/inventory/${asset.id}`); setShowSearchDropdown(false); }}>
+                                                <Monitor size={14} className="text-primary flex-shrink-0" />
+                                                <div className="flex-grow-1 overflow-hidden">
+                                                    <div className="fw-bold text-primary small text-truncate">{asset.hostname}</div>
+                                                    <div className="x-small text-muted text-truncate font-monospace">{asset.ip} | {asset.mac}</div>
+                                                </div>
+                                                <div className="ms-auto flex-shrink-0">
+                                                    {getStatusBadge(asset.status)}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </>
+                                )}
+                                {searchResults.assets.length === 0 && searchResults.locations.length === 0 && (
+                                    <div className="p-4 text-center text-muted x-small fw-bold">NO SE ENCONTRARON COINCIDENCIAS</div>
+                                )}
+                            </div>
+                        </Card>
+                    )}
                 </div>
+
+                <div className="d-flex align-items-center gap-3">
+                    <nav aria-label="breadcrumb" className="hide-tablet">
+                        <ol className="breadcrumb m-0 x-small fw-bold">
+                            {getBreadcrumbs().map((crumb, idx) => (
+                                <li key={idx} className={`breadcrumb-item ${idx === getBreadcrumbs().length - 1 ? 'active color-primary' : ''}`}>
+                                    <span className="cursor-pointer hover-underline" onClick={() => setSelectedLocation(crumb.id)}>{crumb.name}</span>
+                                </li>
+                            ))}
+                        </ol>
+                    </nav>
+                    <div className="vr hide-tablet"></div>
+                    <Button variant="primary" size="sm" className="fw-bold shadow-sm px-3" onClick={() => router.push('/inventory/install')}><Plus size={16} className="me-1" /> NUEVO EQUIPO</Button>
+                </div>
+            </Card.Body>
+        </Card>
+
+        <Row className="g-4">
+          <Col lg={3}>
+            <Card className="border-0 shadow-sm">
+              <Card.Header className="py-3 bg-transparent border-bottom-0 pb-0">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                    <span className="fw-bold small text-uppercase letter-spacing-1">Ubicaciones</span>
+                    <Button variant="link" size="sm" className="p-0" onClick={() => { setEditingNode(null); setNewFolderName(''); setShowFolderModal(true); }}><FolderPlus size={18} /></Button>
+                </div>
+                <InputGroup size="sm" className="mb-2 bg-light rounded-pill border-0 px-2">
+                    <InputGroup.Text className="bg-transparent border-0 text-muted"><Search size={14} /></InputGroup.Text>
+                    <Form.Control 
+                        placeholder="Filtrar carpetas..." 
+                        className="bg-transparent border-0 shadow-none x-small fw-bold" 
+                        value={folderSearch}
+                        onChange={e => setFolderSearch(e.target.value)}
+                    />
+                </InputGroup>
+              </Card.Header>
+              <Card.Body className="p-2 custom-scrollbar" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                <div className={`d-flex align-items-center py-2 px-2 mb-2 rounded cursor-pointer transition-all ${!selectedLocation ? 'bg-primary text-white shadow-sm' : 'hover-bg'}`} onClick={() => setSelectedLocation(null)}>
+                  <HardDrive size={16} className="me-2" />
+                  <span className="small fw-bold text-uppercase">VISTA GLOBAL</span>
+                </div>
+                {locLoading ? <div className="text-center py-4"><Spinner animation="border" size="sm" /></div> : renderTree()}
               </Card.Body>
             </Card>
           </Col>
 
           <Col lg={9}>
-            <Card className="border-0 shadow-sm h-100">
-              <Card.Header className="bg-white border-bottom py-3">
-                <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-                  <div className="flex-grow-1" style={{ maxWidth: '400px' }}>
-                    <InputGroup size="sm" className="bg-light rounded-pill px-2">
-                      <InputGroup.Text className="bg-transparent border-0 text-muted"><Search size={16} /></InputGroup.Text>
-                      <Form.Control className="bg-transparent border-0 shadow-none" placeholder="Host, IP, MAC o Serial..." />
-                    </InputGroup>
-                  </div>
-                  <div className="d-flex gap-2">
-                    <Button variant="outline-secondary" size="sm" className="d-flex align-items-center" onClick={exportToCSV} disabled={assets.length === 0}>
-                      <Download size={16} className="me-md-1" /> <span className="d-none d-md-inline">Exportar</span>
-                    </Button>
-                    <Button variant="outline-dark" size="sm" className="d-lg-none" onClick={() => setShowMobileFolders(true)}>
-                      <Folder size={16} className="me-1" /> Carpetas
-                    </Button>
-                    <Button variant="primary" size="sm" className="shadow-sm" onClick={() => router.push('/inventory/install')}>
-                      <Plus size={16} className="me-1" /> <span className="d-none d-md-inline">Nuevo Activo</span>
-                    </Button>
-                  </div>
-                </div>
-                {selectedLocation && (
-                  <div className="mt-2 px-2 d-flex align-items-center gap-1 small text-muted overflow-hidden">
-                    <Folder size={12} className="flex-shrink-0" />
-                    <div className="d-flex flex-wrap align-items-center">
-                      <span 
-                        className="breadcrumb-item-custom cursor-pointer hover-text-primary"
-                        onClick={() => setSelectedLocation(null)}
-                      >
-                        Raíz
-                      </span>
-                      {(() => {
-                        const currentNode = locations.find(l => l.id === selectedLocation);
-                        if (!currentNode) return null;
-                        
-                        const pathParts = currentNode.path.split('/');
-                        let accumulatedPath = "";
-                        
-                        return pathParts.map((part, index) => {
-                          accumulatedPath += (index === 0 ? "" : "/") + part;
-                          // Buscar el ID del nodo que coincide con este path acumulado
-                          const targetNode = locations.find(l => l.path === accumulatedPath);
-                          
-                          return (
-                            <React.Fragment key={index}>
-                              <ChevronRight size={10} className="mx-1 opacity-50" />
-                              <span 
-                                className={`breadcrumb-item-custom ${index === pathParts.length - 1 ? 'fw-bold text-dark' : 'cursor-pointer hover-text-primary'}`}
-                                onClick={() => targetNode && setSelectedLocation(targetNode.id)}
-                              >
-                                {part}
-                              </span>
-                            </React.Fragment>
-                          );
-                        });
-                      })()}
+            <Card className="border-0 shadow-sm h-100 overflow-hidden">
+              <Card.Header className="py-3 bg-transparent border-bottom d-flex justify-content-between align-items-center">
+                <div className="d-flex align-items-center gap-2">
+                    <div className="bg-primary bg-opacity-10 p-2 rounded"><Activity size={18} className="text-primary" /></div>
+                    <div>
+                        <h6 className="m-0 fw-bold text-uppercase">{selectedLocation ? locations.find(l => l.id === selectedLocation)?.name : 'VISTA GLOBAL'}</h6>
+                        <div className="x-small text-muted fw-bold">{filteredAssets.length} dispositivos en esta vista</div>
                     </div>
-                  </div>
-                )}
+                </div>
+                <div className="d-flex gap-2">
+                    <Form.Select size="sm" className="x-small fw-bold" style={{ width: '140px' }} value={stateFilter} onChange={(e) => setStateFilter(e.target.value)}>
+                        <option value="all">TODOS LOS ESTADOS</option>
+                        <option value="operative">OPERATIVOS</option>
+                        <option value="maintenance">MANTENIMIENTO</option>
+                        <option value="tagging_pending">PEND. ETIQUETAR</option>
+                    </Form.Select>
+                    <Button variant="outline-primary" size="sm" className="fw-bold" onClick={() => setShowImportModal(true)}><Layers size={16} className="me-1" /> IMPORTAR</Button>
+                </div>
               </Card.Header>
-              <Card.Body className="p-0">
-                <div className="table-responsive">
-                  <Table hover className="align-middle mb-0" style={{ fontSize: '0.85rem' }}>
+              
+              <Card.Body className="p-0 position-relative">
+                {/* Barra de Acciones Masivas - Mejorada para no solapar */}
+                <div className={`bulk-actions-bar bg-primary text-white transition-all overflow-hidden ${selectedAssets.size > 0 ? 'py-2 px-3' : 'h-0 opacity-0'}`} style={{ maxHeight: selectedAssets.size > 0 ? '60px' : '0' }}>
+                    <div className="d-flex justify-content-between align-items-center">
+                        <div className="d-flex align-items-center gap-3">
+                            <span className="x-small fw-bold">{selectedAssets.size} EQUIPOS SELECCIONADOS</span>
+                            <div className="vr opacity-50"></div>
+                            <Button variant="link" className="text-white p-0 x-small fw-bold text-decoration-none" onClick={() => setSelectedAssets(new Set())}>DESELECCIONAR</Button>
+                        </div>
+                        <div className="d-flex gap-2">
+                            <Button variant="light" size="sm" className="x-small fw-bold" onClick={() => setShowMoveModal(true)}><Move size={14} className="me-1" /> MOVER A...</Button>
+                            <Button variant="light" size="sm" className="x-small fw-bold" onClick={() => setShowStatusModal(true)}><RefreshCw size={14} className="me-1" /> CAMBIAR ESTADO</Button>
+                            {isSuperuser && (
+                                <Button variant="danger" size="sm" className="x-small fw-bold border-0" onClick={() => handleBulkAction('delete')}><Trash2 size={14} className="me-1" /> ELIMINAR</Button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="table-responsive custom-scrollbar">
+                    <Table hover className="align-middle mb-0 border-0 table-fixed-layout">
                     <thead className="bg-light">
-                      <tr className="text-muted text-uppercase small">
-                        <th className="border-0 ps-4 py-3" style={{width: '40px'}}>
-                          <div onClick={toggleSelectAll} className="cursor-pointer">
-                            {selectedAssets.length === assets.length && assets.length > 0 ? <CheckSquare size={16} className="text-primary" /> : <Square size={16} />}
-                          </div>
+                        <tr className="x-small text-uppercase opacity-75">
+                        <th className="ps-4" style={{ width: '50px' }}>
+                            <Form.Check 
+                                type="checkbox"
+                                checked={filteredAssets.length > 0 && Array.from(selectedAssets).length === filteredAssets.length}
+                                onChange={(e) => {
+                                    if (e.target.checked) setSelectedAssets(new Set(filteredAssets.map(a => a.id)));
+                                    else setSelectedAssets(new Set());
+                                }}
+                            />
                         </th>
-                        <th className="border-0">Equipo</th>
-                        <th className="border-0">Estado</th>
-                        <th className="border-0">IP Actual</th>
-                        <th className="border-0 d-none d-md-table-cell">Protección</th>
-                        <th className="border-0 text-end pe-4">Acciones</th>
-                      </tr>
+                        <th style={{ width: '30%' }}>Endpoint / MAC</th>
+                        <th style={{ width: '150px' }}>Estado</th>
+                        <th style={{ width: '150px' }}>IP Actual</th>
+                        <th className="hide-tablet">Protección</th>
+                        <th className="text-center sticky-actions" style={{ width: '100px' }}>Acciones</th>
+                        </tr>
                     </thead>
                     <tbody>
-                      {loading ? (
-                        <tr><td colSpan={6} className="text-center py-5"><Spinner animation="border" variant="primary" size="sm" /></td></tr>
-                      ) : assets.length === 0 ? (
-                        <tr><td colSpan={6} className="text-center py-5 text-muted italic">No hay activos en esta carpeta.</td></tr>
-                      ) : (
-                        assets.map(asset => (
-                          <tr 
-                            key={asset.id} 
-                            className={`${selectedAssets.includes(asset.id) ? 'bg-primary bg-opacity-10' : ''} ${draggedAssetId === asset.id ? 'opacity-50' : ''}`}
-                            draggable
-                            onDragStart={(e) => onDragStart(e, asset.id)}
-                          >
+                        {loading ? (
+                        <tr><td colSpan={6} className="text-center py-5"><Spinner animation="border" size="sm" /></td></tr>
+                        ) : filteredAssets.length === 0 ? (
+                        <tr><td colSpan={6} className="text-center py-5 text-muted x-small fw-bold">NO SE ENCONTRARON DISPOSITIVOS</td></tr>
+                        ) : filteredAssets.map(asset => (
+                        <tr key={asset.id} className={`border-bottom hover-row ${selectedAssets.has(asset.id) ? 'bg-primary bg-opacity-5' : ''}`}>
                             <td className="ps-4">
-                              <div className="d-flex align-items-center">
-                                <GripVertical size={14} className="me-2 text-muted cursor-move d-none d-lg-inline" />
-                                <div onClick={() => toggleSelectAsset(asset.id)} className="cursor-pointer">
-                                  {selectedAssets.includes(asset.id) ? <CheckSquare size={16} className="text-primary" /> : <Square size={16} />}
+                                <Form.Check 
+                                    type="checkbox"
+                                    checked={selectedAssets.has(asset.id)}
+                                    onChange={() => toggleAssetSelection(asset.id)}
+                                />
+                            </td>
+                            <td className="py-3">
+                                <div className="d-flex align-items-center gap-3 overflow-hidden">
+                                    <div className={`p-2 rounded bg-opacity-10 flex-shrink-0 ${asset.status === 'operative' ? 'bg-success text-success' : 'bg-warning text-warning'}`}>{<Monitor size={16} />}</div>
+                                    <div className="text-truncate">
+                                        <div className="fw-bold text-primary text-truncate">{asset.hostname}</div>
+                                        <div className="x-small text-muted font-monospace text-truncate">{asset.mac_address || '---'}</div>
+                                    </div>
                                 </div>
-                              </div>
                             </td>
-                            <td className="ps-4 py-3">
-                              <div 
-                                className="fw-bold text-dark d-flex align-items-center cursor-pointer hover-text-primary"
-                                onClick={() => router.push(`/inventory/${asset.id}`)}
-                              >
-                                <Monitor size={14} className="me-2 text-primary opacity-50" />
-                                {asset.hostname}
-                              </div>
-                              <div className="x-small text-muted font-monospace">{asset.mac_address || 'Sin MAC'}</div>
+                            <td>{getStatusBadge(asset.status)}</td>
+                            <td className="small font-monospace">{asset.ip_address || '---'}</td>
+                            <td className="hide-tablet"><div className="d-flex align-items-center gap-1 small text-truncate"><Shield size={12} className="text-info" /> {asset.av_product || 'Ninguno'}</div></td>
+                            <td className="text-center sticky-actions border-start">
+                                <Button variant="link" size="sm" className="p-0" onClick={() => router.push(`/inventory/${asset.id}`)}>{<Search size={16} />}</Button>
                             </td>
-                            <td>
-                              <Badge bg={asset.status === 'operative' ? 'success' : 'secondary'} className="fw-normal" style={{fontSize: '0.65rem'}}>
-                                {asset.status === 'operative' ? 'OPERATIVO' : asset.status.toUpperCase()}
-                              </Badge>
-                            </td>
-                            <td className="font-monospace small">{asset.ip_address}</td>
-                            <td className="d-none d-md-table-cell">
-                              <Shield size={12} className={`me-1 ${asset.av_product ? 'text-success' : 'text-danger'}`} />
-                              <span className="small">{asset.av_product || 'Pendiente'}</span>
-                            </td>
-                            <td className="text-end pe-4">
-                              <Dropdown align="end">
-                                <Dropdown.Toggle as="div" className="cursor-pointer"><MoreVertical size={16} /></Dropdown.Toggle>
-                                <Dropdown.Menu className="shadow border-0 small">
-                                  <Dropdown.Item onClick={() => { setSelectedAssets([asset.id]); setShowMoveModal(true); }}>
-                                    <ArrowRightLeft size={14} className="me-2" /> Mover
-                                  </Dropdown.Item>
-                                  <Dropdown.Item onClick={() => router.push(`/inventory/${asset.id}`)}>
-                                    <Activity size={14} className="me-2" /> Ver Detalle / Historial
-                                  </Dropdown.Item>
-                                  <Dropdown.Divider />
-                                  <Dropdown.Item className="text-danger" onClick={() => handleSingleDelete(asset.id)}>Baja Lógica</Dropdown.Item>
-                                </Dropdown.Menu>
-                              </Dropdown>
-                            </td>
-                          </tr>
-                        ))
-                      )}
+                        </tr>
+                        ))}
                     </tbody>
-                  </Table>
+                    </Table>
                 </div>
               </Card.Body>
             </Card>
           </Col>
         </Row>
-      </Container>
+      </div>
 
-      {/* Offcanvas para Carpetas en Móvil */}
-      <Offcanvas show={showMobileFolders} onHide={() => setShowMobileFolders(false)} placement="start">
-        <Offcanvas.Header closeButton>
-          <Offcanvas.Title className="fw-bold">Explorador de Ubicaciones</Offcanvas.Title>
-        </Offcanvas.Header>
-        <Offcanvas.Body>
-          <SidebarContent />
-        </Offcanvas.Body>
-      </Offcanvas>
+      {/* Modal de Importación Profesional */}
+      <Modal show={showImportModal} onHide={() => { setShowImportModal(false); setImportData(null); setImportPreview(null); setImportSummary(null); setImportSource('auto'); }} size="lg" centered>
+        <Modal.Header closeButton className="border-0 pb-0"><Modal.Title className="fw-bold text-uppercase small letter-spacing-1">Importar Activos</Modal.Title></Modal.Header>
+        <Modal.Body className="pt-3">
+            {!importData && !importSummary && (
+                <>
+                    <div className="mb-4">
+                        <Form.Label className="x-small fw-bold text-muted text-uppercase">1. Seleccionar Origen</Form.Label>
+                        <div className="d-flex gap-2">
+                            <Button variant={importSource === 'auto' ? 'primary' : 'outline-secondary'} size="sm" className="fw-bold x-small" onClick={() => setImportSource('auto')}>DETECCIÓN AUTO</Button>
+                            <Button variant={importSource === 'eset' ? 'primary' : 'outline-secondary'} size="sm" className="fw-bold x-small" onClick={() => setImportSource('eset')}>ESET CLOUD</Button>
+                            <Button variant={importSource === 'fortiems' ? 'primary' : 'outline-secondary'} size="sm" className="fw-bold x-small" onClick={() => setImportSource('fortiems')}>FORTICLIENT EMS</Button>
+                        </div>
+                    </div>
+                    <Form.Label className="x-small fw-bold text-muted text-uppercase">2. Cargar Archivo</Form.Label>
+                    <div className="text-center py-5 border border-dashed rounded bg-light cursor-pointer" onClick={() => document.getElementById('csv-upload')?.click()}>
+                        <UploadCloud size={48} className="text-primary mb-3 opacity-50" />
+                        <h6 className="fw-bold">Selecciona tu archivo CSV o TSV</h6>
+                        <p className="x-small text-muted">Soporta delimitadores automáticos (, o ;) y codificación UTF-16 de ESET</p>
+                        <input type="file" id="csv-upload" className="d-none" accept=".csv,.tsv,.txt" onChange={handleFileUpload} />
+                    </div>
+                </>
+            )}
 
-      {/* Modal Mover Activos (Masa) */}
+            {importPreview && (
+                <div>
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                        <Alert variant="info" className="x-small py-2 border-0 shadow-none mb-0 d-flex align-items-center flex-grow-1"><AlertTriangle size={16} className="me-2" /> <strong>VISTA PREVIA:</strong> Detectadas {Object.keys(importPreview[0]).length} columnas. Revisa que coincidan.</Alert>
+                        <div className="ms-2">
+                            <Badge bg="dark" className="text-uppercase x-small px-2 py-1">{importSource === 'auto' ? 'AUTO' : importSource}</Badge>
+                        </div>
+                    </div>
+                    <div className="table-responsive border rounded" style={{ maxHeight: '300px' }}>
+                        <Table size="sm" className="mb-0 x-small">
+                            <thead className="bg-light sticky-top">
+                                <tr>{Object.keys(importPreview[0]).map(h => <th key={h} className="text-truncate">{h}</th>)}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {importPreview.map((row, i) => (
+                                    <tr key={i}>{Object.values(row).map((v: any, j) => <td key={j} className="text-truncate" style={{ maxWidth: '150px' }}>{v}</td>)}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </Table>
+                    </div>
+                    <div className="mt-3 text-end">
+                        <Button variant="outline-secondary" size="sm" className="me-2 fw-bold" onClick={() => setImportData(null)}>CANCELAR</Button>
+                        <Button variant="primary" size="sm" className="fw-bold px-4" onClick={confirmImport} disabled={importLoading}>
+                            {importLoading ? <Spinner animation="border" size="sm" className="me-2" /> : <CheckCircle2 size={16} className="me-2" />}
+                            CONFIRMAR IMPORTACIÓN
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {importSummary && (
+                <div className="text-center py-4">
+                    <CheckCircle2 size={64} className="text-success mb-3 opacity-75" />
+                    <h4 className="fw-bold mb-4 text-uppercase">¡Proceso Completado!</h4>
+                    <Row className="g-3 mb-4">
+                        <Col xs={4}><Card className="bg-success bg-opacity-10 border-0 p-3"><h3>{importSummary.success_count}</h3><span className="x-small fw-bold">CREADOS</span></Card></Col>
+                        <Col xs={4}><Card className="bg-primary bg-opacity-10 border-0 p-3"><h3>{importSummary.updated_count}</h3><span className="x-small fw-bold">ACTUALIZADOS</span></Card></Col>
+                        <Col xs={4}><Card className="bg-danger bg-opacity-10 border-0 p-3"><h3>{importSummary.error_count}</h3><span className="x-small fw-bold">ERRORES</span></Card></Col>
+                    </Row>
+                    {importSummary.errors.length > 0 && (
+                        <div className="text-start bg-light p-3 rounded border" style={{ maxHeight: '150px', overflowY: 'auto' }}>
+                            <h6 className="x-small fw-bold text-danger mb-2">DETALLE DE ERRORES:</h6>
+                            {importSummary.errors.map((e: any, i: number) => (
+                                <div key={i} className="x-small mb-1 border-bottom pb-1">
+                                    • Fila {String(e.row)}: {String(e.msg)}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    <Button variant="primary" className="mt-4 px-5 fw-bold" onClick={() => setShowImportModal(false)}>CERRAR</Button>
+                </div>
+            )}
+        </Modal.Body>
+      </Modal>
+
+      {/* Modal de Mover Activos */}
       <Modal show={showMoveModal} onHide={() => setShowMoveModal(false)} centered scrollable>
-        <Modal.Header closeButton className="border-0 pb-0">
-          <Modal.Title className="h6 fw-bold">Mover {selectedAssets.length} activos</Modal.Title>
-        </Modal.Header>
+        <Modal.Header closeButton className="border-0 pb-0"><Modal.Title className="fw-bold small text-uppercase">Mover {selectedAssets.size} equipos</Modal.Title></Modal.Header>
         <Modal.Body>
-          <p className="small text-muted mb-3">Seleccione el destino en el árbol de ubicaciones:</p>
-          <div className="p-2 border rounded bg-light mb-3 min-vh-25">
-            {moveDestination ? (
-              <div className="d-flex align-items-center text-primary fw-bold small">
-                <Folder size={14} className="me-2" /> {moveDestination.path}
-              </div>
-            ) : (
-              <span className="small text-danger italic">No se ha seleccionado destino</span>
-            )}
-          </div>
-          <LocationSelector 
-            selectedId={moveDestination?.id} 
-            onSelect={(node) => setMoveDestination(node)} 
-          />
+            <p className="x-small text-muted mb-3 text-uppercase">Selecciona la carpeta de destino:</p>
+            <ListGroup className="x-small fw-bold border-0">
+                {locations.filter(l => l.path.includes('/')).sort((a,b) => a.path.localeCompare(b.path)).map(loc => (
+                    <ListGroup.Item key={loc.id} action className="border-0 py-2 rounded mb-1 hover-bg" onClick={() => handleBulkAction('move', loc.id)}>
+                        <Folder size={14} className="text-warning me-2" /> {loc.path}
+                    </ListGroup.Item>
+                ))}
+            </ListGroup>
         </Modal.Body>
-        <Modal.Footer className="border-0">
-          <Button variant="light" size="sm" onClick={() => setShowMoveModal(false)}>Cancelar</Button>
-          <Button variant="primary" size="sm" onClick={() => handleBulkMove(selectedAssets, moveDestination!.id)} disabled={!moveDestination || moving}>
-            {moving ? 'Moviendo...' : 'Confirmar Movimiento'}
-          </Button>
-        </Modal.Footer>
       </Modal>
 
-      {/* Modal Nueva/Editar Carpeta */}
-      <Modal show={showFolderModal} onHide={() => { setShowFolderModal(false); setEditingLocation(null); setNewFolderName(''); }} centered size="sm">
-        <Modal.Header closeButton className="border-0 pb-0">
-          <Modal.Title className="h6 fw-bold">{editingLocation ? 'Renombrar Carpeta' : 'Nueva Subcarpeta'}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="pt-2">
-          <Form.Group>
-            <Form.Label className="x-small fw-bold text-muted">Nombre de la carpeta</Form.Label>
-            <Form.Control 
-              autoFocus
-              size="sm"
-              placeholder="Ej: Piso 1, Sector SOC..."
-              value={newFolderName}
-              onChange={e => setNewFolderName(e.target.value)}
-            />
-            {!editingLocation && (
-              selectedLocation ? (
-                <Form.Text className="x-small text-muted">
-                  Se creará dentro de: <strong>{locations.find(l => l.id === selectedLocation)?.name}</strong>
-                </Form.Text>
-              ) : (
-                <Form.Text className="x-small text-muted">
-                  Se creará como una <strong>Carpeta Raíz</strong>.
-                </Form.Text>
-              )
-            )}
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer className="border-0 pt-0">
-          <Button variant="light" size="sm" onClick={() => { setShowFolderModal(false); setEditingLocation(null); setNewFolderName(''); }}>Cancelar</Button>
-          <Button variant="primary" size="sm" onClick={handleCreateFolder}>{editingLocation ? 'Guardar' : 'Crear'}</Button>
-        </Modal.Footer>
-      </Modal>
-
-      {/* Modal Confirmar Eliminación */}
-      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered size="sm">
-        <Modal.Header closeButton className="border-0 pb-0">
-          <Modal.Title className="h6 fw-bold text-danger">Eliminar Carpeta</Modal.Title>
-        </Modal.Header>
+      {/* Modal de Estado */}
+      <Modal show={showStatusModal} onHide={() => setShowStatusModal(false)} centered size="sm">
+        <Modal.Header closeButton className="border-0 pb-0"><Modal.Title className="fw-bold small text-uppercase">Cambiar Estado</Modal.Title></Modal.Header>
         <Modal.Body>
-          <p className="small mb-0">¿Está seguro de eliminar <strong>{deletingLocation?.name}</strong>?</p>
-          <p className="x-small text-muted mt-2">Esta acción solo se permite si la carpeta no tiene subcarpetas ni activos vinculados.</p>
+            <Form.Group className="mb-3">
+                <Form.Label className="x-small fw-bold text-muted text-uppercase">Nuevo estado para {selectedAssets.size} equipos</Form.Label>
+                <Form.Select className="x-small fw-bold" value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
+                    <option value="operative">OPERATIVO</option>
+                    <option value="maintenance">MANTENIMIENTO</option>
+                    <option value="tagging_pending">PENDIENTE ETIQUETAR</option>
+                    <option value="decommissioned">DADO DE BAJA</option>
+                </Form.Select>
+            </Form.Group>
+            <Button variant="primary" className="w-100 fw-bold x-small" onClick={() => handleBulkAction('status', newStatus)}>APLICAR CAMBIOS</Button>
         </Modal.Body>
-        <Modal.Footer className="border-0 pt-0">
-          <Button variant="light" size="sm" onClick={() => setShowDeleteModal(false)}>Cancelar</Button>
-          <Button variant="danger" size="sm" onClick={confirmDeleteFolder}>Eliminar</Button>
-        </Modal.Footer>
       </Modal>
 
-      <style jsx global>{`
-        .cursor-pointer { cursor: pointer; }
-        .cursor-move { cursor: move; }
-        .hover-bg-light:hover { background-color: #f8f9fa; }
-        .folder-item .dropdown { opacity: 0; transition: opacity 0.2s; }
-        .folder-item:hover .dropdown { opacity: 1; }
-        .x-small { font-size: 0.75rem; }
-        .font-monospace { font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important; }
-        .min-vh-25 { min-height: 50px; }
-        .border-dashed { border-style: dashed !important; }
-        .breadcrumb-item-custom { transition: color 0.2s ease; white-space: nowrap; }
-        .breadcrumb-item-custom:hover { color: var(--bs-primary) !important; text-decoration: underline; }
-        .hover-text-primary:hover { color: var(--bs-primary) !important; }
-      `}</style>
+      <FolderModal 
+        show={showFolderModal} 
+        onHide={() => setShowFolderModal(false)} 
+        onSave={handleSaveFolder} 
+        editing={!!editingNode} 
+        folderName={newFolderName} 
+        setFolderName={setNewFolderName} 
+      />
     </Layout>
   );
-};
-
-export default InventoryPage;
+}

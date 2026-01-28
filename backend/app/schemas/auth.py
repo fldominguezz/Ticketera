@@ -11,9 +11,11 @@ class LoginResponse(BaseModel):
     """
     Response after the first step of login (credential validation).
     """
-    needs_2fa: bool = Field(..., description="Indicates if the user must complete a second factor authentication step.")
-    # This token is temporary and should be scoped only to the 2FA verification endpoint.
-    interim_token: str = Field(..., description="A temporary token to proceed with the 2FA step.")
+    needs_2fa: bool = Field(False, description="Indicates if the user must complete a second factor authentication step.")
+    force_password_change: bool = Field(False, description="Indicates if the user must change their password.")
+    reset_2fa: bool = Field(False, description="Indicates if the user must reset their 2FA.")
+    # This token is temporary and should be scoped only to the 2FA verification or password change endpoint.
+    interim_token: str = Field(..., description="A temporary token to proceed with the next step.")
 
 class TotpRequest(BaseModel):
     """

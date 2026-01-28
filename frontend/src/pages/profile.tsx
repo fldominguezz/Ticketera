@@ -107,20 +107,19 @@ export default function ProfilePage() {
                   <Tab eventKey="security" title="Seguridad" className="p-4">
                     <div className="d-flex justify-content-between align-items-center mb-4">
                       <div>
-                        <h6 className="fw-bold mb-1">Autenticación de Dos Factores (2FA)</h6>
-                        <p className="text-muted small mb-0">Protección con código TOTP (Google Authenticator / Authy).</p>
+                        <h6 className="fw-bold mb-1">Estado de Seguridad</h6>
+                        <p className="text-muted small mb-0">La política de seguridad requiere Autenticación de Dos Factores (2FA) obligatoria.</p>
                       </div>
                       {user?.is_2fa_enabled ? (
-                        <Badge bg="success">Activado</Badge>
+                        <Badge bg="success">Protegido con 2FA</Badge>
                       ) : (
-                        <Badge bg="secondary">Desactivado</Badge>
+                        <Badge bg="warning" text="dark">Configuración Pendiente</Badge>
                       )}
                     </div>
-                    {user?.is_2fa_enabled ? (
-                      <Button variant="outline-danger" size="sm" onClick={() => setShowModal(true)}>Desactivar 2FA</Button>
-                    ) : (
-                      <Button variant="outline-primary" size="sm" onClick={() => router.push('/security/setup-2fa')}>Configurar 2FA</Button>
-                    )}
+                    <Alert variant="info" className="small py-2 border-0 shadow-none">
+                      <Shield size={14} className="me-2" />
+                      El Segundo Factor de Autenticación es administrado por la política global de seguridad.
+                    </Alert>
                   </Tab>
                 </Tabs>
               </Card.Body>

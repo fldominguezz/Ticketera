@@ -67,9 +67,9 @@ def get_totp_provisioning_uri(email: str, secret: str) -> str:
     )
 
 def verify_totp(secret: str, code: str) -> bool:
-    """Verify a TOTP code."""
+    """Verify a TOTP code with a small time window tolerance."""
     totp = pyotp.TOTP(secret)
-    return totp.verify(code)
+    return totp.verify(code, valid_window=1)
 
 # --- Recovery Codes ---
 def generate_recovery_codes(k: int = 10, length: int = 10) -> List[str]:

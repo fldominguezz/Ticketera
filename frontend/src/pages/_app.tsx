@@ -5,7 +5,12 @@ import { ThemeProvider } from '../context/ThemeContext';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '../i18n';
 import { useRouter } from 'next/router';
+
+// 1. Estilos base
 import 'bootstrap/dist/css/bootstrap.min.css';
+
+// 2. Mis estilos (DEBEN IR AL FINAL PARA SOBRESCRIBIR)
+import '../styles/globals.css';
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -25,7 +30,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (!authorized && router.pathname !== '/login') {
     return (
-      <div style={{ background: '#05070a', height: '100vh', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div className="spinner-border text-primary" role="status"></div>
       </div>
     );

@@ -31,14 +31,15 @@ async def read_groups(
     result = await db.execute(query)
     groups_objs = result.scalars().all()
     
-    groups_data = []
+    # El mapeo manual ya no es necesario si el esquema maneja group_name
+    # Pero para no romper el esquema actual que usa parent_name:
     for g in groups_objs:
-        g_schema = GroupSchema.model_validate(g)
         if g.parent_group:
-            g_schema.parent_name = g.parent_group.name
-        groups_data.append(g_schema)
-        
-    return groups_data
+            setattr(g, "parent_name", g.parent_group.name)
+        else:
+            setattr(g, "parent_name", None)
+            
+    return groups_objs
 
 @router.post("", response_model=GroupSchema, status_code=status.HTTP_201_CREATED)
 async def create_group(

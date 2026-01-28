@@ -11,7 +11,7 @@ from .asset_history import AssetLocationHistory, AssetIPHistory, AssetInstallRec
 from .ticket import Ticket, TicketType, TicketComment, TicketRelation, TicketSubtask, TicketWatcher
 from .form import Form, FormSubmission
 from .sla import SLAPolicy
-from .workflow import WorkflowTransition
+from .workflow import Workflow, WorkflowState, WorkflowTransition
 from .integrations import SIEMRule, SIEMEvent
 from .notifications import Notification, Attachment
 from .views import SavedView

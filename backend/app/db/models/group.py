@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, DateTime, Text, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
@@ -16,6 +16,7 @@ class Group(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     deleted_at = Column(DateTime(timezone=True), nullable=True)
+    hidden_nav_items = Column(JSONB, default=list, nullable=False)
 
     # Relaciones
     parent_group = relationship("Group", remote_side=[id], back_populates="child_groups")

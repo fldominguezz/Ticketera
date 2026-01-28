@@ -33,10 +33,33 @@ const AssetDetailPage = () => {
   const { id } = router.query;
   const [asset, setAsset] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [assetTickets, setAssetTickets] = useState<any[]>([]);
+  const [loadingTickets, setLoadingTickets] = useState(false);
 
   useEffect(() => {
-    if (id) fetchAssetDetails();
+    if (id) {
+        fetchAssetDetails();
+        fetchAssetTickets();
+    }
   }, [id]);
+
+  const fetchAssetTickets = async () => {
+    setLoadingTickets(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`/api/v1/tickets?asset_id=${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAssetTickets(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error("Error fetching asset tickets:", err);
+    } finally {
+      setLoadingTickets(false);
+    }
+  };
 
   const fetchAssetDetails = async () => {
     try {
@@ -140,7 +163,10 @@ const AssetDetailPage = () => {
                           <div key={idx} className="timeline-item pb-3 border-start ps-3 position-relative">
                             <div className="dot position-absolute bg-primary rounded-circle" style={{width:'10px', height:'10px', left:'-5px', top:'5px'}}></div>
                             <div className="small fw-bold">{new Date(h.created_at).toLocaleString()}</div>
-                            <div className="small text-muted">Cambio de ubicación: <span className="text-dark fw-medium">{h.reason || 'Movimiento manual'}</span></div>
+                            <div className="small text-muted">
+                                <div>Cambio de ubicación: <span className="text-dark fw-medium">{h.reason || 'Movimiento manual'}</span></div>
+                                <div className="x-small opacity-75">Modificado por: <span className="text-primary">{h.changed_by_name || 'System'}</span></div>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -160,42 +186,55 @@ const AssetDetailPage = () => {
                           <tr key={idx}>
                             <td>{new Date(r.created_at).toLocaleDateString()}</td>
                             <td className="fw-bold">{r.gde_number || 'S/N'}</td>
-                            <td>{r.created_by_id?.substring(0,8) || 'System'}</td>
+                            <td>{r.created_by_name || 'System'}</td>
                           </tr>
                         ))}
                         {asset.install_records?.length === 0 && <tr><td colSpan={3} className="text-center py-3">Sin fichas administrativas.</td></tr>}
                       </tbody>
                     </Table>
                   </Tab>
-                  <Tab eventKey="network" title={<span><Network size={16} className="me-1"/> Historial Red</span>} className="p-4">
-                    <Table hover responsive size="sm" className="small">
-                      <thead>
-                        <tr className="text-muted">
-                          <th>Fecha</th>
-                          <th>Dirección IP</th>
-                          <th>Origen</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {asset.ip_history?.map((i: any, idx: number) => (
-                          <tr key={idx}>
-                            <td>{new Date(i.assigned_at).toLocaleString()}</td>
-                            <td className="font-monospace fw-bold">{i.ip_address}</td>
-                            <td>{i.source}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </Table>
-                  </Tab>
-                  <Tab eventKey="tickets" title={<span><Ticket size={16} className="me-1"/> Tickets</span>} className="p-4">
+                  <Tab eventKey="tickets" title={<span><Ticket size={16} className="me-1"/> Tickets ({assetTickets.length})</span>} className="p-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
                       <h6 className="fw-bold mb-0">Tickets asociados a este equipo</h6>
                       <Button variant="primary" size="sm" onClick={() => router.push(`/tickets/new?asset_id=${asset.id}`)}>
                         <Plus size={14} className="me-1"/> Abrir Ticket
                       </Button>
                     </div>
-                    {/* Lista de tickets vinculados - Por ahora placeholder hasta tener el fetch de tickets por asset */}
-                    <p className="small text-muted italic text-center py-4">No hay tickets recientes para este activo.</p>
+                    
+                    {loadingTickets ? (
+                        <div className="text-center py-4"><Spinner animation="border" size="sm" /></div>
+                    ) : assetTickets.length === 0 ? (
+                        <p className="small text-muted italic text-center py-4">No hay tickets vinculados a este activo.</p>
+                    ) : (
+                        <Table hover responsive size="sm" className="small align-middle">
+                            <thead className="bg-light text-muted">
+                                <tr>
+                                    <th className="ps-3">Asunto</th>
+                                    <th>Estado</th>
+                                    <th>Prioridad</th>
+                                    <th className="text-end pe-3">Fecha</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {assetTickets.map(ticket => (
+                                    <tr key={ticket.id} className="cursor-pointer" onClick={() => router.push(`/tickets/${ticket.id}`)}>
+                                        <td className="ps-3 fw-bold text-primary">{ticket.title}</td>
+                                        <td>
+                                            <Badge bg={ticket.status === 'open' ? 'success' : 'secondary'} className="text-uppercase" style={{fontSize: '9px'}}>
+                                                {ticket.status}
+                                            </Badge>
+                                        </td>
+                                        <td>
+                                            <Badge bg="light" text="dark" className="border x-small">
+                                                {ticket.priority.toUpperCase()}
+                                            </Badge>
+                                        </td>
+                                        <td className="text-end pe-3 text-muted">{new Date(ticket.created_at).toLocaleDateString()}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </Table>
+                    )}
                   </Tab>
                 </Tabs>
               </Card.Body>

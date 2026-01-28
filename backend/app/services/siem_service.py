@@ -15,18 +15,17 @@ from datetime import datetime, timezone
 logger = logging.getLogger(__name__)
 
 class SIEMService:
+    def _parse_kv_string(self, text: str) -> Dict[str, str]:
+        """
+        Parses generic syslog/Fortinet key=value or key="value" strings.
+        """
+        pattern = r'(\w+)=(?:\"([^\"]*)\"|(\S+))'
+        matches = re.findall(pattern, text)
+        return {m[0]: (m[1] if m[1] else m[2]) for m in matches}
+
     def _parse_fortisiem_xml(self, xml_string: str):
         try:
-            # Extract raw_log_content using regex to avoid XML parsing issues with nested non-XML
-            raw_log_content = ""
-            raw_events_match = re.search(r"<rawEvents>(.*?)</rawEvents>", xml_string, re.DOTALL)
-            if raw_events_match:
-                raw_log_content = raw_events_match.group(1).strip()
-                xml_string_for_parsing = re.sub(r"<rawEvents>.*?</rawEvents>", "", xml_string, flags=re.DOTALL)
-            else:
-                xml_string_for_parsing = xml_string
-
-            root = ET.fromstring(xml_string_for_parsing)
+            root = ET.fromstring(xml_string)
             incident_id = root.get("incidentId", "N/A")
             severity = root.get("severity", "5")
             rule_name = root.findtext("name", "N/A")
@@ -38,6 +37,10 @@ class SIEMService:
                 for entry in incident_target.findall("entry"):
                     if entry.get("name") == "Host IP":
                         source_ip = entry.text
+
+            # Extract raw_log_content after main XML parsing
+            raw_log_element = root.find("rawEvents")
+            raw_log_content = raw_log_element.text.strip() if raw_log_element is not None and raw_log_element.text else ""
 
             return {
                 "incident_id": incident_id,
@@ -51,33 +54,38 @@ class SIEMService:
             logger.error(f"Error parsing FortiSIEM XML: {e}")
             return None
 
-    def _map_severity(self, severity_num: str) -> str:
-        try:
-            s = int(severity_num)
-            if s >= 8: return "critical"
-            if s >= 6: return "high"
-            if s >= 4: return "medium"
-            return "low"
-        except:
-            return "medium"
+    def _calculate_final_severity(self, siem_sev: str, asset_crit: str = "medium") -> str:
+        # Simple matrix logic
+        sev_map = {"low": 1, "medium": 2, "high": 3, "critical": 4}
+        crit_map = {"low": 1, "medium": 2, "high": 3, "critical": 4}
+        
+        s_val = sev_map.get(siem_sev.lower(), 2)
+        c_val = crit_map.get(asset_crit.lower(), 2)
+        
+        score = s_val + (c_val - 2) # Adjust based on asset
+        if score >= 4: return "CRITICAL"
+        if score == 3: return "HIGH"
+        if score == 2: return "MEDIUM"
+        return "LOW"
 
     async def process_event(self, db: AsyncSession, raw_data: Any, group_id: uuid.UUID):
-        """
-        Procesa eventos de FortiSIEM (XML o JSON) con soporte para idempotencia.
-        """
+        from app.db.models.asset import Asset
         event_info = {}
         incident_id = None
+        raw_event_text = str(raw_data)
+        parsed_kv = {}
         
         if isinstance(raw_data, str) and raw_data.strip().startswith("<"):
             parsed = self._parse_fortisiem_xml(raw_data)
             if parsed:
                 incident_id = parsed["incident_id"]
+                raw_event_text = parsed["raw_log"] or raw_data
+                parsed_kv = self._parse_kv_string(raw_event_text)
                 event_info = {
                     "ip": parsed["source_ip"],
                     "event_type": parsed["rule_name"],
                     "severity": self._map_severity(parsed["severity_num"]),
                     "details": parsed["description"],
-                    "raw_log": parsed["raw_log"],
                     "incident_id": incident_id
                 }
         elif isinstance(raw_data, dict):
@@ -88,64 +96,76 @@ class SIEMService:
                 "event_type": raw_data.get("event_type", "Security Alert"),
                 "severity": raw_data.get("severity", "medium").lower(),
                 "details": raw_data.get("details", "Sin detalles"),
-                "raw_log": str(raw_data),
                 "incident_id": incident_id
             }
+            parsed_kv = raw_data
         
         if not event_info:
-            logger.warning("Could not parse SIEM event data")
             return None
 
-        # --- Lógica de Idempotencia ---
+        # Idempotencia
         if incident_id and incident_id != "N/A":
-            # Buscar si ya existe un ticket con este incidentId en extra_data
-            # Usamos una sintaxis compatible con SQLAlchemy 2.0 para JSONB
-            query = select(Ticket).filter(
-                Ticket.extra_data["incident_id"].as_string() == str(incident_id)
-            )
+            query = select(Ticket).filter(Ticket.extra_data["incident_id"].as_string() == str(incident_id))
             result = await db.execute(query)
-            existing_ticket = result.scalars().first()
-            
-            if existing_ticket:
-                logger.info(f"Actualizando ticket existente para incidentId: {incident_id}")
-                existing_ticket.description = f"ACTUALIZADO: {event_info['details']}\n\n{existing_ticket.description}"
-                existing_ticket.priority = event_info['severity']
-                existing_ticket.updated_at = datetime.now(timezone.utc)
+            existing = result.scalars().first()
+            if existing:
+                existing.description = f"ACTUALIZADO: {event_info['details']}\n\n{existing.description}"
                 await db.commit()
-                await db.refresh(existing_ticket)
-                return existing_ticket
+                return existing
 
-        # Correlation with assets
+        # Enrichment
         ip = event_info.get("ip")
-        endpoint_id = None
+        asset_id = None
+        asset_criticality = "medium"
+        enrichment_data = {}
+        
         if ip and ip != "N/A":
-            res_ep = await db.execute(select(Endpoint).filter(Endpoint.ip_address == ip))
-            ep_obj = res_ep.scalars().first()
-            if ep_obj:
-                endpoint_id = ep_obj.id
+            res_ast = await db.execute(select(Asset).filter(Asset.ip_address == ip))
+            asset_obj = res_ast.scalars().first()
+            if asset_obj:
+                asset_id = asset_obj.id
+                asset_criticality = asset_obj.criticality or "medium"
+                enrichment_data["asset_context"] = {
+                    "hostname": asset_obj.hostname,
+                    "os": asset_obj.os_name,
+                    "location": "N/A" # Resolved later if needed
+                }
+
+        final_sev = self._calculate_final_severity(event_info["severity"], asset_criticality)
 
         # Get Ticket Type
-        res_tt = await db.execute(select(TicketType).filter(TicketType.name == "Alerta FortiSIEM"))
+        res_tt = await db.execute(select(TicketType).filter(TicketType.name.in_(["Alerta SIEM", "FortiSIEM", "Incidente SOC"])))
         ticket_type = res_tt.scalars().first()
-        if not ticket_type:
-            res_tt = await db.execute(select(TicketType).filter(TicketType.name == "Incidente SOC"))
-            ticket_type = res_tt.scalars().first()
 
-        new_ticket = Ticket(
-            title=f"SIEM: {event_info['event_type']}",
-            description=f"{event_info['details']}\n\nIP Origen: {ip or 'N/A'}",
+        new_alert = Ticket(
+            title=f"ALERTA: {event_info['event_type']}",
+            description=event_info['details'],
             status="open",
             priority=event_info['severity'],
             ticket_type_id=ticket_type.id if ticket_type else None,
             group_id=group_id,
-            asset_id=endpoint_id,
-            created_by_id=uuid.UUID("852d2452-e98a-48eb-9d41-9281e03f1cf0"), # fortisiem user
-            extra_data={"siem_raw": raw_data, "incident_id": incident_id}
+            asset_id=asset_id,
+            created_by_id=uuid.UUID("1aec092c-51c1-4475-b652-f52093ec188c"),
+            extra_data={"incident_id": incident_id},
+            raw_event=raw_event_text,
+            parsed_event=parsed_kv,
+            enrichment=enrichment_data,
+            final_severity=final_sev,
+            siem_metadata={
+                "rule": event_info['event_type'],
+                "original_severity": event_info['severity'],
+                "incident_id": incident_id
+            },
+            remediation_suggestions=[
+                "Investigar actividad anómala en el host de origen.",
+                "Verificar integridad de logs en el dispositivo.",
+                "Aplicar políticas de aislamiento si el evento es persistente."
+            ]
         )
         
-        db.add(new_ticket)
+        db.add(new_alert)
         await db.commit()
-        await db.refresh(new_ticket)
-        return new_ticket
+        await db.refresh(new_alert)
+        return new_alert
 
 siem_service = SIEMService()

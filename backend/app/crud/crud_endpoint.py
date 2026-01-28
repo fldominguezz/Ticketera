@@ -19,7 +19,11 @@ class CRUDEndpoint:
         db_obj = Endpoint(**obj_in.model_dump())
         db.add(db_obj)
         await db.commit()
-        await db.refresh(db_obj)
+        await db.refresh(db_obj, attribute_names=[
+            "id", "hostname", "ip_address", "mac_address", "group_id", 
+            "product", "status", "technical_user_id", "observations", 
+            "extra_data", "created_at", "updated_at"
+        ])
         return db_obj
 
     async def update(self, db: AsyncSession, db_obj: Endpoint, obj_in: EndpointUpdate) -> Endpoint:
@@ -28,7 +32,11 @@ class CRUDEndpoint:
         
         db.add(db_obj)
         await db.commit()
-        await db.refresh(db_obj)
+        await db.refresh(db_obj, attribute_names=[
+            "id", "hostname", "ip_address", "mac_address", "group_id", 
+            "product", "status", "technical_user_id", "observations", 
+            "extra_data", "created_at", "updated_at"
+        ])
         return db_obj
 
     async def remove(self, db: AsyncSession, id: UUID) -> Endpoint:
@@ -40,7 +48,11 @@ class CRUDEndpoint:
             db_obj.status = "decommissioned"
             db.add(db_obj)
             await db.commit()
-            await db.refresh(db_obj)
+            await db.refresh(db_obj, attribute_names=[
+                "id", "hostname", "ip_address", "mac_address", "group_id", 
+                "product", "status", "technical_user_id", "observations", 
+                "extra_data", "created_at", "updated_at", "deleted_at"
+            ])
         return db_obj
 
 endpoint = CRUDEndpoint()

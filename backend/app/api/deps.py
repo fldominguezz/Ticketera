@@ -1,3 +1,4 @@
+import logging
 from typing import AsyncGenerator, Annotated, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -14,6 +15,8 @@ from app.core.config import settings
 from app.db.models import User
 from app.crud import crud_user, crud_session
 from app.crud.crud_user import user as crud_user_instance # Import the instance directly
+
+logger = logging.getLogger(__name__)
 
 # Custom Bearer scheme to avoid OAuth2PasswordBearer's redirect behavior
 reusable_oauth2 = HTTPBearer(scheme_name="JWT")
@@ -53,58 +56,56 @@ async def get_current_user(
         
         # Manual Scope validation
         if required_scopes:
-            for scope in required_scopes:
-                if scope not in token_scopes:
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail="Not enough permissions",
-                        headers={"WWW-Authenticate": f'Bearer scope="{",".join(required_scopes)}"'},
-                    )
-
-        # Handle different token types based on payload scope
-        if "session" in token_scopes: # This is a full session token
-            if session_id is None: # Must have a session ID
-                raise credentials_exception
-            
-            # Check if session is active
-            session = await crud_session.session.get_session_by_id(db, session_id=UUID(session_id))
-            if not session or not session.is_active:
-                logger.warning(f"Session {session_id} not found or inactive")
+            # Check if at least one of the required scopes is present in the token
+            if not any(scope in token_scopes for scope in required_scopes):
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid or inactive session",
-                    headers={"WWW-Authenticate": "Bearer"},
+                    detail="Not enough permissions",
+                    headers={"WWW-Authenticate": f'Bearer scope="{",".join(required_scopes)}"'},
                 )
 
-            # Eagerly load user, roles, and permissions
+        # Handle different token types based on payload scope
+        is_session_token = "session" in token_scopes
+        is_security_token = any(s in token_scopes for s in ["password:change", "2fa:reset", "2fa:verify"])
+
+        if is_session_token:
+            if session_id is None:
+                raise credentials_exception
+            session = await crud_session.session.get_session_by_id(db, session_id=UUID(session_id))
+            if not session or not session.is_active:
+                raise credentials_exception
+            
+            # Carga completa para sesión normal
             query = (
-                select(User)
-                .where(User.id == UUID(user_id))
+                select(User).where(User.id == UUID(user_id))
                 .options(
-                    selectinload(User.roles)
-                    .selectinload(UserRole.role)
-                    .selectinload(Role.permissions)
-                    .selectinload(RolePermission.permission),
+                    selectinload(User.roles).selectinload(UserRole.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
                     selectinload(User.group)
                 )
             )
             result = await db.execute(query)
             user = result.scalar_one_or_none()
-
             if user is None or user.id != session.user_id:
                 raise credentials_exception
             return user
-        elif "2fa:verify" in token_scopes: # This is an interim token for 2FA
-            # For interim tokens, we only need to verify the user exists and is active.
-            # No session_id check needed here.
-            query = select(User).where(User.id == UUID(user_id))
+
+        elif is_security_token:
+            # Para tokens de seguridad, identificación para permitir onboarding
+            # Cargamos relaciones para que el esquema Pydantic no falle
+            query = (
+                select(User).where(User.id == UUID(user_id))
+                .options(
+                    selectinload(User.roles).selectinload(UserRole.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
+                    selectinload(User.group)
+                )
+            )
             result = await db.execute(query)
             user = result.scalar_one_or_none()
             if user is None or not user.is_active:
                 raise credentials_exception
             return user
-        else: # Unknown or unsupported scope
-            raise credentials_exception
+        
+        raise credentials_exception
 
     except JWTError as e:
         logger.warning(f"JWT Decode error: {e}")
@@ -129,6 +130,14 @@ async def get_current_superuser_dep(
 ) -> User:
     return await get_current_user(db, token_auth, required_scopes=["session", "superuser"])
 
+def get_current_user_with_scope(scope: str):
+    async def _dep(
+        db: Annotated[AsyncSession, Depends(get_db)],
+        token_auth: HTTPAuthorizationCredentials = Depends(reusable_oauth2)
+    ) -> User:
+        return await get_current_user(db, token_auth, required_scopes=[scope])
+    return _dep
+
 async def get_current_2fa_user_dep(
     db: Annotated[AsyncSession, Depends(get_db)],
     token_auth: HTTPAuthorizationCredentials = Depends(reusable_oauth2)
@@ -136,10 +145,31 @@ async def get_current_2fa_user_dep(
     return await get_current_user(db, token_auth, required_scopes=["2fa:verify"])
 
 async def get_current_active_user(
-    current_user: Annotated[User, Depends(get_current_active_user_dep)],
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    token_auth: HTTPAuthorizationCredentials = Depends(reusable_oauth2)
 ) -> User:
+    current_user = await get_current_user(db, token_auth)
+    
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
+    
+    path = request.url.path
+    exempt_paths = ["/api/v1/auth/", "/api/v1/users/me"]
+    is_exempt = any(p in path for p in exempt_paths)
+    
+    if not is_exempt:
+        if current_user.force_password_change:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="SECURITY_CHANGE_PASSWORD_REQUIRED"
+            )
+        if (current_user.enroll_2fa_mandatory or current_user.reset_2fa_next_login) and not current_user.is_2fa_enabled:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="SECURITY_2FA_SETUP_REQUIRED"
+            )
+            
     return current_user
 
 async def get_current_superuser(

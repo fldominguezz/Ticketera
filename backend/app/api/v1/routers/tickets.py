@@ -1,4 +1,4 @@
-from typing import Annotated, List
+from typing import Annotated, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
@@ -18,6 +18,7 @@ from app.services.workflow_service import workflow_service
 
 from sqlalchemy import func, or_
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from app.db.models.ticket import Ticket as TicketModel
 
 router = APIRouter()
@@ -81,20 +82,30 @@ async def read_tickets(
     current_user: Annotated[User, Depends(get_current_active_user)],
     skip: int = 0,
     limit: int = 100,
+    asset_id: Optional[UUID] = None,
 ):
     """
     Retrieve tickets.
     """
-    if current_user.is_superuser:
-        tickets = await crud_ticket.ticket.get_multi(db, skip=skip, limit=limit)
-    else:
+    options = [
+        selectinload(TicketModel.ticket_type),
+        selectinload(TicketModel.group),
+        selectinload(TicketModel.assigned_to)
+    ]
+    
+    query = select(TicketModel).options(*options)
+    
+    if asset_id:
+        query = query.filter(TicketModel.asset_id == asset_id)
+    
+    if not current_user.is_superuser:
         if not current_user.group_id:
             return []
         group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
-        tickets = await crud_ticket.ticket.get_multi_by_group_ids(
-            db, group_ids=group_ids, skip=skip, limit=limit
-        )
-    return tickets
+        query = query.filter(TicketModel.group_id.in_(group_ids))
+        
+    result = await db.execute(query.offset(skip).limit(limit))
+    return result.scalars().all()
 
 @router.post("", response_model=Ticket, status_code=status.HTTP_201_CREATED)
 async def create_ticket(
@@ -130,10 +141,12 @@ async def read_ticket(
     """
     ticket = await crud_ticket.ticket.get(db, id=ticket_id)
     if not ticket:
+        print(f"DEBUG: Ticket {ticket_id} not found in DB.") # Added debug log
         raise HTTPException(status_code=404, detail="Ticket not found")
     
     if not current_user.is_superuser:
         group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
+        print(f"DEBUG: User {current_user.id} (groups: {group_ids}) trying to access ticket {ticket_id} (group: {ticket.group_id}).") # Added debug log
         if ticket.group_id not in group_ids:
              raise HTTPException(status_code=403, detail="Not enough permissions")
              
@@ -148,27 +161,50 @@ async def update_ticket(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ):
     """
-    Update a ticket.
+    Update a ticket with granular permissions.
     """
     ticket = await crud_ticket.ticket.get(db, id=ticket_id)
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
     
-    # Access check (simplified)
-    if not current_user.is_superuser and ticket.group_id != current_user.group_id:
-         # Need better check with group hierarchy
-         group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
-         if ticket.group_id not in group_ids:
-            raise HTTPException(status_code=403, detail="Not enough permissions")
+    # Identify roles
+    is_admin = current_user.is_superuser
+    is_security_informatic = False
+    if current_user.group and current_user.group.name == "División Seguridad Informática":
+        is_security_informatic = True
+    
+    is_creator = ticket.created_by_id == current_user.id
+    can_manage_global = is_admin or is_security_informatic
+
+    # Rule: Creator can manage unless resolved/closed. Admin/Security can always manage.
+    if not can_manage_global:
+        if not is_creator:
+            # Check group access if not creator
+            group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
+            if ticket.group_id not in group_ids:
+                raise HTTPException(status_code=403, detail="Not enough permissions to access this ticket")
+        
+        # If creator/group-member but ticket is resolved/closed, only admin/security can change it
+        if ticket.status in ["resolved", "closed"] and ticket_in.status:
+            raise HTTPException(status_code=403, detail="Only administrators can reopen or modify a resolved/closed ticket")
+
+    # Audit reassignments
+    audit_details = {"ticket_id": str(ticket.id)}
+    if ticket_in.assigned_to_id and ticket_in.assigned_to_id != ticket.assigned_to_id:
+        audit_details["action"] = "reassigned"
+        audit_details["old_assignee"] = str(ticket.assigned_to_id)
+        audit_details["new_assignee"] = str(ticket_in.assigned_to_id)
 
     # Workflow validation
     if ticket_in.status and ticket_in.status != ticket.status:
         is_allowed = await workflow_service.is_transition_allowed(db, ticket.status, ticket_in.status)
-        if not is_allowed:
+        if not is_allowed and not can_manage_global: 
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, 
-                detail=f"Transition from {ticket.status} to {ticket_in.status} is not allowed by workflow rules."
+                detail=f"Transition from {ticket.status} to {ticket_in.status} is not allowed."
             )
+        audit_details["old_status"] = ticket.status
+        audit_details["new_status"] = ticket_in.status
 
     updated_ticket = await crud_ticket.ticket.update(db, db_obj=ticket, obj_in=ticket_in)
     
@@ -177,9 +213,9 @@ async def update_ticket(
         user_id=current_user.id,
         event_type="ticket_updated",
         ip_address=request.client.host,
-        details={"ticket_id": str(ticket.id)}
+        details=audit_details
     )
-    return updated_ticket
+    return await crud_ticket.ticket.get(db, id=updated_ticket.id)
 
 @router.get("/{ticket_id}/comments", response_model=List[TicketComment])
 async def read_ticket_comments(
@@ -241,12 +277,12 @@ async def create_ticket_comment(
     mentions = re.findall(r"@(\w+)", comment.content)
     for username in mentions:
         mentioned_user = await crud_user.get_by_username(db, username=username)
-        if mentioned_user:
+        if mentioned_user and mentioned_user.id != current_user.id:
             await notification_service.notify_user(
                 db,
                 user_id=mentioned_user.id,
-                title="💬 You were mentioned",
-                message=f"{current_user.username} mentioned you in ticket '{ticket.title}'",
+                title="💬 Fuiste mencionado",
+                message=f"{current_user.username} te mencionó en el ticket '{ticket.title}'",
                 link=f"/tickets/{ticket.id}"
             )
 
@@ -255,7 +291,12 @@ async def create_ticket_comment(
         user_id=current_user.id,
         event_type="comment_added",
         ip_address=request.client.host,
-        details={"ticket_id": str(ticket.id), "comment_id": str(comment.id), "is_internal": comment.is_internal}
+        details={
+            "ticket_id": str(ticket.id), 
+            "comment_id": str(comment.id), 
+            "mentions": mentions,
+            "content_preview": comment.content[:50] + "..." if len(comment.content) > 50 else comment.content
+        }
     )
     return comment
 

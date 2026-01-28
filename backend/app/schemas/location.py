@@ -24,6 +24,10 @@ class LocationNode(LocationNodeBase):
     id: UUID
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
+    
+    # Campos dinámicos para lógica tipo ESET
+    total_assets: Optional[int] = 0
+    direct_assets: Optional[int] = 0
 
     class Config:
         from_attributes = True

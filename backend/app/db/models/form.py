@@ -18,7 +18,7 @@ class Form(Base):
     created_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     
     # Configuration of the form (visual builder state)
-    schema = Column(JSON, nullable=False) # Stores fields, validations, conditionals
+    fields_schema = Column(JSON, nullable=False) # Stores fields, validations, conditionals
     
     # Automation rules: What happens when this form is submitted?
     # e.g., create ticket type X, create endpoint Y

@@ -17,7 +17,9 @@ export default function Login() {
   const [mounted, setMounted] = useState(false);
   
   const { login, verify2FA } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const themeContext = useTheme(); // Acceso seguro
+  const theme = themeContext?.theme || 'dark';
+  const toggleTheme = themeContext?.toggleTheme || (() => {});
   const router = useRouter();
 
   useEffect(() => {
@@ -30,9 +32,14 @@ export default function Login() {
     setError(null);
     try {
       const result = await login(username, password);
-      if (typeof result === 'object' && result.needs_2fa) {
-        setNeeds2FA(true);
-        setInterimToken(result.interim_token);
+      if (typeof result === 'object') {
+        if (result.needs_2fa) {
+          setNeeds2FA(true);
+          setInterimToken(result.interim_token);
+        } else if (result.force_password_change || result.reset_2fa) {
+          // El token ya fue guardado por el AuthContext.login
+          router.push('/security/onboarding');
+        }
       } else if (result === true) {
         router.push('/');
       } else {
@@ -66,7 +73,7 @@ export default function Login() {
   if (!mounted) return null;
 
   return (
-    <div className={`login-wrapper theme-${theme}`}>
+    <div className="login-wrapper">
       <Head>
         <title>Secure Gateway | Ticketera SOC</title>
       </Head>
@@ -86,7 +93,7 @@ export default function Login() {
               <ShieldCheck size={48} className="text-primary" />
             </div>
             <h4 className="fw-black m-0 tracking-tighter uppercase">TICKETERA <span className="text-primary">SOC</span></h4>
-            <div className="text-muted small fw-bold tracking-widest uppercase" style={{ fontSize: '9px' }}>
+            <div className="small fw-bold text-muted opacity-75 text-uppercase" style={{ fontSize: '9px' }}>
               Enterprise Security Gateway
             </div>
           </div>
@@ -100,13 +107,14 @@ export default function Login() {
           {!needs2FA ? (
             <Form onSubmit={handleLoginSubmit}>
               <Form.Group className="mb-3">
-                <Form.Label className="x-small fw-black text-muted uppercase">Operator ID</Form.Label>
-                <div className="input-group-custom">
-                  <User size={16} className="input-icon" />
+                <Form.Label className="x-small fw-black text-muted uppercase opacity-75">Operator ID</Form.Label>
+                <div className="position-relative">
+                  <User size={16} className="position-absolute" style={{ left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
                   <Form.Control 
                     type="text"
                     placeholder="Username"
-                    className="input-field"
+                    autoComplete="username"
+                    style={{ paddingLeft: 40, height: 45 }}
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     required
@@ -115,13 +123,14 @@ export default function Login() {
               </Form.Group>
 
               <Form.Group className="mb-4">
-                <Form.Label className="x-small fw-black text-muted uppercase">Security Token</Form.Label>
-                <div className="input-group-custom">
-                  <Lock size={16} className="input-icon" />
+                <Form.Label className="x-small fw-black text-muted uppercase opacity-75">Security Token</Form.Label>
+                <div className="position-relative">
+                  <Lock size={16} className="position-absolute" style={{ left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
                   <Form.Control 
                     type="password"
                     placeholder="Password"
-                    className="input-field"
+                    autoComplete="current-password"
+                    style={{ paddingLeft: 40, height: 45 }}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -144,17 +153,18 @@ export default function Login() {
             <Form onSubmit={handle2FASubmit}>
               <div className="text-center mb-4">
                 <div className="text-primary x-small fw-black uppercase mb-2">Multi-Factor Authentication Required</div>
-                <p className="text-muted x-small m-0">Enter the 6-digit verification code from your security device.</p>
+                <p className="text-muted x-small m-0 opacity-75">Enter the 6-digit verification code from your security device.</p>
               </div>
               
               <Form.Group className="mb-4">
-                <Form.Label className="x-small fw-black text-muted uppercase">Verification Code</Form.Label>
-                <div className="input-group-custom">
-                  <Key size={16} className="input-icon" />
+                <Form.Label className="x-small fw-black text-muted uppercase opacity-75">Verification Code</Form.Label>
+                <div className="position-relative">
+                  <Key size={16} className="position-absolute" style={{ left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
                   <Form.Control 
                     type="text"
                     placeholder="000000"
-                    className="input-field text-center fw-black tracking-widest"
+                    className="text-center fw-black tracking-widest"
+                    style={{ paddingLeft: 40, height: 45 }}
                     maxLength={6}
                     value={totpCode}
                     onChange={(e) => setTotpCode(e.target.value)}
@@ -175,7 +185,7 @@ export default function Login() {
               
               <Button 
                 variant="link" 
-                className="w-100 text-muted x-small mt-3 text-decoration-none fw-bold uppercase"
+                className="w-100 text-muted x-small mt-3 text-decoration-none fw-bold uppercase opacity-75"
                 onClick={() => setNeeds2FA(false)}
               >
                 Back to credentials
@@ -183,116 +193,29 @@ export default function Login() {
             </Form>
           )}
 
-          <div className="mt-5 pt-3 border-top border-theme text-center">
-            <div className="text-muted fw-mono uppercase italic" style={{ fontSize: '8px' }}>
+          <div className="mt-5 pt-3 border-top border-opacity-10 text-center">
+            <div className="text-muted fw-mono uppercase italic opacity-50" style={{ fontSize: '8px' }}>
               v1.3.5 • IMMUTABLE SECURE CONNECTION • AES-256
-            </div>
-            <div className="text-muted fw-mono mt-1" style={{ fontSize: '7px' }}>
-              DETECTED_IP: {typeof window !== 'undefined' ? window.location.hostname : '...'}
             </div>
           </div>
         </Card.Body>
       </Card>
 
-      <style jsx global>{`
-        .theme-dark {
-          --bg-login: #05070a;
-          --bg-card: #0c1016;
-          --text-primary: #ffffff;
-          --text-muted: #8a8f98;
-          --border-color: rgba(255, 255, 255, 0.05);
-          --input-bg: #05070a;
-        }
-
-        .theme-light {
-          --bg-login: #f0f2f5;
-          --bg-card: #ffffff;
-          --text-primary: #1a1f26;
-          --text-muted: #64748b;
-          --border-color: rgba(0, 0, 0, 0.1);
-          --input-bg: #ffffff;
-        }
-
+      <style jsx>{`
         .login-wrapper {
           height: 100vh;
           display: flex;
           align-items: center;
           justify-content: center;
-          background-color: var(--bg-login);
-          transition: background-color 0.25s ease;
+          background-color: var(--body-bg);
           position: relative;
         }
-
-        .theme-toggle-fixed {
-          position: fixed;
-          top: 20px;
-          right: 20px;
-          z-index: 100;
-        }
-
-        .vignette {
-          position: absolute;
-          inset: 0;
-          box-shadow: inset 0 0 150px rgba(0,0,0,0.5);
-          pointer-events: none;
-        }
-
-        .login-card {
-          width: 100%;
-          max-width: 380px;
-          background: var(--bg-card) !important;
-          border: 1px solid var(--border-color) !important;
-          border-radius: 12px !important;
-          color: var(--text-primary) !important;
-          transition: all 0.25s ease;
-        }
-
-        .shield-container {
-          display: inline-flex;
-          padding: 15px;
-          border-radius: 50%;
-          background: rgba(13, 110, 253, 0.05);
-          border: 1px solid rgba(13, 110, 253, 0.1);
-          box-shadow: 0 0 30px rgba(13, 110, 253, 0.1);
-        }
-
+        .theme-toggle-fixed { position: fixed; top: 20px; right: 20px; z-index: 100; }
+        .vignette { position: absolute; inset: 0; box-shadow: inset 0 0 150px rgba(0,0,0,0.3); pointer-events: none; }
+        .login-card { width: 100%; max-width: 380px; }
+        .shield-container { display: inline-flex; padding: 15px; border-radius: 50%; background: rgba(13, 110, 253, 0.05); border: 1px solid rgba(13, 110, 253, 0.1); }
         .x-small { font-size: 10px; }
         .fw-black { font-weight: 900; }
-        .fw-mono { font-family: 'JetBrains Mono', monospace; }
-
-        .input-group-custom {
-          position: relative;
-        }
-
-        .input-icon {
-          position: absolute;
-          left: 12px;
-          top: 50%;
-          transform: translateY(-50%);
-          color: var(--text-muted);
-          opacity: 0.5;
-          z-index: 10;
-        }
-
-        .input-field {
-          background-color: var(--input-bg) !important;
-          border: 1px solid var(--border-color) !important;
-          color: var(--text-primary) !important;
-          padding-left: 40px !important;
-          height: 45px !important;
-          font-size: 14px !important;
-        }
-
-        .input-field:focus {
-          border-color: #0d6efd !important;
-          box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15) !important;
-        }
-
-        .border-theme {
-          border-color: var(--border-color) !important;
-        }
-
-        .text-muted { color: var(--text-muted) !important; }
       `}</style>
     </div>
   );

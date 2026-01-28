@@ -9,7 +9,7 @@ class FormBase(BaseModel):
     version: int = 1
     is_active: bool = True
     group_id: UUID
-    schema: dict # JSON schema for fields
+    fields_schema: dict # JSON schema for fields
     automation_rules: Optional[dict] = None
 
 class FormCreate(FormBase):
@@ -19,7 +19,7 @@ class FormUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
-    schema: Optional[dict] = None
+    fields_schema: Optional[dict] = None
     automation_rules: Optional[dict] = None
 
 class FormInDBBase(FormBase):

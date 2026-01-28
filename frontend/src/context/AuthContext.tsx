@@ -8,7 +8,7 @@ interface AuthContextType {
   login: (identifier: string, password: string) => Promise<boolean | { needs_2fa: boolean, interim_token: string }>;
   verify2FA: (code: string, interimToken: string) => Promise<boolean>;
   logout: () => void;
-  refreshUser: () => Promise<void>;
+  checkAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -18,26 +18,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  const fetchUser = async (token: string) => {
+  const fetchUser = async (token: string): Promise<boolean> => {
+    setLoading(true);
     try {
       const res = await fetch('/api/v1/users/me', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) {
+      
+      // Si es 200 o 403, intentamos leer el usuario (nuestro backend envía el JSON en ambos)
+      if (res.ok || res.status === 403) {
         const userData = await res.json();
         if (userData && (userData.id || userData.email)) {
           setUser(userData);
-        } else {
-          throw new Error("Invalid user data");
+          return true;
         }
-      } else {
-        localStorage.removeItem('access_token');
-        setUser(null);
       }
+      
+      // Si llegamos acá, el token es inválido de verdad
+      localStorage.removeItem('access_token');
+      setUser(null);
+      return false;
     } catch (e) {
       console.error("Auth fetch error", e);
       localStorage.removeItem('access_token');
       setUser(null);
+      return false;
     } finally {
       setLoading(false);
     }
@@ -69,13 +74,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (res.ok) {
         const data = await res.json();
-        if (data.needs_2fa) {
-          return { needs_2fa: true, interim_token: data.interim_token };
+        // Caso: Requiere acciones de seguridad (interim token)
+        if (data.needs_2fa || data.force_password_change || data.reset_2fa) {
+          const token = data.interim_token;
+          localStorage.setItem('access_token', token);
+          await fetchUser(token); // Cargamos el usuario YA para que el context tenga los flags
+          return data;
         }
         
+        // Caso: Login completo
         localStorage.setItem('access_token', data.access_token);
-        await fetchUser(data.access_token);
-        return true;
+        const success = await fetchUser(data.access_token);
+        return success;
       }
       return false;
     } catch (e) {
@@ -98,8 +108,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (res.ok) {
         const data = await res.json();
         localStorage.setItem('access_token', data.access_token);
-        await fetchUser(data.access_token);
-        return true;
+        const success = await fetchUser(data.access_token);
+        return success;
       }
       return false;
     } catch (e) {
@@ -122,7 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       login, 
       verify2FA,
       logout,
-      refreshUser: () => fetchUser(localStorage.getItem('access_token') || '')
+      checkAuth: () => fetchUser(localStorage.getItem('access_token') || '')
     }}>
       {children}
     </AuthContext.Provider>
