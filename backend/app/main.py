@@ -32,6 +32,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Global Exception Handler for Security Hardening
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    logger.error(f"Global Exception: {str(exc)}", exc_info=True)
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An internal server error occurred. Please contact the security administrator."},
+    )
+
 app.router.redirect_slashes = False
 
 MAINTENANCE_MODE = False
