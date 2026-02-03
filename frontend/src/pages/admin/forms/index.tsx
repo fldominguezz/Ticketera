@@ -90,8 +90,8 @@ const FormsManagement = () => {
 
             <Card className="border-0 shadow-sm overflow-hidden">
                 <Table responsive hover className="mb-0">
-                    <thead className="bg-light">
-                        <tr>
+                    <thead>
+                        <tr className="bg-surface-muted">
                             <th className="border-0 small text-muted text-uppercase px-4 py-3">Nombre</th>
                             <th className="border-0 small text-muted text-uppercase py-3">Categoría</th>
                             <th className="border-0 small text-muted text-uppercase py-3">Estado</th>
@@ -101,20 +101,20 @@ const FormsManagement = () => {
                     </thead>
                     <tbody>
                         {forms.length > 0 ? forms.map((f) => (
-                            <tr key={f.id} className="align-middle">
+                            <tr key={f.id} className="align-middle border-color">
                                 <td className="px-4">
                                     <div className="d-flex align-items-center">
                                         <div className={`p-2 rounded bg-opacity-10 me-3 ${f.is_active ? 'bg-success' : 'bg-secondary'}`}>
                                             <FileText size={18} className={f.is_active ? 'text-success' : 'text-secondary'} />
                                         </div>
                                         <div>
-                                            <div className="fw-bold small">{f.name}</div>
+                                            <div className="fw-bold small text-body">{f.name}</div>
                                             <div className="x-small text-muted">Versión {f.version}</div>
                                         </div>
                                     </div>
                                 </td>
                                 <td>
-                                    <Badge bg="light" text="dark" className="border fw-normal text-uppercase px-2">
+                                    <Badge bg="secondary" className="bg-opacity-10 text-body border fw-normal text-uppercase px-2">
                                         {f.category || 'Sin Categoría'}
                                     </Badge>
                                 </td>
@@ -135,7 +135,7 @@ const FormsManagement = () => {
                                             <ShieldCheck size={16} className="me-1" /> PROD
                                         </Badge>
                                     ) : (
-                                        <Badge bg="light" text="muted" className="border fw-normal">Borrador</Badge>
+                                        <Badge bg="secondary" className="bg-opacity-10 text-muted border fw-normal">Borrador</Badge>
                                     )}
                                 </td>
                                 <td className="text-end px-4">

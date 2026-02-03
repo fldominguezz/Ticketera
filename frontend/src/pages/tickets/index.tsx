@@ -147,13 +147,14 @@ export default function TicketsPage() {
             <div className="table-responsive">
               <Table hover className="align-middle m-0 compact-table">
                 <thead>
-                  <tr className="x-small text-muted uppercase tracking-widest border-bottom border-color bg-surface">
-                    <th className="ps-4 py-2" style={{width: '100px'}}>ID</th>
-                    <th className="py-2">ASUNTO</th>
-                    <th className="py-2">ESTADO</th>
-                    <th className="py-2">PRIORIDAD</th>
-                    <th className="py-2">ASIGNACIÓN</th>
-                    <th className="pe-4 py-2 text-end">FECHA</th>
+                  <tr className="small text-muted uppercase tracking-widest border-bottom border-color bg-surface">
+                    <th className="ps-4 py-3" style={{width: '120px'}}>ID</th>
+                    <th className="py-3" style={{width: '25%'}}>ASUNTO</th>
+                    <th className="py-3">ESTADO</th>
+                    <th className="py-3">PRIORIDAD</th>
+                    <th className="py-3" style={{width: '180px'}}>CREADOR</th>
+                    <th className="py-3">ASIGNACIÓN</th>
+                    <th className="pe-4 py-3 text-end">FECHA</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -162,23 +163,35 @@ export default function TicketsPage() {
                       key={t.id} 
                       className="border-bottom border-color cursor-pointer transition-all" 
                       onClick={() => router.push(`/tickets/${t.id}`)}
+                      style={{ height: '65px' }}
                     >
-                      <td className="ps-4 py-2 font-monospace text-primary fw-black" style={{fontSize: '11px'}}>
+                      <td className="ps-4 py-2 font-monospace text-primary fw-black" style={{fontSize: '12px'}}>
                          {t.id.split('-')[0].toUpperCase()}
                       </td>
                       <td className="py-2">
-                         <div className="fw-bold small text-main">{t.title}</div>
-                         <div className="x-small text-muted opacity-75">{t.group?.name || 'SOPORTE'}</div>
+                         <div className="fw-bold text-main" style={{ fontSize: '14px' }}>{t.title}</div>
+                         <div className="x-small text-muted opacity-75 fw-bold">{t.group?.name || 'SOPORTE'}</div>
                       </td>
                       <td className="py-2">{getStatusBadge(t.status)}</td>
                       <td className="py-2">{getPriorityBadge(t.priority)}</td>
                       <td className="py-2">
                          <div className="d-flex align-items-center gap-2">
-                            <div className="avatar-mini">{t.assigned_to?.username?.charAt(0) || '?'}</div>
-                            <span className="x-small fw-bold text-muted">{t.assigned_to?.username || '---'}</span>
+                            <span className="small fw-black text-muted">{t.created_by_name}</span>
                          </div>
                       </td>
-                      <td className="pe-4 py-2 text-end text-muted x-small font-monospace">
+                      <td className="py-2">
+                         <div className="d-flex align-items-center gap-2">
+                            {t.assigned_to ? (
+                              <>
+                                <div className="avatar-mini" style={{ width: 24, height: 24, fontSize: '11px' }}>{t.assigned_to.username.charAt(0).toUpperCase()}</div>
+                                <span className="small fw-black text-primary">{t.assigned_to.username}</span>
+                              </>
+                            ) : (
+                              <span className="small text-muted opacity-50 italic">Sin asignar</span>
+                            )}
+                         </div>
+                      </td>
+                      <td className="pe-4 py-2 text-end text-muted small font-monospace">
                          {new Date(t.created_at).toLocaleDateString()}
                       </td>
                     </tr>

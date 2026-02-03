@@ -100,8 +100,20 @@ h1, h2, h3, h4, h5, h6, p, span, div, label, li, td, th, b, strong, small {
 .text-muted { color: var(--text-muted) !important; }
 .text-dark { color: var(--text-main) !important; }
 .text-black { color: var(--text-main) !important; }
+.text-white { color: var(--text-main) !important; } /* Usually we want text to follow theme main text */
+.text-white-force { color: #ffffff !important; } /* Force white if really needed */
+
 .bg-white { background-color: var(--bg-card) !important; }
 .bg-light { background-color: var(--bg-surface) !important; }
+.bg-dark { background-color: var(--bg-app) !important; }
+.bg-black { background-color: var(--bg-app) !important; }
+.bg-surface { background-color: var(--bg-surface) !important; }
+.bg-surface-muted { background-color: var(--bg-surface-muted) !important; }
+.bg-transparent { background-color: transparent !important; }
+
+.border-white { border-color: var(--border-subtle) !important; }
+.border-dark { border-color: var(--border-strong) !important; }
+.border-color { border-color: var(--border-subtle) !important; }
 
 /* Table Reset */
 .table {

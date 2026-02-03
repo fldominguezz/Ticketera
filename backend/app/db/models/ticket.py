@@ -38,7 +38,7 @@ class Ticket(Base):
     platform = Column(String(100), nullable=True)
     
     ticket_type_id = Column(UUID(as_uuid=True), ForeignKey("ticket_types.id"), nullable=False)
-    group_id = Column(UUID(as_uuid=True), ForeignKey("groups.id"), nullable=False) # Current Group
+    group_id = Column(UUID(as_uuid=True), ForeignKey("groups.id"), nullable=True) # Current Group - Nullable for private
     owner_group_id = Column(UUID(as_uuid=True), ForeignKey("groups.id"), nullable=False) # Creator's Group
     asset_id = Column(UUID(as_uuid=True), ForeignKey("assets.id"), nullable=True)
     expediente_id = Column(UUID(as_uuid=True), ForeignKey("expedientes.id"), nullable=True)
@@ -48,6 +48,7 @@ class Ticket(Base):
     parent_ticket_id = Column(UUID(as_uuid=True), ForeignKey("tickets.id"), nullable=True)
     template_id = Column(UUID(as_uuid=True), ForeignKey("forms.id"), nullable=True)
     sla_deadline = Column(DateTime(timezone=True), nullable=True)
+    is_private = Column(Boolean, default=False)
     extra_data = Column(JSON, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

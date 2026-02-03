@@ -24,7 +24,7 @@ interface SLAMetric {
 
 interface TicketDetailProps {
   ticket: any; comments: Comment[]; relations: Relation[]; attachments: Attachment[]; subtasks: Subtask[]; 
-  watchers: Watcher[]; history: any[]; users: any[];
+  watchers: Watcher[]; history: any[]; users: any[]; groups: any[];
   onAddComment: (content: string, isInternal: boolean) => Promise<void>;
   onAddRelation: (targetId: string, type: string) => Promise<void>;
   onUploadFile: (file: File) => Promise<void>;
@@ -33,12 +33,12 @@ interface TicketDetailProps {
   onToggleSubtask: (id: string, completed: boolean) => Promise<void>;
   onAddSubtask: (title: string) => Promise<void>;
   onDeleteSubtask: (id: string) => Promise<void>;
-  onUpdateTicket: (data: any) => Promise<void>;
   onDeleteTicket?: () => Promise<void>;
+  onUpdateTicket: (data: any) => Promise<void>;
 }
 
 const TicketDetail: React.FC<TicketDetailProps> = ({
-  ticket, comments, relations, attachments, subtasks, watchers, history, users,
+  ticket, comments, relations, attachments, subtasks, watchers, history, users, groups,
   onAddComment, onAddRelation, onUploadFile, onDownloadFile, onToggleWatch, onToggleSubtask, onAddSubtask, onDeleteSubtask, onUpdateTicket, onDeleteTicket
 }) => {
   const { theme } = useTheme();
@@ -51,9 +51,60 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const isGlobalAdmin = currentUser?.is_superuser || currentUser?.group?.name === 'DIVISIÓN SEGURIDAD INFORMÁTICA';
+  const hasAssignPermission = currentUser?.is_superuser || currentUser?.permissions?.includes('ticket:assign') || isGlobalAdmin;
   const isCreator = ticket?.created_by_id === currentUser?.id;
   const isResolvedOrClosed = ticket?.status === 'resolved' || ticket?.status === 'closed';
   const canManageState = isGlobalAdmin || (isCreator && !isResolvedOrClosed);
+  const canAssign = (hasAssignPermission || currentUser?.is_superuser) && !isResolvedOrClosed;
+
+  // --- FILTRADO JERÁRQUICO DE GRUPOS ---
+  const getHierarchyGroups = () => {
+    if (currentUser?.is_superuser) return groups;
+    if (!currentUser?.group_id) return [];
+
+    const userGroupId = currentUser.group_id;
+    // Función para obtener todos los descendientes
+    const getDescendants = (parentId: string): any[] => {
+      const children = groups.filter(g => g.parent_id === parentId);
+      return children.reduce((acc, child) => [...acc, child, ...getDescendants(child.id)], [] as any[]);
+    };
+
+    const myGroup = groups.find(g => g.id === userGroupId);
+    const descendants = getDescendants(userGroupId);
+    return myGroup ? [myGroup, ...descendants] : descendants;
+  };
+
+  const hierarchicalGroups = getHierarchyGroups();
+
+  // Asegurar que el usuario actualmente asignado esté en la lista
+  const displayUsers = [...users];
+  const currentAssigneeId = ticket?.assigned_to_id;
+  
+  if (currentAssigneeId) {
+    const userInList = displayUsers.find(u => u.id === currentAssigneeId);
+    if (!userInList) {
+      // INYECTAR DINÁMICAMENTE EL USUARIO ACTUAL
+      // Usamos el objeto assigned_to o el nombre plano que viene del backend
+      displayUsers.push({
+        id: currentAssigneeId,
+        username: ticket.assigned_to?.username || ticket.assigned_to_name || 'Usuario Asignado',
+        first_name: ticket.assigned_to?.first_name || '',
+        last_name: ticket.assigned_to?.last_name || ''
+      });
+    }
+  }
+
+  // Asegurar que el grupo actual esté en la lista
+  const displayGroups = [...hierarchicalGroups];
+  if (ticket?.group_id) {
+    const isGroupInList = displayGroups.find(g => g.id === ticket.group_id);
+    if (!isGroupInList) {
+      displayGroups.push({
+        id: ticket.group_id,
+        name: ticket.group?.name || ticket.group_name || 'Grupo Actual'
+      });
+    }
+  }
 
   const handleCommentSubmit = async (content: string, isInternal: boolean, attachmentIds: string[]) => {
     setSubmitting(true);
@@ -198,18 +249,35 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                   dangerouslySetInnerHTML={{ __html: ticket.description || 'No description provided.' }} 
                 />
                 
-                <div className="d-flex gap-4 text-muted x-small border-top border-color pt-3 flex-wrap text-uppercase fw-bold tracking-wider">
+                <div className="d-flex gap-4 text-muted x-small border-top border-color pt-3 flex-wrap text-uppercase fw-bold tracking-wider align-items-center">
                   <span className="d-flex align-items-center gap-1">TYPE: <span className="text-primary">{ticket.ticket_type?.name || 'General'}</span></span>
                   <span className="d-flex align-items-center gap-1">CREATED: <span className="text-primary">{ticket.created_at ? new Date(ticket.created_at).toLocaleString() : 'N/A'}</span></span>
+                  
+                  {/* SELECTOR DE GRUPO ASIGNADO */}
+                  <div className="d-flex align-items-center gap-2">
+                    <span>GROUP:</span>
+                    <Form.Select 
+                      size="sm" value={ticket.group_id || ''} disabled={!canAssign}
+                      onChange={(e) => onUpdateTicket({ group_id: e.target.value || null })}
+                      className={`w-auto border-0 bg-transparent p-0 text-primary fw-black ${!canAssign ? 'opacity-75 cursor-not-allowed' : ''}`} style={{ fontSize: 'inherit' }}
+                    >
+                      <option value="">No Group</option>
+                      {displayGroups.map(g => (<option key={g.id} value={g.id}>{g.name}</option>))}
+                    </Form.Select>
+                  </div>
+
+                  {/* SELECTOR DE USUARIO ASIGNADO */}
                   <div className="d-flex align-items-center gap-2">
                     <span>ASSIGNED:</span>
                     <Form.Select 
-                      size="sm" value={ticket.assigned_to_id || ''} disabled={!canManageState}
+                      size="sm" 
+                      value={ticket.assigned_to_id || ticket.assigned_to?.id || ''} 
+                      disabled={!canAssign}
                       onChange={(e) => onUpdateTicket({ assigned_to_id: e.target.value || null })}
-                      className="w-auto border-0 bg-transparent p-0 text-primary fw-black" style={{ fontSize: 'inherit' }}
+                      className={`w-auto border-0 bg-transparent p-0 text-primary fw-black ${!canAssign ? 'opacity-75 cursor-not-allowed' : ''}`} style={{ fontSize: 'inherit' }}
                     >
                       <option value="">Unassigned</option>
-                      {users.map(u => (<option key={u.id} value={u.id}>{u.username}</option>))}
+                      {displayUsers.map(u => (<option key={u.id} value={u.id}>{u.username}</option>))}
                     </Form.Select>
                   </div>
                 </div>

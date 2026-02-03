@@ -53,6 +53,7 @@ class UserInDBBase(UserBase):
 
 class User(UserInDBBase):
     roles: List[Role] = []
+    permissions: List[str] = [] # Flat list of permission keys for frontend validation
     group: Optional[GroupSchema] = None # Add group field
 
     @model_validator(mode='before')
@@ -64,11 +65,17 @@ class User(UserInDBBase):
             
         if hasattr(data, "roles"):
             roles = []
+            permissions_set = set()
             for ur in data.roles:
-                if hasattr(ur, "role"):
-                    roles.append(ur.role)
-                else:
-                    roles.append(ur)
+                role_obj = getattr(ur, "role", ur)
+                roles.append(role_obj)
+                
+                # Extraer permisos del rol
+                if hasattr(role_obj, "permissions"):
+                    for rp in role_obj.permissions:
+                        perm_obj = getattr(rp, "permission", rp)
+                        if hasattr(perm_obj, "key"):
+                            permissions_set.add(perm_obj.key)
             
             # Construct a dictionary to return, including group details
             return_data = {
@@ -88,6 +95,7 @@ class User(UserInDBBase):
                 "group_name": data.group.name if hasattr(data, "group") and data.group else None,
                 "preferred_language": data.preferred_language,
                 "roles": roles,
+                "permissions": list(permissions_set)
             }
             if hasattr(data, "group") and data.group:
                 return_data["group"] = data.group

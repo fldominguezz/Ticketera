@@ -60,7 +60,7 @@ export default function AuditLogsPage() {
           <Card.Body className="p-3">
             <Row className="g-2">
               <Col md={6}>
-                <div className={`input-group input-group-sm rounded px-2 ${isDark ? 'bg-dark bg-opacity-50' : 'bg-light'}`}>
+                <div className="input-group input-group-sm rounded px-2 bg-opacity-50">
                   <span className="input-group-text bg-transparent border-0"><Search size={14} className="text-muted" /></span>
                   <Form.Control 
                     className="bg-transparent border-0 shadow-none" 
@@ -75,9 +75,9 @@ export default function AuditLogsPage() {
         </Card>
 
         <Card className="shadow-sm border-0 overflow-hidden">
-          <Table responsive hover variant={isDark ? 'dark' : undefined} className="mb-0 align-middle">
-            <thead className={isDark ? 'bg-black' : 'bg-light'}>
-              <tr className="small text-uppercase text-muted opacity-75">
+          <Table responsive hover className="mb-0 align-middle">
+            <thead>
+              <tr className="small text-uppercase text-muted opacity-75 bg-opacity-20">
                 <th className="ps-4 py-3">{t('timestamp')}</th>
                 <th>{t('event')}</th>
                 <th>Usuario</th>

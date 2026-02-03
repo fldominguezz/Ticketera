@@ -10,10 +10,12 @@ class TicketBase(BaseModel):
     priority: Optional[str] = "medium"
     platform: Optional[str] = None
     ticket_type_id: UUID
-    group_id: UUID
+    group_id: Optional[UUID] = None
+    assigned_to_id: Optional[UUID] = None
     asset_id: Optional[UUID] = None
     parent_ticket_id: Optional[UUID] = None
     sla_deadline: Optional[datetime] = None
+    is_private: Optional[bool] = False
     extra_data: Optional[Dict[str, Any]] = None
 
 class TicketCreate(TicketBase):
@@ -27,6 +29,7 @@ class TicketUpdate(BaseModel):
     platform: Optional[str] = None
     assigned_to_id: Optional[UUID] = None
     group_id: Optional[UUID] = None
+    is_private: Optional[bool] = None
     extra_data: Optional[Any] = None
 
 class TicketInDBBase(TicketBase):
@@ -79,6 +82,7 @@ class Ticket(TicketInDBBase):
     ticket_type_name: Optional[str] = None
     group_name: Optional[str] = None
     assigned_to_name: Optional[str] = None
+    created_by_name: Optional[str] = None
     
     # Objetos anidados para compatibilidad con frontend
     ticket_type: Optional[TicketTypeSchema] = None
@@ -90,19 +94,57 @@ class Ticket(TicketInDBBase):
     @model_validator(mode='before')
     @classmethod
     def flatten_relations(cls, data: Any) -> Any:
-        if hasattr(data, "id") and not isinstance(data, dict):
-            # Si es un objeto de SQLAlchemy
-            def safe_getattr(obj, attr, default=None):
-                try:
-                    return getattr(obj, attr)
-                except Exception:
-                    return default
+        # Funciones auxiliares para extraer datos
+        def safe_getattr(obj, attr, default=None):
+            try:
+                return getattr(obj, attr)
+            except Exception:
+                return default
 
+        if isinstance(data, dict):
+            # Caso DICT (procesar datos ya serializados o model_dump)
+            ticket_type = data.get("ticket_type")
+            if ticket_type and not data.get("ticket_type_name"):
+                data["ticket_type_name"] = getattr(ticket_type, "name", ticket_type.get("name") if isinstance(ticket_type, dict) else None)
+            
+            group = data.get("group")
+            if group and not data.get("group_name"):
+                data["group_name"] = getattr(group, "name", group.get("name") if isinstance(group, dict) else None)
+                
+            created_by = data.get("created_by")
+            if created_by and not data.get("created_by_name"):
+                c_first = getattr(created_by, "first_name", created_by.get("first_name") if isinstance(created_by, dict) else "")
+                c_last = getattr(created_by, "last_name", created_by.get("last_name") if isinstance(created_by, dict) else "")
+                name = f"{c_first} {c_last}".strip()
+                data["created_by_name"] = name or getattr(created_by, "username", created_by.get("username") if isinstance(created_by, dict) else "Sistema")
+
+            assigned_to = data.get("assigned_to")
+            if assigned_to and not data.get("assigned_to_name"):
+                first = getattr(assigned_to, "first_name", assigned_to.get("first_name") if isinstance(assigned_to, dict) else "")
+                last = getattr(assigned_to, "last_name", assigned_to.get("last_name") if isinstance(assigned_to, dict) else "")
+                data["assigned_to_name"] = f"{first} {last}".strip() or getattr(assigned_to, "username", assigned_to.get("username") if isinstance(assigned_to, dict) else None)
+            
+            if not data.get("assigned_to_id") and assigned_to:
+                data["assigned_to_id"] = getattr(assigned_to, "id", assigned_to.get("id") if isinstance(assigned_to, dict) else None)
+
+            return data
+
+        if hasattr(data, "id"):
+            # Caso OBJETO SQLAlchemy
             ticket_type = safe_getattr(data, "ticket_type")
             group = safe_getattr(data, "group")
             assigned_to = safe_getattr(data, "assigned_to")
+            created_by = safe_getattr(data, "created_by")
             asset = safe_getattr(data, "asset")
             sla_metric = safe_getattr(data, "sla_metric")
+
+            # LÓGICA ULTRA-ROBUSTA: Priorizar Nombre Real > Username > Sistema
+            res_created_by_name = "Sistema"
+            if created_by:
+                first = getattr(created_by, "first_name", "") or ""
+                last = getattr(created_by, "last_name", "") or ""
+                full_name = f"{first} {last}".strip()
+                res_created_by_name = full_name or getattr(created_by, "username", "Sistema")
 
             return {
                 "id": data.id,
@@ -121,11 +163,13 @@ class Ticket(TicketInDBBase):
                 "asset": asset if asset else None,
                 "sla_metric": sla_metric if sla_metric else None,
                 "created_by_id": data.created_by_id,
+                "created_by_name": res_created_by_name,
                 "assigned_to_id": data.assigned_to_id,
-                "assigned_to_name": f"{assigned_to.first_name} {assigned_to.last_name}" if assigned_to else None,
+                "assigned_to_name": f"{assigned_to.first_name} {assigned_to.last_name}".strip() if assigned_to else None,
                 "assigned_to": assigned_to if assigned_to else None,
                 "parent_ticket_id": data.parent_ticket_id,
                 "sla_deadline": data.sla_deadline,
+                "is_private": data.is_private,
                 "extra_data": data.extra_data,
                 "created_at": data.created_at,
                 "updated_at": data.updated_at,

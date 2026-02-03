@@ -93,7 +93,18 @@ async def read_user_me(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ):
-    return current_user
+    # Recargar al usuario con todos los permisos y grupos para asegurar que el frontend reciba todo
+    result = await db.execute(
+        select(User).where(User.id == current_user.id)
+        .options(
+            selectinload(User.roles)
+            .selectinload(UserRole.role)
+            .selectinload(Role.permissions)
+            .selectinload(RolePermission.permission), 
+            selectinload(User.group)
+        )
+    )
+    return result.scalar_one()
 
 @router.put("/me", response_model=UserSchema)
 async def update_user_me(

@@ -202,7 +202,13 @@ def require_ticket_permission(action: str):
         query = (
             select(TicketModel)
             .where(TicketModel.id == ticket_id)
-            .options(selectinload(TicketModel.group))
+            .options(
+                selectinload(TicketModel.group),
+                selectinload(TicketModel.assigned_to),
+                selectinload(TicketModel.ticket_type),
+                selectinload(TicketModel.asset),
+                selectinload(TicketModel.sla_metric)
+            )
         )
         result = await db.execute(query)
         ticket = result.scalar_one_or_none()

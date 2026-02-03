@@ -35,8 +35,10 @@ export default function NewTicketPage() {
     description: '',
     ticket_type_id: '',
     group_id: '',
+    assigned_to_id: '',
     priority: 'medium',
     platform: 'INTERNO',
+    is_private: false,
     asset_id: (asset_id as string) || ''
   });
 
@@ -96,15 +98,32 @@ export default function NewTicketPage() {
           : [];
         setTicketTypes(filteredTypes);
         
-        const isAdmin = isSuperuser || currentUser?.is_superuser;
-        let filteredGroups = groupsData;
-        if (!isAdmin && currentUser?.group_id) {
-          filteredGroups = groupsData.filter((g: any) => g.id === currentUser.group_id);
+        // --- LÓGICA DE JERARQUÍA DE GRUPOS ---
+        let filteredGroups = Array.isArray(groupsData) ? groupsData : [];
+        const userGroupId = currentUser?.group_id;
+
+        if (userGroupId && !isSuperuser) {
+          // 1. Encontrar mi grupo
+          const myGroup = filteredGroups.find((g: any) => g.id === userGroupId);
+          // 2. Encontrar todos mis descendientes (hijos, nietos...)
+          const getDescendants = (parentId: string): any[] => {
+            const children = filteredGroups.filter((g: any) => g.parent_id === parentId);
+            return children.reduce((acc, child) => [...acc, child, ...getDescendants(child.id)], [] as any[]);
+          };
+          
+          const descendants = getDescendants(userGroupId);
+          // 3. El usuario solo ve su grupo y sus dependientes
+          filteredGroups = myGroup ? [myGroup, ...descendants] : descendants;
         }
+        
         setGroups(filteredGroups);
         
         if (filteredTypes.length > 0) setFormData(prev => ({ ...prev, ticket_type_id: filteredTypes[0].id }));
-        if (filteredGroups.length > 0) setFormData(prev => ({ ...prev, group_id: filteredGroups[0].id }));
+        // Seleccionar por defecto el grupo del usuario si está en la lista
+        if (filteredGroups.length > 0) {
+          const defaultGroup = filteredGroups.find((g: any) => g.id === userGroupId) || filteredGroups[0];
+          setFormData(prev => ({ ...prev, group_id: defaultGroup.id }));
+        }
       } else {
         setError('Failed to fetch required metadata');
       }
@@ -146,8 +165,10 @@ export default function NewTicketPage() {
         priority: formData.priority,
         platform: formData.platform,
         ticket_type_id: formData.ticket_type_id || null,
-        group_id: formData.group_id || null,
+        group_id: formData.is_private ? null : (formData.group_id || null),
+        assigned_to_id: formData.assigned_to_id || null,
         asset_id: formData.asset_id || null,
+        is_private: formData.is_private,
         parent_ticket_id: null,
         attachment_ids: attachmentIds
       };
@@ -181,7 +202,7 @@ export default function NewTicketPage() {
     <Layout title={t('new_ticket') || 'Nuevo Ticket'}>
       <Container className="py-2">
         <div className="mb-4 d-flex align-items-center">
-          <Button variant="link" className="p-0 me-3 text-dark" onClick={() => router.back()}><ArrowLeft size={24} /></Button>
+          <Button variant="link" className="p-0 me-3 text-body" onClick={() => router.back()}><ArrowLeft size={24} /></Button>
           <h2 className="fw-black mb-0">CREAR NUEVO TICKET</h2>
         </div>
 
@@ -249,19 +270,59 @@ export default function NewTicketPage() {
                       </Form.Group>
                     </Col>
                     <Col md={6}>
-                      <Form.Group>
-                        <Form.Label className="small fw-bold">Grupo Responsable *</Form.Label>
-                        <Form.Select 
-                          required
-                          value={formData.group_id}
-                          onChange={e => setFormData({ ...formData, group_id: e.target.value })}
-                        >
-                          <option value="">Seleccionar grupo...</option>
-                          {groups.map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
-                        </Form.Select>
-                      </Form.Group>
+                      {formData.is_private ? (
+                        <Form.Group>
+                          <Form.Label className="small fw-bold text-primary">👤 Asignar a Usuario (Privado) *</Form.Label>
+                          <Form.Select 
+                            required
+                            value={formData.assigned_to_id}
+                            onChange={e => setFormData({ ...formData, assigned_to_id: e.target.value })}
+                          >
+                            <option value="">Seleccionar destinatario...</option>
+                            {users.filter(u => u.id !== currentUser?.id).map((u: any) => (
+                              <option key={u.id} value={u.id}>{u.first_name} {u.last_name} ({u.username})</option>
+                            ))}
+                          </Form.Select>
+                        </Form.Group>
+                      ) : (
+                        <Form.Group>
+                          <Form.Label className="small fw-bold">Grupo Responsable *</Form.Label>
+                          <Form.Select 
+                            required
+                            value={formData.group_id}
+                            onChange={e => setFormData({ ...formData, group_id: e.target.value })}
+                          >
+                            <option value="">Seleccionar grupo...</option>
+                            {groups.map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                          </Form.Select>
+                        </Form.Group>
+                      )}
                     </Col>
                   </Row>
+
+                  <div className="mt-4 p-3 rounded-3 bg-opacity-10 border border-color bg-warning">
+                    <Form.Check 
+                      type="switch"
+                      id="private-ticket-switch"
+                      label={
+                        <div>
+                          <div className="fw-black x-small uppercase tracking-widest text-main">🔒 Ticket Privado</div>
+                          <div className="x-small text-muted fw-bold">Solo tú y la persona asignada podrán visualizar este ticket. El resto del grupo no tendrá acceso.</div>
+                        </div>
+                      }
+                      checked={formData.is_private}
+                      onChange={e => {
+                        const isPrivate = e.target.checked;
+                        setFormData({ 
+                          ...formData, 
+                          is_private: isPrivate,
+                          // Si vuelve a ser público, restaurar su grupo por defecto
+                          group_id: (!isPrivate && currentUser?.group_id) ? currentUser.group_id : formData.group_id
+                        });
+                      }}
+                      className="d-flex align-items-center gap-3 custom-switch-lg"
+                    />
+                  </div>
                 </Card.Body>
               </Card>
 
@@ -298,7 +359,7 @@ export default function NewTicketPage() {
                                     <div className="fw-bold small text-primary">{a.hostname}</div>
                                     <div className="x-small text-muted font-monospace">{a.ip_address} | {a.mac_address}</div>
                                   </div>
-                                  <Badge bg="light" text="dark" className="border font-monospace x-small">{a.location_name || 'Sin Ubicación'}</Badge>
+                                  <Badge bg="secondary" className="bg-opacity-10 text-body font-monospace x-small">{a.location_name || 'Sin Ubicación'}</Badge>
                                 </ListGroup.Item>
                               ))
                             ) : (
@@ -309,7 +370,7 @@ export default function NewTicketPage() {
                       )}
                     </div>
                   ) : (
-                    <div className="p-3 bg-light rounded border d-flex justify-content-between align-items-center">
+                    <div className="p-3 bg-surface-muted rounded border d-flex justify-content-between align-items-center">
                       <div className="d-flex align-items-center gap-3">
                         <div className="bg-primary bg-opacity-10 p-2 rounded">
                           <Monitor className="text-primary" size={20} />
@@ -317,7 +378,7 @@ export default function NewTicketPage() {
                         <div>
                           <div className="fw-bold text-primary">{selectedAsset.hostname}</div>
                           <div className="small text-muted font-monospace">
-                            <span className="badge bg-white text-dark border me-2">{selectedAsset.ip_address}</span>
+                            <span className="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-10 me-2">{selectedAsset.ip_address}</span>
                             <MapPin size={12} className="me-1" /> {selectedAsset.location_name || 'Ubicación Desconocida'}
                           </div>
                         </div>
@@ -357,6 +418,7 @@ export default function NewTicketPage() {
         .fw-black { font-weight: 900; }
         .x-small { font-size: 10px; }
         .z-3 { z-index: 1050; }
+        .custom-switch-lg .form-check-input { width: 3em; height: 1.5em; cursor: pointer; }
       `}</style>
     </Layout>
   );

@@ -129,7 +129,7 @@ export default function PermissionsRegistryPage() {
       <Container fluid className="py-4">
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
-            <h4 className="fw-black text-white m-0 uppercase tracking-tighter d-flex align-items-center">
+            <h4 className="fw-black m-0 uppercase tracking-tighter d-flex align-items-center">
               <Key className="me-2 text-primary" size={24} /> REGISTRO DE PERMISOS
             </h4>
             <small className="text-muted fw-bold uppercase x-small tracking-widest">Diccionario Global de Capacidades del Sistema</small>
@@ -139,16 +139,16 @@ export default function PermissionsRegistryPage() {
           </Button>
         </div>
 
-        <Card className="bg-dark border-0 shadow-2xl rounded-xl mb-4 border border-white border-opacity-5">
+        <Card className="border-0 shadow-2xl rounded-xl mb-4 border border-white border-opacity-5">
           <Card.Body className="p-3">
             <Row className="g-3">
               <Col md={8}>
-                <InputGroup className="bg-black bg-opacity-20 border border-white border-opacity-10 rounded-lg overflow-hidden">
+                <InputGroup className="bg-opacity-20 border rounded-lg overflow-hidden">
                   <InputGroup.Text className="bg-transparent border-0 text-muted ps-3">
                     <Search size={18} />
                   </InputGroup.Text>
                   <Form.Control 
-                    className="bg-transparent border-0 text-white shadow-none py-2" 
+                    className="bg-transparent border-0 shadow-none py-2" 
                     placeholder="Buscar por key o nombre..." 
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
@@ -157,7 +157,7 @@ export default function PermissionsRegistryPage() {
               </Col>
               <Col md={4}>
                 <Form.Select 
-                  className="bg-black bg-opacity-20 border-white border-opacity-10 text-white shadow-none py-2 rounded-lg"
+                  className="bg-opacity-20 shadow-none py-2 rounded-lg"
                   value={moduleFilter}
                   onChange={e => setModuleFilter(e.target.value)}
                 >
@@ -169,10 +169,10 @@ export default function PermissionsRegistryPage() {
           </Card.Body>
         </Card>
 
-        <Card className="bg-dark border-0 shadow-2xl rounded-xl overflow-hidden border border-white border-opacity-5">
-          <Table hover responsive variant="dark" className="align-middle mb-0">
+        <Card className="border-0 shadow-2xl rounded-xl overflow-hidden border border-white border-opacity-5">
+          <Table hover responsive className="align-middle mb-0">
             <thead>
-              <tr className="x-small text-muted uppercase tracking-widest border-bottom border-white border-opacity-10 bg-black bg-opacity-20">
+              <tr className="x-small text-muted uppercase tracking-widest border-bottom bg-opacity-20">
                 <th className="ps-4 py-3">MÓDULO</th>
                 <th>KEY (SISTEMA)</th>
                 <th>NOMBRE (DESCRIPTIVO)</th>
@@ -185,14 +185,14 @@ export default function PermissionsRegistryPage() {
               {loading ? (
                 <tr><td colSpan={6} className="text-center py-5"><Spinner animation="border" variant="primary" size="sm" /></td></tr>
               ) : filteredPermissions.map(perm => (
-                <tr key={perm.id} className="border-bottom border-white border-opacity-5">
+                <tr key={perm.id} className="border-bottom">
                   <td className="ps-4 py-3">
                     <Badge bg="info" className="bg-opacity-10 text-info x-small border border-info border-opacity-10 uppercase">
                       {perm.module || 'CUSTOM'}
                     </Badge>
                   </td>
                   <td><code className="text-primary small">{perm.key}</code></td>
-                  <td className="small text-white fw-bold">{perm.name}</td>
+                  <td className="small fw-bold">{perm.name}</td>
                   <td className="text-center">
                     <Badge bg="secondary" className="bg-opacity-10 text-muted x-small border border-white border-opacity-10 uppercase">
                       {perm.scope_type || 'NONE'}
@@ -219,8 +219,8 @@ export default function PermissionsRegistryPage() {
         </Card>
       </Container>
 
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered contentClassName="bg-dark text-white border-primary border-opacity-25">
-        <Modal.Header closeButton closeVariant="white" className="border-white border-opacity-10">
+      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
+        <Modal.Header closeButton className="border-white border-opacity-10">
           <Modal.Title className="x-small fw-black uppercase tracking-widest">
             {editingPermission ? 'Editar Permiso' : 'Nuevo Permiso'}
           </Modal.Title>
@@ -230,7 +230,7 @@ export default function PermissionsRegistryPage() {
             <Form.Group className="mb-3">
               <Form.Label className="x-small fw-black text-muted uppercase">Key del Permiso</Form.Label>
               <Form.Control 
-                className="bg-black bg-opacity-20 border-white border-opacity-10 text-white" 
+                className="bg-opacity-20" 
                 placeholder="ej: assets:create" 
                 value={formData.key}
                 onChange={e => setFormData({...formData, key: e.target.value})}
@@ -240,7 +240,7 @@ export default function PermissionsRegistryPage() {
             <Form.Group className="mb-3">
               <Form.Label className="x-small fw-black text-muted uppercase">Nombre Amigable</Form.Label>
               <Form.Control 
-                className="bg-black bg-opacity-20 border-white border-opacity-10 text-white" 
+                className="bg-opacity-20" 
                 placeholder="ej: Crear Activos" 
                 value={formData.name}
                 onChange={e => setFormData({...formData, name: e.target.value})}
@@ -251,7 +251,7 @@ export default function PermissionsRegistryPage() {
                 <Form.Group className="mb-3">
                   <Form.Label className="x-small fw-black text-muted uppercase">Módulo</Form.Label>
                   <Form.Control 
-                    className="bg-black bg-opacity-20 border-white border-opacity-10 text-white" 
+                    className="bg-opacity-20" 
                     value={formData.module}
                     onChange={e => setFormData({...formData, module: e.target.value})}
                   />
@@ -261,7 +261,7 @@ export default function PermissionsRegistryPage() {
                 <Form.Group className="mb-3">
                   <Form.Label className="x-small fw-black text-muted uppercase">Alcance (Scope)</Form.Label>
                   <Form.Select 
-                    className="bg-black bg-opacity-20 border-white border-opacity-10 text-white shadow-none"
+                    className="bg-opacity-20 shadow-none"
                     value={formData.scope_type}
                     onChange={e => setFormData({...formData, scope_type: e.target.value})}
                   >
@@ -274,7 +274,7 @@ export default function PermissionsRegistryPage() {
               <Form.Label className="x-small fw-black text-muted uppercase">Descripción</Form.Label>
               <Form.Control 
                 as="textarea" rows={2}
-                className="bg-black bg-opacity-20 border-white border-opacity-10 text-white" 
+                className="bg-opacity-20" 
                 value={formData.description}
                 onChange={e => setFormData({...formData, description: e.target.value})}
               />

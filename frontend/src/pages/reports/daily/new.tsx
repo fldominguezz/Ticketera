@@ -113,12 +113,12 @@ export default function NewDailyReport() {
 
     const renderToolSection = (key: string, label: string) => (
         <Card className="mb-3 border-0 shadow-sm" key={key}>
-            <Card.Header className="bg-white fw-bold">{label}</Card.Header>
+            <Card.Header className="bg-surface-muted fw-bold border-0">{label}</Card.Header>
             <Card.Body>
                 <Row>
                     <Col md={4}>
                         <Form.Group className="mb-3">
-                            <Form.Label>Estado de Salud</Form.Label>
+                            <Form.Label className="x-small fw-bold uppercase text-muted">Estado de Salud</Form.Label>
                             <InputGroup>
                                 <Form.Control 
                                     type="text"
@@ -127,6 +127,7 @@ export default function NewDailyReport() {
                                     placeholder="Ej: OK, CAIDO..."
                                     required
                                     list={`health-options-${key}`}
+                                    className="shadow-none"
                                 />
                                 <datalist id={`health-options-${key}`}>
                                     <option value="OK" />
@@ -139,13 +140,14 @@ export default function NewDailyReport() {
                     </Col>
                     <Col md={8}>
                         <Form.Group className="mb-3">
-                            <Form.Label>Observaciones</Form.Label>
+                            <Form.Label className="x-small fw-bold uppercase text-muted">Observaciones</Form.Label>
                             <Form.Control 
                                 as="textarea" 
                                 rows={2}
                                 value={tools[key].obs}
                                 onChange={(e) => handleToolChange(key, 'obs', e.target.value)}
                                 placeholder={`Novedades de ${label}...`}
+                                className="shadow-none"
                             />
                         </Form.Group>
                     </Col>
@@ -162,7 +164,7 @@ export default function NewDailyReport() {
         return (
             <div className="mb-4" key={key}>
                 <div className="d-flex justify-content-between mb-1">
-                    <label className="fw-medium">{label}</label>
+                    <label className="fw-medium small">{label}</label>
                     <span className="text-muted small">{current} / {max}</span>
                 </div>
                 <InputGroup className="mb-2">
@@ -172,6 +174,7 @@ export default function NewDailyReport() {
                         max={max}
                         value={current}
                         onChange={(e) => handleLicenseChange(key, e.target.value)}
+                        className="shadow-none"
                     />
                 </InputGroup>
                 <ProgressBar now={percent} variant={percent > 90 ? 'danger' : percent > 75 ? 'warning' : 'primary'} style={{height: '6px'}} />
@@ -186,10 +189,10 @@ export default function NewDailyReport() {
             <Container className="py-4">
                 <div className="d-flex align-items-center justify-content-between mb-4">
                     <div className="d-flex align-items-center gap-3">
-                        <Button variant="light" className="rounded-circle p-2" onClick={() => router.back()}>
+                        <Button variant="surface" className="rounded-circle p-2 border shadow-sm" onClick={() => router.back()}>
                             <ArrowLeft size={20} />
                         </Button>
-                        <h4 className="m-0">Generar Nuevo Parte</h4>
+                        <h4 className="m-0 fw-black uppercase tracking-tighter">Generar Nuevo Parte</h4>
                     </div>
                 </div>
 
@@ -202,29 +205,30 @@ export default function NewDailyReport() {
                                     <Row>
                                         <Col md={6}>
                                             <Form.Group>
-                                                <Form.Label>Fecha del Reporte</Form.Label>
+                                                <Form.Label className="x-small fw-bold uppercase text-muted">Fecha del Reporte</Form.Label>
                                                 <Form.Control 
                                                     type="date" 
                                                     required 
                                                     value={date}
                                                     onChange={(e) => setDate(e.target.value)}
+                                                    className="shadow-none"
                                                 />
                                             </Form.Group>
                                         </Col>
                                         <Col md={6}>
                                             <Form.Group>
-                                                <Form.Label>Turno</Form.Label>
+                                                <Form.Label className="x-small fw-bold uppercase text-muted">Turno de Guardia</Form.Label>
                                                 <div className="d-flex gap-2">
                                                     <Button 
                                                         type="button"
                                                         variant={shift === 'DIA' ? 'primary' : 'outline-primary'} 
-                                                        className="flex-grow-1"
+                                                        className="flex-grow-1 fw-bold"
                                                         onClick={() => setShift('DIA')}
                                                     >DIA</Button>
                                                     <Button 
                                                         type="button"
                                                         variant={shift === 'NOCHE' ? 'primary' : 'outline-primary'} 
-                                                        className="flex-grow-1"
+                                                        className="flex-grow-1 fw-bold"
                                                         onClick={() => setShift('NOCHE')}
                                                     >NOCHE</Button>
                                                 </div>
@@ -236,39 +240,39 @@ export default function NewDailyReport() {
 
                             {/* Contadores */}
                             <Card className="mb-4 border-0 shadow-sm">
-                                <Card.Header className="bg-white fw-bold">Contadores e Incidentes</Card.Header>
+                                <Card.Header className="bg-surface-muted fw-bold border-0">Contadores e Incidentes</Card.Header>
                                 <Card.Body>
                                     <Row>
                                         <Col md={6}>
                                             <Form.Group className="mb-3">
-                                                <Form.Label>ESET Bienestar Incidentes</Form.Label>
-                                                <Form.Control value={counters.eset_bienestar_incidentes} onChange={(e) => handleCounterChange('eset_bienestar_incidentes', e.target.value)} />
+                                                <Form.Label className="x-small fw-bold uppercase text-muted">ESET Bienestar Incidentes</Form.Label>
+                                                <Form.Control className="shadow-none" value={counters.eset_bienestar_incidentes} onChange={(e) => handleCounterChange('eset_bienestar_incidentes', e.target.value)} />
                                             </Form.Group>
                                         </Col>
                                         <Col md={3}>
                                             <Form.Group className="mb-3">
-                                                <Form.Label>EDR Colectores WS</Form.Label>
-                                                <Form.Control value={counters.edr_colectores_ws} onChange={(e) => handleCounterChange('edr_colectores_ws', e.target.value)} />
+                                                <Form.Label className="x-small fw-bold uppercase text-muted">EDR WS</Form.Label>
+                                                <Form.Control className="shadow-none" value={counters.edr_colectores_ws} onChange={(e) => handleCounterChange('edr_colectores_ws', e.target.value)} />
                                             </Form.Group>
                                         </Col>
                                         <Col md={3}>
                                             <Form.Group className="mb-3">
-                                                <Form.Label>EDR Colectores SRV</Form.Label>
-                                                <Form.Control value={counters.edr_colectores_srv} onChange={(e) => handleCounterChange('edr_colectores_srv', e.target.value)} />
+                                                <Form.Label className="x-small fw-bold uppercase text-muted">EDR SRV</Form.Label>
+                                                <Form.Control className="shadow-none" value={counters.edr_colectores_srv} onChange={(e) => handleCounterChange('edr_colectores_srv', e.target.value)} />
                                             </Form.Group>
                                         </Col>
                                     </Row>
                                     <Row>
                                         <Col md={6}>
                                             <Form.Group className="mb-3">
-                                                <Form.Label>Bloqueo SRD</Form.Label>
-                                                <Form.Control value={counters.bloqueo_srd} onChange={(e) => handleCounterChange('bloqueo_srd', e.target.value)} />
+                                                <Form.Label className="x-small fw-bold uppercase text-muted">Bloqueo SRD</Form.Label>
+                                                <Form.Control className="shadow-none" value={counters.bloqueo_srd} onChange={(e) => handleCounterChange('bloqueo_srd', e.target.value)} />
                                             </Form.Group>
                                         </Col>
                                         <Col md={6}>
                                             <Form.Group className="mb-3">
-                                                <Form.Label>Bloqueo CFD</Form.Label>
-                                                <Form.Control value={counters.bloqueo_cfd} onChange={(e) => handleCounterChange('bloqueo_cfd', e.target.value)} />
+                                                <Form.Label className="x-small fw-bold uppercase text-muted">Bloqueo CFD</Form.Label>
+                                                <Form.Control className="shadow-none" value={counters.bloqueo_cfd} onChange={(e) => handleCounterChange('bloqueo_cfd', e.target.value)} />
                                             </Form.Group>
                                         </Col>
                                     </Row>
@@ -277,16 +281,17 @@ export default function NewDailyReport() {
 
                             {/* Novedades Generales Simplificadas */}
                             <Card className="mb-3 border-0 shadow-sm">
-                                <Card.Header className="bg-white fw-bold">Novedades Generales</Card.Header>
+                                <Card.Header className="bg-surface-muted fw-bold border-0">Novedades Generales</Card.Header>
                                 <Card.Body>
                                     <Form.Group>
-                                        <Form.Label>Observaciones</Form.Label>
+                                        <Form.Label className="x-small fw-bold uppercase text-muted">Observaciones del Turno</Form.Label>
                                         <Form.Control 
                                             as="textarea" 
                                             rows={4} 
                                             value={novedadesGenerales}
                                             onChange={(e) => setNovedadesGenerales(e.target.value)}
                                             placeholder="Describa las novedades generales del turno..."
+                                            className="shadow-none"
                                         />
                                     </Form.Group>
                                 </Card.Body>
@@ -303,16 +308,17 @@ export default function NewDailyReport() {
                             
                             {/* Correo */}
                             <Card className="mb-3 border-0 shadow-sm">
-                                <Card.Header className="bg-white fw-bold">Correo Policial</Card.Header>
+                                <Card.Header className="bg-surface-muted fw-bold border-0">Correo Policial</Card.Header>
                                 <Card.Body>
                                     <Form.Group>
-                                        <Form.Label>Observaciones</Form.Label>
+                                        <Form.Label className="x-small fw-bold uppercase text-muted">Novedades del Correo</Form.Label>
                                         <Form.Control 
                                             as="textarea" 
                                             rows={3} 
                                             value={correoObs}
                                             onChange={(e) => setCorreoObs(e.target.value)}
                                             placeholder="Novedades del correo policial..."
+                                            className="shadow-none"
                                         />
                                     </Form.Group>
                                 </Card.Body>
@@ -322,8 +328,8 @@ export default function NewDailyReport() {
 
                         <Col lg={4}>
                             <div className="sticky-top" style={{top: '80px', zIndex: 1}}>
-                                <Card className="border-0 shadow-sm mb-4">
-                                    <Card.Header className="bg-primary text-white fw-bold">Uso de Licencias</Card.Header>
+                                <Card className="border-0 shadow-sm mb-4 overflow-hidden">
+                                    <Card.Header className="bg-primary bg-opacity-10 text-primary fw-bold border-0 py-3 uppercase x-small tracking-widest">Uso de Licencias</Card.Header>
                                     <Card.Body>
                                         {renderLicenseField('eset_soc_lic_usadas', 'ESET SOC', 'ESET_SOC_LIC_MAX')}
                                         {renderLicenseField('eset_soc_mobile_usadas', 'ESET Mobile', 'ESET_SOC_MOBILE_LIC_MAX')}
@@ -333,10 +339,10 @@ export default function NewDailyReport() {
                                 </Card>
 
                                 <div className="d-grid gap-2">
-                                    <Button variant="primary" size="lg" type="submit" disabled={submitting}>
-                                        {submitting ? 'Generando...' : 'Guardar y Generar DOCX'}
+                                    <Button variant="primary" size="lg" type="submit" disabled={submitting} className="fw-black uppercase x-small tracking-widest py-3">
+                                        {submitting ? <Spinner size="sm" /> : 'Guardar y Generar DOCX'}
                                     </Button>
-                                    <Button type="button" variant="outline-secondary" onClick={() => router.back()}>
+                                    <Button type="button" variant="outline-secondary" onClick={() => router.back()} className="fw-bold x-small uppercase">
                                         Cancelar
                                     </Button>
                                 </div>
@@ -345,6 +351,11 @@ export default function NewDailyReport() {
                     </Row>
                 </Form>
             </Container>
+            <style jsx>{`
+                .fw-black { font-weight: 900; }
+                .x-small { font-size: 11px; }
+                .tracking-tighter { letter-spacing: -0.05em; }
+            `}</style>
         </Layout>
     );
 }

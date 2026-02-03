@@ -157,7 +157,7 @@ export default function DailyReportsList() {
       <Container fluid className="py-4">
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
-            <h4 className="fw-black text-white m-0 uppercase tracking-tighter">Partes Informativos Diarios</h4>
+            <h4 className="fw-black m-0 uppercase tracking-tighter">Partes Informativos Diarios</h4>
             <small className="text-muted fw-bold uppercase x-small">Gestión, búsqueda y generación de reportes por área</small>
           </div>
           <div className="d-flex gap-2">
@@ -175,15 +175,15 @@ export default function DailyReportsList() {
           </div>
         </div>
 
-        <Card className="bg-dark border-0 shadow-lg rounded-xl overflow-hidden mb-4 border border-white border-opacity-5">
+        <Card className="border-0 shadow-lg rounded-xl overflow-hidden mb-4">
           <Card.Body className="p-3">
-            <InputGroup className="bg-black bg-opacity-20 rounded-pill px-3 py-1 border border-white border-opacity-10">
+            <InputGroup className="bg-surface-muted rounded-pill px-3 py-1 border">
               <InputGroup.Text className="bg-transparent border-0">
                 <Search size={18} className="text-muted" />
               </InputGroup.Text>
               <Form.Control
                 placeholder="Búsqueda forense en el histórico de partes..."
-                className="bg-transparent border-0 text-white shadow-none small"
+                className="bg-transparent border-0 shadow-none small"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -195,9 +195,9 @@ export default function DailyReportsList() {
           <div className="text-center py-5"><Spinner animation="border" variant="primary" /></div>
         ) : (
           <div className="table-responsive">
-            <Table hover variant="dark" className="align-middle custom-table">
+            <Table hover className="align-middle custom-table">
               <thead>
-                <tr className="x-small text-muted uppercase tracking-widest border-bottom border-white border-opacity-10">
+                <tr className="x-small text-muted uppercase tracking-widest border-bottom">
                   <th className="ps-4 py-3">FECHA / TURNO</th>
                   <th>ÁREA / GRUPO</th>
                   <th>CONTENIDO</th>
@@ -206,14 +206,14 @@ export default function DailyReportsList() {
               </thead>
               <tbody>
                 {reports.map((report) => (
-                  <tr key={report.id} className="border-bottom border-white border-opacity-5">
+                  <tr key={report.id} className="border-bottom">
                     <td className="ps-4 py-3">
                       <div className="d-flex align-items-center gap-3">
                         <div className={`p-2 rounded bg-${report.shift === 'DIA' ? 'warning' : 'info'} bg-opacity-10 text-${report.shift === 'DIA' ? 'warning' : 'info'}`}>
                           <Clock size={16} />
                         </div>
                         <div>
-                          <div className="fw-bold small text-white">{new Date(report.date).toLocaleDateString()}</div>
+                          <div className="fw-bold small">{new Date(report.date).toLocaleDateString()}</div>
                           <Badge bg={report.shift === 'DIA' ? 'warning' : 'info'} className="x-small text-dark fw-black">{report.shift}</Badge>
                         </div>
                       </div>
@@ -245,13 +245,13 @@ export default function DailyReportsList() {
         )}
 
         {/* Modal de Confirmación de Borrado */}
-        <Modal show={!!reportToDelete} onHide={() => setReportToDelete(null)} centered contentClassName="bg-dark border-danger border-opacity-25 text-white">
+        <Modal show={!!reportToDelete} onHide={() => setReportToDelete(null)} centered contentClassName="border-danger border-opacity-25">
           <Modal.Body className="p-4 text-center">
             <AlertTriangle size={48} className="text-danger mb-3" />
             <h5 className="fw-black uppercase">¿Eliminar Reporte?</h5>
             <p className="small text-muted mb-4">
-              Estás por eliminar el parte del día <span className="text-white fw-bold">{reportToDelete?.date}</span> turno <span className="text-white fw-bold">{reportToDelete?.shift}</span>.
-              Esta acción borrará el registro y el archivo físico permanentemente.
+              Estás por eliminar el parte del día <span className="fw-bold">{reportToDelete?.date}</span> turno <span className="fw-bold">{reportToDelete?.shift}</span>.
+              Esta action borrará el registro y el archivo físico permanentemente.
             </p>
             <div className="d-flex gap-2 justify-content-center">
               <Button variant="link" onClick={() => setReportToDelete(null)} className="text-muted text-decoration-none x-small fw-bold">CANCELAR</Button>
@@ -261,40 +261,40 @@ export default function DailyReportsList() {
         </Modal>
 
         {/* Modal Plantilla */}
-        <Modal show={templateModalOpen} onHide={() => setTemplateModalOpen(false)} centered contentClassName="bg-dark border-primary border-opacity-25">
-          <Modal.Header closeButton closeVariant="white" className="border-white border-opacity-10">
+        <Modal show={templateModalOpen} onHide={() => setTemplateModalOpen(false)} centered contentClassName="border-primary border-opacity-25">
+          <Modal.Header closeButton className="bg-surface-muted">
             <Modal.Title className="x-small fw-black text-primary uppercase">Configurar Plantilla de Área</Modal.Title>
           </Modal.Header>
           <Form onSubmit={handleTemplateUpload}>
             <Modal.Body className="p-4">
               <Form.Group className="mb-3">
                 <Form.Label className="x-small fw-bold text-muted uppercase">1. Seleccionar Área Responsable</Form.Label>
-                <Form.Select required className="bg-dark text-white border-white border-opacity-10 shadow-none" value={targetGroupId} onChange={e => setTargetGroupId(e.target.value)}>
+                <Form.Select required className="shadow-none" value={targetGroupId} onChange={e => setTargetGroupId(e.target.value)}>
                   <option value="">Seleccione grupo...</option>
                   {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </Form.Select>
               </Form.Group>
               <Form.Group className="mb-3">
                 <Form.Label className="x-small fw-bold text-muted uppercase">2. Archivo Word (.docx)</Form.Label>
-                <Form.Control type="file" accept=".docx" required className="bg-dark text-white border-white border-opacity-10 shadow-none" onChange={(e: any) => setTemplateFile(e.target.files[0])} />
+                <Form.Control type="file" accept=".docx" required className="shadow-none" onChange={(e: any) => setTemplateFile(e.target.files[0])} />
               </Form.Group>
             </Modal.Body>
-            <Modal.Footer className="border-white border-opacity-10">
+            <Modal.Footer className="bg-surface-muted">
               <Button variant="primary" type="submit" disabled={!templateFile || !targetGroupId} className="w-100 fw-black x-small uppercase py-2">Subir y Vincular Plantilla</Button>
             </Modal.Footer>
           </Form>
         </Modal>
 
         {/* Bulk Upload Modal */}
-        <Modal show={uploadModalOpen} onHide={() => !isUploading && setUploadModalOpen(false)} centered size="lg" contentClassName="bg-dark border-white border-opacity-10">
-          <Modal.Header closeButton={!isUploading} closeVariant="white" className="border-white border-opacity-10">
-            <Modal.Title className="x-small fw-black text-white uppercase">Importación Masiva de Partes</Modal.Title>
+        <Modal show={uploadModalOpen} onHide={() => !isUploading && setUploadModalOpen(false)} centered size="lg" contentClassName="border-opacity-10">
+          <Modal.Header closeButton={!isUploading} className="bg-surface-muted">
+            <Modal.Title className="x-small fw-black uppercase">Importación Masiva de Partes</Modal.Title>
           </Modal.Header>
           <Modal.Body className="p-4">
             {!isUploading && uploadFiles.length === 0 && (
-              <div className="text-center py-5 border border-dashed border-white border-opacity-10 rounded-xl mb-4 bg-black bg-opacity-10">
+              <div className="text-center py-5 border border-dashed rounded-xl mb-4 bg-surface-muted">
                 <Upload size={48} className="text-muted mb-3 opacity-25" />
-                <h6 className="text-white fw-bold">Selecciona los archivos DOCX</h6>
+                <h6 className="fw-bold">Selecciona los archivos DOCX</h6>
                 <p className="x-small text-muted uppercase">Formato: PARTE_DD-MM-YYYY_TURNO.docx</p>
                 <input type="file" multiple accept=".docx" className="d-none" id="bulk-file-input" onChange={handleFilesChange} />
                 <Button variant="primary" size="sm" className="fw-black x-small mt-2 px-4" onClick={() => document.getElementById('bulk-file-input')?.click()}>SELECCIONAR ARCHIVOS</Button>
@@ -305,7 +305,7 @@ export default function DailyReportsList() {
               <>
                 <Form.Group className="mb-4">
                   <Form.Label className="x-small fw-bold text-muted uppercase">Asignar a Área (Opcional)</Form.Label>
-                  <Form.Select size="sm" className="bg-dark text-white border-white border-opacity-10 shadow-none" value={targetGroupId} onChange={e => setTargetGroupId(e.target.value)}>
+                  <Form.Select size="sm" className="shadow-none" value={targetGroupId} onChange={e => setTargetGroupId(e.target.value)}>
                     <option value="">Detectar automáticamente o Mi Grupo</option>
                     {groups.filter(g => 
                       // Mostrar grupo propio y subgrupos directos (o todos si es superuser)
@@ -314,9 +314,9 @@ export default function DailyReportsList() {
                   </Form.Select>
                 </Form.Group>
 
-                <ListGroup variant="flush" className="bg-transparent border border-white border-opacity-10 rounded-lg overflow-hidden max-vh-50 overflow-auto">
+                <ListGroup variant="flush" className="bg-transparent border rounded-lg overflow-hidden max-vh-50 overflow-auto">
                   {uploadResults.map((res, idx) => (
-                    <ListGroup.Item key={idx} className="bg-black bg-opacity-20 text-white border-white border-opacity-5 d-flex justify-content-between align-items-center py-2">
+                    <ListGroup.Item key={idx} className="bg-surface-muted border-bottom d-flex justify-content-between align-items-center py-2">
                       <div className="d-flex align-items-center gap-2">
                         {res.status === 'pending' && <Clock size={14} className="text-muted" />}
                         {res.status === 'success' && <CheckCircle2 size={14} className="text-success" />}
@@ -336,7 +336,7 @@ export default function DailyReportsList() {
               </>
             )}
           </Modal.Body>
-          <Modal.Footer className="border-white border-opacity-10">
+          <Modal.Footer className="bg-surface-muted">
             <Button variant="link" disabled={isUploading} onClick={() => { setUploadFiles([]); setUploadResults([]); setUploadModalOpen(false); }} className="text-muted text-decoration-none x-small fw-bold">CANCELAR</Button>
             <Button 
               variant="primary" 
@@ -350,17 +350,17 @@ export default function DailyReportsList() {
         </Modal>
 
         {/* Preview Modal */}
-        <Modal show={!!previewReport} onHide={() => setPreviewReport(null)} size="lg" scrollable centered contentClassName="bg-dark border-white border-opacity-10 text-white">
-          <Modal.Header closeButton closeVariant="white" className="border-white border-opacity-10">
+        <Modal show={!!previewReport} onHide={() => setPreviewReport(null)} size="lg" scrollable centered contentClassName="border-opacity-10">
+          <Modal.Header closeButton className="bg-surface-muted">
             <Modal.Title className="x-small fw-black text-uppercase tracking-widest">Previsualización de Contenido</Modal.Title>
           </Modal.Header>
           <Modal.Body className="p-0">
-            <div className="p-3 bg-black bg-opacity-30 border-bottom border-white border-opacity-10 d-flex gap-2 align-items-center">
+            <div className="p-3 bg-surface-muted border-bottom d-flex gap-2 align-items-center">
               <Badge bg="primary" className="bg-opacity-20 text-primary border border-primary border-opacity-20">{previewReport?.date}</Badge>
-              <Badge bg="secondary" className="bg-opacity-20 text-muted border border-white border-opacity-10 text-uppercase">{previewReport?.shift}</Badge>
+              <Badge bg="secondary" className="bg-opacity-20 text-muted border border-opacity-10 text-uppercase">{previewReport?.shift}</Badge>
             </div>
             {previewReport?.search_content ? (
-              <div className="p-4 font-monospace" style={{ whiteSpace: 'pre-wrap', fontSize: '0.85rem', lineHeight: '1.6', color: '#ccc' }}>
+              <div className="p-4 font-monospace" style={{ whiteSpace: 'pre-wrap', fontSize: '0.85rem', lineHeight: '1.6', color: 'var(--text-main)' }}>
                 {highlightText(previewReport.search_content, searchTerm)}
               </div>
             ) : (
@@ -369,7 +369,7 @@ export default function DailyReportsList() {
               </div>
             )}
           </Modal.Body>
-          <Modal.Footer className="border-white border-opacity-10">
+          <Modal.Footer className="bg-surface-muted">
             <Button variant="link" onClick={() => setPreviewReport(null)} className="text-muted text-decoration-none x-small fw-bold">CERRAR</Button>
             {previewReport && (
               <Button variant="primary" onClick={() => handleDownload(previewReport.id, previewReport.date, previewReport.shift)} className="fw-black x-small px-4 uppercase">
@@ -385,8 +385,8 @@ export default function DailyReportsList() {
         .x-small { font-size: 10px; }
         .x-tiny { font-size: 8px; }
         .custom-table { border-collapse: separate; border-spacing: 0 4px; }
-        .custom-table tr { background-color: rgba(255,255,255,0.02); transition: all 0.2s; }
-        .custom-table tr:hover { background-color: rgba(255,255,255,0.05); }
+        .custom-table tr { background-color: var(--bg-surface); transition: all 0.2s; }
+        .custom-table tr:hover { background-color: var(--bg-surface-muted); }
         .max-vh-50 { max-height: 50vh; }
       `}</style>
     </Layout>

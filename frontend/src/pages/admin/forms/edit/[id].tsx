@@ -10,7 +10,6 @@ export default function FormBuilder() {
     const router = useRouter();
     const { id } = router.query;
     const { theme } = useTheme();
-    const isDark = theme === 'dark';
     
     const [formName, setFormName] = useState('');
     const [category, setCategory] = useState('general');
@@ -91,7 +90,7 @@ export default function FormBuilder() {
         <Layout title="Form Architecture">
             <div className="d-flex justify-content-between align-items-end mb-4">
                 <div className="d-flex align-items-center">
-                    <Button variant="link" className="text-dark p-0 me-3" onClick={() => router.push('/admin/forms')}>
+                    <Button variant="link" className="text-body p-0 me-3" onClick={() => router.push('/admin/forms')}>
                         <ArrowLeft size={24} />
                     </Button>
                     <div>
@@ -100,7 +99,7 @@ export default function FormBuilder() {
                     </div>
                 </div>
                 <div className="d-flex gap-2">
-                    <Button variant={isDark ? "outline-light" : "outline-dark"} size="sm" onClick={() => setPreview(!preview)} className="fw-bold small">
+                    <Button variant="outline-primary" size="sm" onClick={() => setPreview(!preview)} className="fw-bold small">
                         {preview ? <Settings2 size={14} className="me-2" /> : <Eye size={14} className="me-2" />} 
                         {preview ? 'DESIGN' : 'PREVIEW'}
                     </Button>
@@ -115,7 +114,7 @@ export default function FormBuilder() {
                     <>
                         <Col lg={8}>
                             <Card className="border-0 shadow-sm mb-4">
-                                <div className={`p-4 border-bottom border-opacity-10 ${isDark ? 'bg-white bg-opacity-5' : 'bg-light'}`}>
+                                <div className="p-4 border-bottom border-opacity-10 bg-light">
                                     <Form.Label className="x-small fw-bold text-muted uppercase mb-2">Schema Identity</Form.Label>
                                     <Form.Control 
                                         size="lg" value={formName} onChange={(e) => setFormName(e.target.value)}
@@ -124,7 +123,7 @@ export default function FormBuilder() {
                                 </div>
                                 <Card.Body className="p-4">
                                     {fields.map((field) => (
-                                        <div key={field.id} className={`mb-3 p-4 rounded border border-opacity-10 ${isDark ? 'bg-dark bg-opacity-50' : 'bg-light'}`}>
+                                        <div key={field.id} className="mb-3 p-4 rounded border border-opacity-10 bg-light">
                                             <div className="d-flex align-items-center gap-3 mb-3">
                                                 <GripVertical className="text-muted opacity-20" size={20}/>
                                                 <div className="flex-grow-1">
@@ -138,7 +137,7 @@ export default function FormBuilder() {
                                             </div>
 
                                             {field.type === 'select' && (
-                                                <div className="ms-5 p-3 bg-white bg-opacity-10 rounded border border-white border-opacity-10">
+                                                <div className="ms-5 p-3 bg-opacity-10 rounded border border-white border-opacity-10 bg-light">
                                                     <div className="d-flex justify-content-between align-items-center mb-2">
                                                         <Form.Label className="x-small fw-bold text-muted uppercase m-0">Selector Options</Form.Label>
                                                         <Button variant="link" size="sm" className="p-0 x-small fw-bold text-primary text-decoration-none" onClick={() => {
@@ -148,9 +147,9 @@ export default function FormBuilder() {
                                                     </div>
                                                     <div className="d-flex flex-wrap gap-2">
                                                         {(field.options || []).map((opt: string, optIdx: number) => (
-                                                            <div key={optIdx} className="d-flex align-items-center bg-dark bg-opacity-10 rounded-pill px-2 py-1 border border-white border-opacity-10">
+                                                            <div key={optIdx} className="d-flex align-items-center bg-opacity-10 rounded-pill px-2 py-1 border border-white border-opacity-10 bg-dark">
                                                                 <input 
-                                                                    className={`bg-transparent border-0 x-small fw-bold ${isDark ? 'text-white' : 'text-dark'}`} 
+                                                                    className="bg-transparent border-0 x-small fw-bold text-body" 
                                                                     style={{width: '100px', outline: 'none'}} 
                                                                     value={opt}
                                                                     onChange={(e) => {
@@ -175,7 +174,7 @@ export default function FormBuilder() {
                         </Col>
                         <Col lg={4}>
                             <Card className="border-0 shadow-sm sticky-top mb-4" style={{top: '80px'}}>
-                                <div className={`p-3 border-bottom border-opacity-10 ${isDark ? 'bg-white bg-opacity-5' : 'bg-light'}`}>
+                                <div className="p-3 border-bottom border-opacity-10 bg-light">
                                     <h6 className="fw-bold m-0 small uppercase">Propiedades del Formulario</h6>
                                 </div>
                                 <Card.Body className="p-3">
@@ -211,7 +210,7 @@ export default function FormBuilder() {
                             </Card>
 
                             <Card className="border-0 shadow-sm sticky-top" style={{top: '320px'}}>
-                                <div className={`p-3 border-bottom border-opacity-10 ${isDark ? 'bg-white bg-opacity-5' : 'bg-light'}`}>
+                                <div className="p-3 border-bottom border-opacity-10 bg-light">
                                     <h6 className="fw-bold m-0 small uppercase">Paleta de Campos</h6>
                                 </div>
                                 <Card.Body className="p-3">
@@ -223,7 +222,7 @@ export default function FormBuilder() {
                                             { t: 'date', n: 'FECHA' },
                                             { t: 'number', n: 'NÚMERO' }
                                         ].map(item => (
-                                            <Button key={item.t} variant={isDark ? "dark" : "outline-secondary"} size="sm" className="text-start border-opacity-10 fw-bold" onClick={() => addField(item.t)}>{item.n}</Button>
+                                            <Button key={item.t} variant="outline-primary" size="sm" className="text-start border-opacity-10 fw-bold" onClick={() => addField(item.t)}>{item.n}</Button>
                                         ))}
                                     </div>
                                 </Card.Body>
@@ -239,7 +238,7 @@ export default function FormBuilder() {
                                     {fields.map(field => (
                                         <Form.Group key={field.id} className="mb-4">
                                             <Form.Label className="x-small fw-bold text-muted uppercase">{field.label}</Form.Label>
-                                            <Form.Control as={field.type === 'textarea' ? 'textarea' : 'input'} type={field.type !== 'textarea' ? field.type : undefined} className={isDark ? 'bg-dark border-opacity-10' : ''} />
+                                            <Form.Control as={field.type === 'textarea' ? 'textarea' : 'input'} type={field.type !== 'textarea' ? field.type : undefined} className="bg-light border-opacity-10" />
                                         </Form.Group>
                                     ))}
                                 </Form>

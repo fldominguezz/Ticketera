@@ -232,7 +232,7 @@ export default function InventoryPage() {
 
       {/* MODAL: MOVER EQUIPOS */}
       <Modal show={showMoveModal} onHide={() => { setShowMoveModal(false); setSelectedLocation(null); setMoveSearch(''); }} centered contentClassName="bg-dark text-white border-primary border-opacity-25 shadow-2xl">
-        <Modal.Header closeButton closeVariant="white" className="border-white border-opacity-10">
+        <Modal.Header closeButton className="border-color">
           <Modal.Title className="x-small fw-black uppercase text-primary tracking-widest d-flex align-items-center">
             <Move size={18} className="me-2" /> Mover {selectedAssets.size} Equipos Seleccionados
           </Modal.Title>
@@ -240,18 +240,18 @@ export default function InventoryPage() {
         <Modal.Body className="p-4">
           <Form.Group className="mb-4">
             <Form.Label className="x-small fw-bold text-muted uppercase">Buscar Dependencia Destino</Form.Label>
-            <InputGroup className="bg-black border border-white border-opacity-10 rounded-lg">
+            <InputGroup className="bg-surface-muted border rounded-lg">
               <InputGroup.Text className="bg-transparent border-0 text-muted"><Search size={16}/></InputGroup.Text>
               <Form.Control 
                 placeholder="Nombre o Código de Dependencia..."
-                className="bg-transparent border-0 text-white shadow-none x-small fw-bold"
+                className="bg-transparent border-0 shadow-none x-small fw-bold"
                 value={moveSearch}
                 onChange={(e) => { setMoveSearch(e.target.value); fetchLocations(e.target.value); }}
               />
             </InputGroup>
           </Form.Group>
 
-          <div className="max-vh-40 overflow-auto custom-scrollbar border border-white border-opacity-5 rounded-lg mb-4 bg-black bg-opacity-20">
+          <div className="max-vh-40 overflow-auto custom-scrollbar border border-color rounded-lg mb-4 bg-surface-muted">
             <ListGroup variant="flush">
               {locations.length > 0 ? (
                 locations.map(loc => (
@@ -259,13 +259,13 @@ export default function InventoryPage() {
                     key={loc.id} 
                     action 
                     onClick={() => setSelectedLocation(loc)}
-                    className={`bg-transparent text-white border-white border-opacity-5 d-flex justify-content-between align-items-center py-3 ${selectedLocation?.id === loc.id ? 'bg-primary bg-opacity-20 border-start border-4 border-primary' : ''}`}
+                    className={`bg-transparent border-color d-flex justify-content-between align-items-center py-3 ${selectedLocation?.id === loc.id ? 'bg-primary bg-opacity-20 border-start border-4 border-primary' : ''}`}
                   >
                     <div className="d-flex align-items-center gap-3">
                       <MapPin size={16} className={selectedLocation?.id === loc.id ? 'text-primary' : 'text-muted'} />
                       <div className="fw-bold small">{loc.name}</div>
                     </div>
-                    <Badge bg={selectedLocation?.id === loc.id ? 'primary' : 'dark'} className="font-monospace fw-black">#{loc.dependency_code || '---'}</Badge>
+                    <Badge bg={selectedLocation?.id === loc.id ? 'primary' : 'secondary'} className="bg-opacity-20 text-body font-monospace fw-black">#{loc.dependency_code || '---'}</Badge>
                   </ListGroup.Item>
                 ))
               ) : (
@@ -278,7 +278,7 @@ export default function InventoryPage() {
             <AlertTriangle size={16} /> Atención: Se generará un registro histórico por cada equipo movido.
           </Alert>
         </Modal.Body>
-        <Modal.Footer className="border-white border-opacity-10">
+        <Modal.Footer className="border-color">
           <Button variant="link" onClick={() => setShowMoveModal(false)} className="text-muted text-decoration-none x-small fw-bold">CANCELAR</Button>
           <Button 
             variant="primary" 
@@ -292,12 +292,12 @@ export default function InventoryPage() {
         </Modal.Footer>
       </Modal>
 
-      <Modal show={showStatusModal} onHide={() => setShowStatusModal(false)} centered size="sm" contentClassName="bg-dark text-white border-white border-opacity-10">
-        <Modal.Header closeButton closeVariant="white" className="border-0 pb-0"><Modal.Title className="fw-bold small text-uppercase">Cambiar Estado</Modal.Title></Modal.Header>
+      <Modal show={showStatusModal} onHide={() => setShowStatusModal(false)} centered size="sm" contentClassName="bg-dark text-white border-color">
+        <Modal.Header closeButton className="border-0 pb-0"><Modal.Title className="fw-bold small text-uppercase">Cambiar Estado</Modal.Title></Modal.Header>
         <Modal.Body className="p-4">
             <Form.Group className="mb-4">
                 <Form.Label className="x-small fw-bold text-muted text-uppercase">Nuevo estado para {selectedAssets.size} equipos</Form.Label>
-                <Form.Select className="bg-dark text-white border-white border-opacity-10 x-small fw-bold shadow-none" value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
+                <Form.Select className="bg-surface-muted border-color x-small fw-bold shadow-none" value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
                     <option value="operative">OPERATIVO</option>
                     <option value="maintenance">MANTENIMIENTO</option>
                     <option value="tagging_pending">PENDIENTE ETIQUETAR</option>
@@ -309,7 +309,7 @@ export default function InventoryPage() {
       </Modal>
 
       <Modal show={showImportModal} onHide={() => { setShowImportModal(false); setImportData(null); setImportPreview(null); setImportSummary(null); setImportSource('auto'); }} size="lg" centered contentClassName="bg-dark text-white">
-        <Modal.Header closeButton closeVariant="white" className="border-0 pb-0"><Modal.Title className="fw-bold text-uppercase small">Importar Activos</Modal.Title></Modal.Header>
+        <Modal.Header closeButton className="border-0 pb-0"><Modal.Title className="fw-bold text-uppercase small">Importar Activos</Modal.Title></Modal.Header>
         <Modal.Body className="pt-3">
             {!importData && !importSummary && (
                 <>
@@ -322,7 +322,7 @@ export default function InventoryPage() {
                         </div>
                     </div>
                     <Form.Label className="x-small fw-bold text-muted text-uppercase">2. Cargar Archivo</Form.Label>
-                    <div className="text-center py-5 border border-dashed border-white border-opacity-10 rounded-xl bg-black bg-opacity-20 cursor-pointer" onClick={() => document.getElementById('csv-upload')?.click()}>
+                    <div className="text-center py-5 border border-dashed border-color rounded-xl bg-surface-muted cursor-pointer" onClick={() => document.getElementById('csv-upload')?.click()}>
                         <UploadCloud size={48} className="text-primary mb-3 opacity-50" />
                         <h6 className="fw-bold">Selecciona tu archivo CSV o TSV</h6>
                         <input type="file" id="csv-upload" className="d-none" accept=".csv,.tsv,.txt" onChange={() => {}} />

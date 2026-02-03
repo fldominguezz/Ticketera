@@ -149,6 +149,7 @@ async def read_tickets(
         selectinload(TicketModel.ticket_type),
         selectinload(TicketModel.group),
         selectinload(TicketModel.assigned_to),
+        selectinload(TicketModel.created_by),
         selectinload(TicketModel.sla_metric),
         selectinload(TicketModel.asset)
     ]
@@ -177,8 +178,17 @@ async def read_tickets(
     has_group = current_user.has_permission("ticket:read:group")
     has_own = current_user.has_permission("ticket:read:own")
     
+    # Condición de Privacidad: Un ticket privado SOLO lo ve el creador o el asignado
+    # Esta condición es transversal y se aplica incluso a quienes tienen permisos de grupo/global
+    private_condition = or_(
+        TicketModel.is_private.isnot(True), # Tratar NULL y False como públicos
+        TicketModel.created_by_id == current_user.id,
+        TicketModel.assigned_to_id == current_user.id
+    )
+    query = query.filter(private_condition)
+
     if current_user.is_superuser or has_global:
-        pass # Full Access
+        pass # Full Access (dentro del filtro de privacidad aplicado arriba)
     else:
         # Build Access Conditions
         access_conditions = []
@@ -244,23 +254,43 @@ async def create_ticket(
             detail="No se pueden enviar tickets a un grupo padre. Por favor, seleccione un área específica (SOC, Técnica, etc.)."
         )
 
+    # 3. Validar Pertenencia de Grupo: Si el usuario tiene un grupo asignado, debe crear tickets para su grupo
+    # Esto aplica incluso para superadmins con grupo asignado para mantener el orden funcional.
+    if not ticket_in.is_private:
+        if not ticket_in.group_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Los tickets públicos deben tener un Grupo Responsable asignado."
+            )
+        
+        if current_user.group_id and ticket_in.group_id != current_user.group_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"No tiene permisos para crear tickets en este grupo. Su área responsable es: {current_user.group.name if current_user.group else 'Otra'}."
+            )
+
     ticket = await crud_ticket.ticket.create(db, obj_in=ticket_in, created_by_id=current_user.id, owner_group_id=current_user.group_id)
     
-    # Apply SLA Policy
-    await sla_service.apply_policy_to_ticket(db, ticket)
+    # Apply secondary tasks in a safe way to avoid 500 errors if they fail
+    try:
+        # Apply SLA Policy
+        await sla_service.apply_policy_to_ticket(db, ticket)
 
-    await crud_audit.audit_log.create_log(
-        db,
-        user_id=current_user.id,
-        event_type="ticket_created",
-        ip_address=request.client.host,
-        details={"ticket_id": str(ticket.id), "title": ticket.title}
-    )
+        await crud_audit.audit_log.create_log(
+            db,
+            user_id=current_user.id,
+            event_type="ticket_created",
+            ip_address=request.client.host,
+            details={"ticket_id": str(ticket.id), "title": ticket.title}
+        )
+        
+        # Index in Meilisearch
+        background_tasks.add_task(index_ticket_task, ticket)
+    except Exception as e:
+        print(f"Error in post-creation tasks: {e}")
     
-    # Index in Meilisearch
-    background_tasks.add_task(index_ticket_task, ticket)
-    
-    return ticket
+    # Return the created ticket using the correct CRUD call to avoid TypeError
+    return await crud_ticket.ticket.get(db, id=ticket.id, current_user=current_user, permission_key="read")
 
 @router.get("/{ticket_id}", response_model=Ticket)
 async def read_ticket(
@@ -290,6 +320,13 @@ async def update_ticket(
     }
     
     if ticket_in.assigned_to_id and ticket_in.assigned_to_id != ticket.assigned_to_id:
+        # Validar si el usuario tiene permiso para asignar/reasignar
+        if not current_user.is_superuser and not current_user.has_permission("ticket:assign"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tiene permisos para asignar o cambiar el responsable de los tickets."
+            )
+        
         audit_details["action"] = "reassigned"
         audit_details["old_assignee"] = str(ticket.assigned_to_id)
         audit_details["new_assignee"] = str(ticket_in.assigned_to_id)
@@ -331,7 +368,7 @@ async def update_ticket(
     # Update Index
     background_tasks.add_task(index_ticket_task, updated_ticket)
     
-    return await crud_ticket.ticket.get(db, id=updated_ticket.id)
+    return await crud_ticket.ticket.get(db, id=updated_ticket.id, current_user=current_user, permission_key="read")
 
 @router.get("/{ticket_id}/comments", response_model=List[TicketComment])
 async def read_ticket_comments(

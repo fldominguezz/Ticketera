@@ -45,6 +45,8 @@ class CRUDTicket:
                 selectinload(Ticket.ticket_type),
                 selectinload(Ticket.group),
                 selectinload(Ticket.assigned_to),
+                selectinload(Ticket.asset),
+                selectinload(Ticket.sla_metric),
                 selectinload(Ticket.watchers).selectinload(TicketWatcher.user)
             )
         result = await db.execute(query)
@@ -104,6 +106,12 @@ class CRUDTicket:
 
         result = await db.execute(
             query
+            .options(
+                selectinload(Ticket.ticket_type),
+                selectinload(Ticket.group),
+                selectinload(Ticket.assigned_to),
+                selectinload(Ticket.created_by)
+            )
             .order_by(Ticket.created_at.desc())
             .offset(skip)
             .limit(limit)

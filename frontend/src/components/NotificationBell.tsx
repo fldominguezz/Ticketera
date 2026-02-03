@@ -58,90 +58,123 @@ export default function NotificationBell() {
     return () => window.removeEventListener('soc-notification', handleWsNotification);
   }, [fetchNotifications]);
 
-  const markAllAsRead = async () => {
-    try {
-      await api.post('/notifications/mark-all-read');
-      setNotifications([]);
-      setUnreadCount(0);
-    } catch (e) { console.error(e); }
-  };
-
-  return (
-    <Dropdown align="end">
-      <Dropdown.Toggle as="div" className="icon-btn clickable position-relative text-main opacity-75 hover-opacity-100">
-        <Bell size={20} className={unreadCount > 0 ? 'animate-swing' : ''} />
-        {unreadCount > 0 && (
-          <Badge 
-            pill bg="danger" 
-            className="position-absolute top-0 start-100 translate-middle border border-color"
-            style={{ fontSize: '0.6rem', padding: '0.35em 0.5em', minWidth: '18px' }}
-          >
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </Badge>
-        )}
-      </Dropdown.Toggle>
-
-      <Dropdown.Menu className="mt-3 shadow-2xl border-0 p-0" style={{ width: '350px', borderRadius: '12px', overflow: 'hidden', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-        <div className="p-3 border-bottom border-color d-flex justify-content-between align-items-center bg-surface">
-          <span className="fw-black x-small text-uppercase tracking-widest text-primary">Notificaciones del Sistema</span>
-          {unreadCount > 0 && (
-            <Button variant="link" className="p-0 text-decoration-none x-small fw-bold text-muted hover-text-primary" onClick={markAllAsRead}>
-              <Check size={12} className="me-1" /> Marcar leídas
-            </Button>
-          )}
-        </div>
-        
-        <div style={{ maxHeight: '450px', overflowY: 'auto' }} className="custom-scrollbar bg-card">
-          {notifications.length > 0 ? (
-            notifications.map(n => (
-              <div 
-                key={n.id} 
-                className="notification-item p-3 border-bottom border-color clickable"
-                onClick={() => {
-                  if (n.link) router.push(n.link);
-                }}
-              >
-                <div className="d-flex justify-content-between align-items-start mb-1">
-                  <div className="fw-black x-small text-main uppercase tracking-tight">{n.title}</div>
-                  {!n.is_read && <div className="notification-dot" />}
-                </div>
-                <div className="small text-muted mb-2 line-clamp-2" style={{ fontSize: '12px' }}>{n.message}</div>
-                <div className="x-small text-muted opacity-50 fw-bold">
-                   Hace unos instantes
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="p-5 text-center text-muted bg-card">
-              <BellOff size={32} className="mb-3 opacity-10" />
-              <div className="x-small fw-black uppercase tracking-widest">Sin alertas nuevas</div>
-            </div>
-          )}
-        </div>
-        
-        <div className="p-2 border-top border-color text-center bg-surface">
-            <Button variant="link" className="w-100 p-0 text-decoration-none x-small fw-black text-muted uppercase" onClick={() => router.push('/notifications')}>
-              Ver historial completo
-            </Button>
-        </div>
-      </Dropdown.Menu>
-
-      <style jsx global>{`
-        .notification-item { transition: all 0.2s; background-color: var(--bg-card); }
-        .notification-item:hover { background-color: var(--bg-surface-muted); }
-        .notification-dot { width: 8px; height: 8px; background: var(--primary); border-radius: 50%; box-shadow: 0 0 10px var(--primary); }
-        .animate-swing { animation: swing 2s infinite; }
-        @keyframes swing {
-          0%, 100% { transform: rotate(0deg); }
-          20% { transform: rotate(15deg); }
-          40% { transform: rotate(-10deg); }
-          60% { transform: rotate(5deg); }
-          80% { transform: rotate(-5deg); }
-        }
-        .hover-opacity-100:hover { opacity: 1 !important; }
-        .hover-text-primary:hover { color: var(--primary) !important; }
-            `}</style>
-          </Dropdown>
-        );
+    const markAllAsRead = async () => {
+      try {
+        await api.post('/notifications/mark-all-read');
+        setNotifications([]);
+        setUnreadCount(0);
+      } catch (e) { console.error(e); }
+    };
+  
+    const markAsRead = async (id: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      try {
+        await api.post(`/notifications/${id}/read`);
+        setNotifications(prev => prev.filter(n => n.id !== id));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      } catch (e) { console.error(e); }
+    };
+  
+    const getNotificationStyles = (title: string) => {
+      const t = title.toLowerCase();
+      if (t.includes('alerta') || t.includes('siem') || t.includes('security')) {
+        return { icon: <ShieldAlert size={14} className="text-danger" />, class: 'notif-security' };
       }
-      
+      if (t.includes('ticket') || t.includes('asignado')) {
+        return { icon: <Activity size={14} className="text-primary" />, class: 'notif-ticket' };
+      }
+      return { icon: <Circle size={10} className="text-muted" />, class: '' };
+    };
+  
+    return (
+      <Dropdown align="end">
+        <Dropdown.Toggle as="div" className="icon-btn clickable position-relative text-main opacity-75 hover-opacity-100">
+          <Bell size={20} className={unreadCount > 0 ? 'animate-swing' : ''} />
+          {unreadCount > 0 && (
+            <Badge 
+              pill bg="danger" 
+              className="position-absolute top-0 start-100 translate-middle border border-color shadow-sm"
+              style={{ fontSize: '0.6rem', padding: '0.35em 0.5em', minWidth: '18px', zIndex: 10 }}
+            >
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </Badge>
+          )}
+        </Dropdown.Toggle>
+  
+        <Dropdown.Menu className="mt-3 shadow-2xl border-0 p-0" style={{ width: '380px', borderRadius: '16px', overflow: 'hidden', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+          <div className="p-3 border-bottom border-color d-flex justify-content-between align-items-center bg-surface">
+            <div className="d-flex align-items-center gap-2">
+              <span className="fw-black x-small text-uppercase tracking-widest text-primary">Notificaciones</span>
+              {unreadCount > 0 && <Badge bg="primary" className="bg-opacity-10 text-primary rounded-pill x-small px-2">{unreadCount}</Badge>}
+            </div>
+            {unreadCount > 0 && (
+              <Button variant="link" className="p-0 text-decoration-none x-small fw-bold text-muted hover-text-primary" onClick={markAllAsRead}>
+                <Check size={12} className="me-1" /> Marcar todas
+              </Button>
+            )}
+          </div>
+          
+          <div style={{ maxHeight: '480px', overflowY: 'auto' }} className="custom-scrollbar bg-card">
+            {notifications.length > 0 ? (
+              notifications.map(n => {
+                const styles = getNotificationStyles(n.title);
+                return (
+                  <div 
+                    key={n.id} 
+                    className={`notification-item p-3 border-bottom border-color clickable d-flex gap-3 ${styles.class}`}
+                    onClick={() => n.link && router.push(n.link)}
+                  >
+                    <div className="mt-1">{styles.icon}</div>
+                    <div className="flex-grow-1">
+                      <div className="d-flex justify-content-between align-items-start mb-1">
+                        <div className="fw-black x-small text-main uppercase tracking-tight" style={{ fontSize: '11px' }}>{n.title}</div>
+                        <Button variant="link" className="p-0 text-muted hover-text-primary mark-read-btn" onClick={(e) => markAsRead(n.id, e)} title="Marcar como leída">
+                          <Check size={14} />
+                        </Button>
+                      </div>
+                      <div className="small text-muted mb-2 line-clamp-2" style={{ fontSize: '12px', lineHeight: '1.4' }}>{n.message}</div>
+                      <div className="x-small text-muted opacity-50 fw-bold d-flex align-items-center">
+                         <Clock size={10} className="me-1" /> Hace unos instantes
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="p-5 text-center text-muted bg-card">
+                <div className="p-4 rounded-circle bg-surface d-inline-block mb-3">
+                  <BellOff size={32} className="opacity-20" />
+                </div>
+                <div className="x-small fw-black uppercase tracking-widest opacity-50">Sin novedades pendientes</div>
+              </div>
+            )}
+          </div>
+          
+          <div className="p-2 border-top border-color text-center bg-surface">
+              <Button variant="link" className="w-100 p-2 text-decoration-none x-small fw-black text-muted uppercase hover-text-primary" onClick={() => router.push('/notifications')}>
+                Ver historial completo
+              </Button>
+          </div>
+        </Dropdown.Menu>
+  
+        <style jsx global>{`
+          .notification-item { transition: all 0.2s; position: relative; }
+          .notification-item:hover { background-color: var(--bg-surface-muted); }
+          .notif-security { border-start: 3px solid #ef4444 !important; }
+          .notif-ticket { border-start: 3px solid var(--primary) !important; }
+          
+          .mark-read-btn { opacity: 0; transition: opacity 0.2s; }
+          .notification-item:hover .mark-read-btn { opacity: 1; }
+          
+          .animate-swing { animation: swing 3s infinite; }
+          @keyframes swing {
+            0%, 100% { transform: rotate(0deg); }
+            5%, 15% { transform: rotate(10deg); }
+            10% { transform: rotate(-10deg); }
+            20% { transform: rotate(0deg); }
+          }
+          .hover-text-primary:hover { color: var(--primary) !important; }
+        `}</style>
+      </Dropdown>
+    );
+  }      

@@ -5,7 +5,7 @@ import { Activity, Search, ShieldCheck, ShieldAlert, Send, Target, FileText, Set
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 
-const Section = ({ title, icon: Icon, items, color = "primary", eventKey, isDark }: any) => {
+const Section = ({ title, icon: Icon, items, color = "primary", eventKey }: any) => {
     const entries = Object.entries(items);
     if (entries.length === 0) return null;
     return (
@@ -16,7 +16,7 @@ const Section = ({ title, icon: Icon, items, color = "primary", eventKey, isDark
                     <span className="fw-black x-small text-uppercase tracking-wider">{title}</span>
                 </div>
             </Accordion.Header>
-            <Accordion.Body className={isDark ? 'bg-dark bg-opacity-25 border-top border-secondary' : 'bg-light bg-opacity-50 border-top'}>
+            <Accordion.Body className="bg-surface-muted bg-opacity-50 border-top">
                 <Row className="g-3">{entries.map(([k, v]) => (<Col key={k} xs={12} md={6}><div className="d-flex flex-column"><span className="x-small text-muted fw-bold text-uppercase opacity-50 mb-1" style={{fontSize: '0.6rem'}}>{k}</span><span className="small font-monospace text-main text-break">{String(v)}</span></div></Col>))}</Row>
             </Accordion.Body>
         </Accordion.Item>
@@ -25,7 +25,6 @@ const Section = ({ title, icon: Icon, items, color = "primary", eventKey, isDark
 
 export default function SIEMEventsPage() {
   const { theme } = useTheme();
-  const isDark = theme === 'dark';
   
   const [allSiemEvents, setAllSiemEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,15 +80,38 @@ export default function SIEMEventsPage() {
     setAiAnalysis(null);
     try {
       const token = localStorage.getItem('access_token');
+      // Llamar a los endpoints de análisis experto (reemplazo de Ollama)
       const [sR, rR] = await Promise.all([
-        fetch('/api/v1/ai/summarize', { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ticket_id: alertId }) }),
-        fetch('/api/v1/ai/remediation', { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ticket_id: alertId }) })
+        fetch('/api/v1/ai/summarize', { 
+          method: 'POST', 
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, 
+          body: JSON.stringify({ ticket_id: alertId }) 
+        }),
+        fetch('/api/v1/ai/remediation', { 
+          method: 'POST', 
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, 
+          body: JSON.stringify({ ticket_id: alertId }) 
+        })
       ]);
+
       const sD = await sR.json();
       const rD = await rR.json();
-      setAiAnalysis({ summary: sD.summary || "Error", remediation: rD.remediation_steps || "Error" });
-    } catch (e) { setAiAnalysis({ summary: "Error IA", remediation: "Error red" }); }
-    finally { setLoadingAI(false); }
+
+      if (sR.ok && rR.ok) {
+        setAiAnalysis({ 
+          summary: sD.summary || "No se detectaron patrones técnicos específicos.", 
+          remediation: rD.remediation_steps || "No hay recomendaciones automáticas disponibles." 
+        });
+      } else {
+        throw new Error(sD.detail || "Error en el motor experto");
+      }
+    } catch (e: any) { 
+      console.error('Expert Analysis Error:', e);
+      setAiAnalysis({ 
+        summary: "Error al conectar con el Motor Experto local.", 
+        remediation: "Por favor, verifique que el servicio backend esté operativo y las firmas cargadas." 
+      }); 
+    } finally { setLoadingAI(false); }
   };
 
   const parseRawLog = (raw: string) => {
@@ -291,8 +313,8 @@ export default function SIEMEventsPage() {
           <div className="mb-4">
               {activeTab === 'structured' && (
                 <Accordion defaultActiveKey="0" flush className="custom-accordion">
-                    <Section eventKey="0" title="Resumen y Descripción" icon={ShieldCheck} items={{ "Descripción": selectedTicket?.description || "N/A" }} isDark={isDark} />
-                    <Section eventKey="1" title="Inteligencia Técnica (Extraída)" icon={Target} items={parseIntelligence(selectedTicket)} color="info" isDark={isDark} />
+                    <Section eventKey="0" title="Resumen y Descripción" icon={ShieldCheck} items={{ "Descripción": selectedTicket?.description || "N/A" }} />
+                    <Section eventKey="1" title="Inteligencia Técnica (Extraída)" icon={Target} items={parseIntelligence(selectedTicket)} color="info" />
                 </Accordion>
               )}
               {activeTab === 'raw' && (

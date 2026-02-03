@@ -24,6 +24,7 @@ export default function TicketPage() {
   const [watchers, setWatchers] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -40,7 +41,7 @@ export default function TicketPage() {
   const fetchData = async (token: string, ticketId: string) => {
     try {
       setLoading(true);
-      const [ticketRes, commentsRes, relationsRes, attachmentsRes, userRes, auditRes, subtasksRes, usersRes, watchersRes] = await Promise.all([
+      const [ticketRes, commentsRes, relationsRes, attachmentsRes, userRes, auditRes, subtasksRes, usersRes, watchersRes, groupsRes] = await Promise.all([
         fetch(`/api/v1/tickets/${ticketId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch(`/api/v1/tickets/${ticketId}/comments`, { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch(`/api/v1/tickets/${ticketId}/relations`, { headers: { 'Authorization': `Bearer ${token}` } }),
@@ -49,7 +50,8 @@ export default function TicketPage() {
         fetch(`/api/v1/audit?ticket_id=${ticketId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch(`/api/v1/tickets/${ticketId}/subtasks`, { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch(`/api/v1/users`, { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch(`/api/v1/tickets/${ticketId}/watchers`, { headers: { 'Authorization': `Bearer ${token}` } })
+        fetch(`/api/v1/tickets/${ticketId}/watchers`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`/api/v1/groups`, { headers: { 'Authorization': `Bearer ${token}` } })
       ]);
 
       if (ticketRes.ok) {
@@ -72,6 +74,9 @@ export default function TicketPage() {
         
         const usersData = usersRes.ok ? await usersRes.json() : [];
         setUsers(Array.isArray(usersData) ? usersData : []);
+
+        const groupsData = groupsRes.ok ? await groupsRes.json() : [];
+        setGroups(Array.isArray(groupsData) ? groupsData : []);
         
         const watchersData = watchersRes.ok ? await watchersRes.json() : [];
         setWatchers(Array.isArray(watchersData) ? watchersData : []);
@@ -235,10 +240,14 @@ export default function TicketPage() {
         body: JSON.stringify(data)
       });
       if (res.ok) {
-        const updated = await res.json();
-        setTicket(updated);
+        const updatedData = await res.json();
+        // Actualización inmediata del estado local con el objeto completo del backend
+        setTicket(updatedData);
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+      console.error('Error updating ticket:', e);
+      // Opcional: mostrar un toast de error
+    }
   };
 
   if (loading) {
@@ -284,6 +293,7 @@ export default function TicketPage() {
           watchers={watchers}
           history={history}
           users={users}
+          groups={groups}
           onAddComment={handleAddComment} 
           onAddRelation={handleAddRelation}
           onUploadFile={handleUploadFile}
