@@ -120,7 +120,7 @@ export default function AdminUsersPage() {
       <Container fluid className="py-4">
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
-            <h4 className="fw-black text-white m-0 uppercase tracking-tighter">Cuentas de Usuario</h4>
+            <h4 className="fw-black m-0 uppercase tracking-tighter">Cuentas de Usuario</h4>
             <small className="text-muted fw-bold x-small uppercase tracking-widest">Control de analistas y personal del sistema</small>
           </div>
           <Button variant="primary" onClick={() => handleOpenModal()} className="shadow-sm fw-black x-small px-4">
@@ -128,21 +128,21 @@ export default function AdminUsersPage() {
           </Button>
         </div>
 
-        <Card className="bg-dark border-0 shadow-2xl rounded-xl overflow-hidden border border-white border-opacity-5">
-          <div className="p-3 bg-black bg-opacity-20 border-bottom border-white border-opacity-10">
+        <Card className="border-0 shadow-2xl rounded-xl overflow-hidden">
+          <div className="p-3 bg-surface-muted border-bottom">
              <InputGroup style={{ maxWidth: '400px' }}>
                 <InputGroup.Text className="bg-transparent border-0 text-muted ps-0"><Search size={18}/></InputGroup.Text>
                 <Form.Control 
-                    className="bg-transparent border-0 text-white shadow-none small" 
+                    className="bg-transparent border-0 shadow-none small" 
                     placeholder="Filtrar por nombre, usuario o email..." 
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
                 />
              </InputGroup>
           </div>
-          <Table hover responsive variant="dark" className="align-middle mb-0 custom-user-table">
+          <Table hover responsive className="align-middle mb-0 custom-user-table">
             <thead>
-              <tr className="x-small text-muted uppercase tracking-widest border-bottom border-white border-opacity-10">
+              <tr className="x-small text-muted uppercase tracking-widest border-bottom">
                 <th className="ps-4 py-3">IDENTIDAD</th>
                 <th>USUARIO</th>
                 <th>NIVEL / ROLES</th>
@@ -155,14 +155,14 @@ export default function AdminUsersPage() {
               {loading ? (
                 <tr><td colSpan={6} className="text-center py-5"><Spinner animation="border" variant="primary" size="sm" /></td></tr>
               ) : filteredUsers.map(u => (
-                <tr key={u.id} className="border-bottom border-white border-opacity-5">
+                <tr key={u.id} className="border-bottom">
                   <td className="ps-4 py-3">
                     <div className="d-flex align-items-center gap-3">
                       <div className="avatar bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center" style={{width:32, height:32}}>
                         <UserIcon size={16} />
                       </div>
                       <div>
-                        <div className="fw-bold small text-white">{u.first_name} {u.last_name}</div>
+                        <div className="fw-bold small">{u.first_name} {u.last_name}</div>
                         <div className="x-small text-muted">{u.email}</div>
                       </div>
                     </div>
@@ -195,8 +195,8 @@ export default function AdminUsersPage() {
         </Card>
       </Container>
 
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered contentClassName="bg-dark text-white border-primary border-opacity-25 shadow-2xl">
-        <Modal.Header closeButton closeVariant="white" className="border-white border-opacity-10 bg-black bg-opacity-20">
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered contentClassName="shadow-2xl">
+        <Modal.Header closeButton className="bg-surface-muted">
            <Modal.Title className="x-small fw-black uppercase text-primary tracking-widest">
               Ficha de Identidad: {editingUserId ? 'Actualización' : 'Nuevo Registro'}
            </Modal.Title>
@@ -204,21 +204,21 @@ export default function AdminUsersPage() {
         <Modal.Body className="p-4 custom-scrollbar">
           <Form>
             <h6 className="fw-black mb-3 x-small text-primary uppercase tracking-tighter d-flex align-items-center gap-2"><UserIcon size={14}/> Información Personal</h6>
-            <Row className="g-3 mb-4 bg-black bg-opacity-20 p-3 rounded-lg border border-white border-opacity-5">
-              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Nombre</Form.Label><Form.Control className="bg-dark text-white border-white border-opacity-10 shadow-none" value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} /></Col>
-              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Apellido</Form.Label><Form.Control className="bg-dark text-white border-white border-opacity-10 shadow-none" value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} /></Col>
-              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Email Institucional</Form.Label><Form.Control className="bg-dark text-white border-white border-opacity-10 shadow-none" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></Col>
-              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Área / Grupo</Form.Label><Form.Select className="bg-dark text-white border-white border-opacity-10 shadow-none" value={formData.group_id} onChange={e => setFormData({...formData, group_id: e.target.value})}><option value="">Seleccionar...</option>{groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</Form.Select></Col>
+            <Row className="g-3 mb-4 bg-surface-muted p-3 rounded-lg border">
+              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Nombre</Form.Label><Form.Control className="shadow-none" value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} /></Col>
+              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Apellido</Form.Label><Form.Control className="shadow-none" value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} /></Col>
+              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Email Institucional</Form.Label><Form.Control className="shadow-none" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></Col>
+              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Área / Grupo</Form.Label><Form.Select className="shadow-none" value={formData.group_id} onChange={e => setFormData({...formData, group_id: e.target.value})}><option value="">Seleccionar...</option>{groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</Form.Select></Col>
             </Row>
 
             <h6 className="fw-black mb-3 x-small text-primary uppercase tracking-tighter d-flex align-items-center gap-2"><LockIcon size={14}/> Credenciales y Seguridad</h6>
-            <Row className="g-3 mb-4 bg-black bg-opacity-20 p-3 rounded-lg border border-white border-opacity-5">
-              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Username</Form.Label><Form.Control className="bg-dark text-white border-white border-opacity-10 shadow-none" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} /></Col>
+            <Row className="g-3 mb-4 bg-surface-muted p-3 rounded-lg border">
+              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Username</Form.Label><Form.Control className="shadow-none" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} /></Col>
               <Col md={6}>
                 <Form.Label className="x-small fw-black text-muted uppercase">Contraseña {editingUserId && '(opcional)'}</Form.Label>
                 <InputGroup>
-                    <Form.Control className="bg-dark text-white border-white border-opacity-10 shadow-none" type={showPass ? "text" : "password"} value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
-                    <Button variant="outline-secondary" className="border-white border-opacity-10" onClick={() => setShowPass(!showPass)}>{showPass ? <EyeOff size={14}/> : <Eye size={14}/>}</Button>
+                    <Form.Control className="shadow-none" type={showPass ? "text" : "password"} value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+                    <Button variant="outline-secondary" className="border-opacity-10" onClick={() => setShowPass(!showPass)}>{showPass ? <EyeOff size={14}/> : <Eye size={14}/>}</Button>
                 </InputGroup>
               </Col>
               <Col md={4}>
@@ -233,11 +233,11 @@ export default function AdminUsersPage() {
             </Row>
 
             <h6 className="fw-black mb-3 x-small text-primary uppercase tracking-tighter d-flex align-items-center gap-2"><Shield size={14}/> Privilegios y Roles</h6>
-            <div className="bg-black bg-opacity-20 p-3 rounded-lg mb-4 border border-white border-opacity-5">
+            <div className="bg-surface-muted p-3 rounded-lg mb-4 border">
                 <Row className="g-2 mb-3">
                     {roles.map(role => (
                         <Col md={6} key={role.id}>
-                            <div className={`p-2 rounded border cursor-pointer transition-all ${formData.role_ids.includes(role.id) ? 'bg-primary bg-opacity-10 border-primary border-opacity-50' : 'bg-white bg-opacity-5 border-white border-opacity-10'}`} onClick={() => toggleRole(role.id)}>
+                            <div className={`p-2 rounded border cursor-pointer transition-all ${formData.role_ids.includes(role.id) ? 'bg-primary bg-opacity-10 border-primary border-opacity-50' : 'bg-surface border-opacity-10'}`} onClick={() => toggleRole(role.id)}>
                                 <Form.Check type="checkbox" id={`role-${role.id}`} label={<span className="small fw-bold">{role.name}</span>} checked={formData.role_ids.includes(role.id)} onChange={() => {}} />
                             </div>
                         </Col>
@@ -247,7 +247,7 @@ export default function AdminUsersPage() {
             </div>
           </Form>
         </Modal.Body>
-        <Modal.Footer className="border-white border-opacity-10 bg-black bg-opacity-20">
+        <Modal.Footer className="bg-surface-muted">
           <Button variant="primary" className="w-100 py-3 fw-black uppercase x-small tracking-widest shadow-lg" onClick={handleSubmit} disabled={saving}>
             {saving ? <Spinner animation="border" size="sm" /> : 'Confirmar y Guardar Identidad'}
           </Button>
@@ -261,10 +261,11 @@ export default function AdminUsersPage() {
         .x-small { font-size: 11px; }
         .tracking-tighter { letter-spacing: -0.05em; }
         .custom-user-table th { border: 0 !important; }
-        .custom-user-table td { border-color: rgba(255,255,255,0.05) !important; }
         .hover-opacity-100:hover { opacity: 1 !important; }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
+        [data-theme='dark'] .custom-scrollbar::-webkit-scrollbar-thumb,
+        [data-theme='soc'] .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
       `}</style>
     </Layout>
   );

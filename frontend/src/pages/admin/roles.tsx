@@ -120,16 +120,16 @@ export default function RolesPermissionsPage() {
     <Layout title="Matriz de Roles">
       <Container fluid className="py-4">
         <div className="d-flex justify-content-between align-items-center mb-4">
-          <h4 className="fw-black text-white m-0 uppercase tracking-tighter">CONFIGURACIÓN DE ROLES</h4>
-          <Button variant="primary" onClick={() => handleOpenModal()} className="fw-black px-4">
+          <h4 className="fw-black m-0 uppercase tracking-tighter">CONFIGURACIÓN DE ROLES</h4>
+          <Button variant="primary" onClick={() => handleOpenModal()} className="fw-black px-4 shadow-sm">
             <Plus size={16} className="me-2" /> NUEVO ROL
           </Button>
         </div>
 
-        <Card className="bg-dark border-0 shadow-lg rounded-xl overflow-hidden border border-white border-opacity-5">
-          <Table hover responsive variant="dark" className="align-middle mb-0">
+        <Card className="border-0 shadow-lg rounded-xl overflow-hidden">
+          <Table hover responsive className="align-middle mb-0">
             <thead>
-              <tr className="x-small text-muted uppercase tracking-widest bg-black bg-opacity-20">
+              <tr className="x-small text-muted uppercase tracking-widest bg-surface-muted">
                 <th className="ps-4 py-3">ROL</th>
                 <th>DESCRIPCIÓN</th>
                 <th className="text-center">CAPACIDADES</th>
@@ -138,7 +138,7 @@ export default function RolesPermissionsPage() {
             </thead>
             <tbody>
               {roles.map(role => (
-                <tr key={role.id} className="border-bottom border-white border-opacity-5">
+                <tr key={role.id} className="border-bottom">
                   <td className="ps-4 py-3 fw-bold text-primary">{role.name}</td>
                   <td className="small text-muted">{role.description}</td>
                   <td className="text-center"><Badge bg="primary" className="bg-opacity-10 text-primary">{role.permissions.length} PERMISOS</Badge></td>
@@ -152,8 +152,8 @@ export default function RolesPermissionsPage() {
         </Card>
       </Container>
 
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="xl" centered scrollable contentClassName="bg-dark text-white border-primary border-opacity-25">
-        <Modal.Header closeButton closeVariant="white" className="border-white border-opacity-10">
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="xl" centered scrollable contentClassName="border-primary border-opacity-25">
+        <Modal.Header closeButton className="bg-surface-muted">
            <Modal.Title className="small fw-black uppercase text-primary tracking-widest">
               EDITOR DE ROL: {roleName || 'NUEVO'}
            </Modal.Title>
@@ -161,19 +161,19 @@ export default function RolesPermissionsPage() {
         <Modal.Body className="p-0">
           <Tab.Container id="role-editor-tabs" defaultActiveKey={categories[0]}>
             <Row className="g-0" style={{ minHeight: '600px' }}>
-              <Col md={3} className="bg-black bg-opacity-30 border-end border-white border-opacity-5 p-3 d-flex flex-column">
+              <Col md={3} className="bg-surface-muted border-end p-3 d-flex flex-column">
                 <div className="flex-grow-1">
                   <div className="mb-4">
                     <Form.Label className="x-small fw-black text-muted uppercase mb-2">IDENTIDAD</Form.Label>
-                    <Form.Control size="sm" className="bg-dark text-white border-white border-opacity-10 mb-2" value={roleName} onChange={e => setRoleName(e.target.value)} placeholder="Nombre" />
-                    <Form.Control size="sm" as="textarea" rows={2} className="bg-dark text-white border-white border-opacity-10 mb-3" value={roleDesc} onChange={e => setRoleDesc(e.target.value)} placeholder="Descripción" />
+                    <Form.Control size="sm" className="mb-2 shadow-none" value={roleName} onChange={e => setRoleName(e.target.value)} placeholder="Nombre" />
+                    <Form.Control size="sm" as="textarea" rows={2} className="mb-3 shadow-none" value={roleDesc} onChange={e => setRoleDesc(e.target.value)} placeholder="Descripción" />
                     
                     <Form.Label className="x-small fw-black text-muted uppercase mb-2">RESTRICCIONES UI</Form.Label>
-                    <div className="bg-black bg-opacity-20 p-2 rounded border border-white border-opacity-5 mb-3" style={{ maxHeight: '150px', overflowY: 'auto' }}>
+                    <div className="bg-surface p-2 rounded border mb-3" style={{ maxHeight: '150px', overflowY: 'auto' }}>
                       {NAV_ITEMS.map(item => (
                         <div key={item.id} className="d-flex align-items-center gap-2 mb-1 cursor-pointer" onClick={() => setHiddenNavItems(prev => prev.includes(item.id) ? prev.filter(i => i !== item.id) : [...prev, item.id])}>
                           {hiddenNavItems.includes(item.id) ? <EyeOff size={12} className="text-danger" /> : <CheckCircle2 size={12} className="text-success opacity-50" />}
-                          <span className="x-small" style={{ color: hiddenNavItems.includes(item.id) ? '#ff4d4d' : '#888' }}>{item.name}</span>
+                          <span className="x-small" style={{ color: hiddenNavItems.includes(item.id) ? '#ff4d4d' : 'var(--text-muted)' }}>{item.name}</span>
                         </div>
                       ))}
                     </div>
@@ -183,7 +183,7 @@ export default function RolesPermissionsPage() {
                   <Nav variant="pills" className="flex-column gap-1">
                     {categories.map(cat => (
                       <Nav.Item key={cat}>
-                        <Nav.Link eventKey={cat} className="x-small fw-bold py-2 px-3 border border-white border-opacity-5">
+                        <Nav.Link eventKey={cat} className="x-small fw-bold py-2 px-3 border border-opacity-10">
                           {cat}
                         </Nav.Link>
                       </Nav.Item>
@@ -192,7 +192,7 @@ export default function RolesPermissionsPage() {
                 </div>
 
                 {editingRole && (
-                  <div className="mt-4 pt-3 border-top border-white border-opacity-5">
+                  <div className="mt-4 pt-3 border-top">
                     <Button variant="outline-danger" size="sm" className="w-100 fw-bold x-small uppercase d-flex align-items-center justify-content-center gap-2 shadow-none" onClick={confirmDelete}>
                       <Trash2 size={14} /> Eliminar este Rol
                     </Button>
@@ -200,12 +200,12 @@ export default function RolesPermissionsPage() {
                 )}
               </Col>
 
-              <Col md={9} className="p-4 bg-dark bg-opacity-50">
+              <Col md={9} className="p-4 bg-card">
                 <Tab.Content>
                   {categories.map(cat => (
                     <Tab.Pane key={cat} eventKey={cat}>
                       <div className="d-flex align-items-center gap-3 mb-4">
-                        <div className="bg-primary p-2 rounded"><Key size={20} className="text-white"/></div>
+                        <div className="bg-primary p-2 rounded shadow-sm"><Key size={20} className="text-white"/></div>
                         <div>
                           <h5 className="fw-black m-0 tracking-tighter">{cat}</h5>
                           <small className="text-muted uppercase x-small">Gestionar capacidades específicas del módulo</small>
@@ -241,8 +241,8 @@ export default function RolesPermissionsPage() {
             </Row>
           </Tab.Container>
         </Modal.Body>
-        <Modal.Footer className="border-white border-opacity-10 bg-black bg-opacity-20">
-          <Button variant="primary" onClick={handleSave} disabled={saving || !roleName} className="fw-black w-100 py-3 uppercase x-small tracking-widest">
+        <Modal.Footer className="bg-surface-muted">
+          <Button variant="primary" onClick={handleSave} disabled={saving || !roleName} className="fw-black w-100 py-3 uppercase x-small tracking-widest shadow-lg">
             {saving ? <Spinner animation="border" size="sm" /> : 'Sincronizar Privilegios en el Sistema'}
           </Button>
         </Modal.Footer>
@@ -253,28 +253,30 @@ export default function RolesPermissionsPage() {
         .fw-black { font-weight: 900; }
         .x-small { font-size: 11px; }
         .capability-box { 
-          background: rgba(255,255,255,0.03); 
-          border-color: rgba(255,255,255,0.05); 
+          background: var(--bg-surface); 
+          border-color: var(--border-subtle); 
           cursor: pointer;
         }
-        .capability-box:hover { background: rgba(255,255,255,0.05); }
+        .capability-box:hover { background: var(--bg-surface-muted); }
         .capability-box.active { 
-          background: rgba(13, 110, 253, 0.1); 
-          border-color: rgba(13, 110, 253, 0.4); 
+          background: var(--primary-muted); 
+          border-color: var(--primary); 
         }
         #role-editor-tabs .nav-link {
-          color: #888;
+          color: var(--text-muted);
           border: 1px solid transparent;
           text-align: left;
           transition: all 0.2s;
         }
         #role-editor-tabs .nav-link.active {
-          background: rgba(13, 110, 253, 0.1) !important;
-          color: #0d6efd !important;
-          border-color: rgba(13, 110, 253, 0.3) !important;
+          background: var(--primary-muted) !important;
+          color: var(--primary) !important;
+          border-color: var(--primary) !important;
         }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
+        [data-theme='dark'] .custom-scrollbar::-webkit-scrollbar-thumb,
+        [data-theme='soc'] .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
       `}</style>
     </Layout>
   );

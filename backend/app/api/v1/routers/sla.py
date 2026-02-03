@@ -72,3 +72,25 @@ async def update_sla_policy(
     await db.commit()
     await db.refresh(db_obj)
     return db_obj
+
+@router.delete(
+    "/{policy_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_role(['owner', 'admin']))]
+)
+async def delete_sla_policy(
+    policy_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_permission("sla:manage"))],
+):
+    """
+    Delete an SLA policy. Only superusers.
+    """
+    result = await db.execute(select(SLAPolicy).filter(SLAPolicy.id == policy_id))
+    db_obj = result.scalar_one_or_none()
+    if not db_obj:
+        raise HTTPException(status_code=404, detail="Policy not found")
+        
+    await db.delete(db_obj)
+    await db.commit()
+    return None

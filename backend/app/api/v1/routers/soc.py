@@ -112,19 +112,28 @@ async def promote_to_ticket(
     
     ticket_in = TicketCreate(
         title=f"INCIDENTE: {alert.rule_name}",
-        description=f"Ticket promovido desde alerta SOC.\nOriginal: {alert.description}",
+        description=f"Ticket promovido desde alerta SOC.\n\nDescripción SIEM: {alert.description}\n\nLog:\n{alert.raw_log[:1000]}",
         priority=alert.severity,
         status="open",
         ticket_type_id=ticket_type.id if ticket_type else None,
-        group_id=current_user.group_id # Asignar al grupo del analista
+        group_id=current_user.group_id or alert.extra_data.get("default_group_id")
     )
     
-    ticket = await crud_ticket.create(db, obj_in=ticket_in, created_by_id=current_user.id)
+    ticket = await crud_ticket.create(
+        db, 
+        obj_in=ticket_in, 
+        created_by_id=current_user.id,
+        owner_group_id=current_user.group_id
+    )
+    
+    # Aplicar SLA inmediatamente
+    from app.services.sla_service import sla_service
+    await sla_service.assign_sla_to_ticket(db, ticket.id)
     
     # Vincular alerta con ticket
     alert.ticket_id = ticket.id
     alert.status = "promoted"
     await db.commit()
     
-    return {"status": "promoted", "ticket_id": ticket.id}
+    return {"status": "promoted", "ticket_id": str(ticket.id)}
 

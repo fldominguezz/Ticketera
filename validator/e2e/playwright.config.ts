@@ -18,11 +18,7 @@ export default defineConfig({
   ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
-    /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'https://10.1.9.244',
-    ignoreHTTPSErrors: true,
-
-    /* Collect traces upon failing the test. See https://playwright.dev/docs/trace-viewer */
+    baseURL: 'https://10.1.9.240',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'on-first-retry',

@@ -178,7 +178,7 @@ async def fortisiem_incident_webhook(
     allowed = [ip.strip() for ip in config.allowed_ips.split(",")]
     
     # Permitir siempre localhost y red interna de docker por defecto para evitar bloqueos del proxy
-    is_internal = client_ip.startswith("172.18.") or client_ip in ["127.0.0.1", "localhost", "10.1.9.244"]
+    is_internal = client_ip.startswith("172.18.") or client_ip in ["127.0.0.1", "localhost", "10.1.9.240"]
     
     if config.allowed_ips and client_ip not in allowed and not is_internal:
         logger.warning(f"SIEM Block: IP {client_ip} no está en allowlist {allowed}")

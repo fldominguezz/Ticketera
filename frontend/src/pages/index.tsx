@@ -149,41 +149,41 @@ export default function Dashboard() {
                 </Card>
             </Col>
             <Col lg={4}>
-                <Card className="p-4 border-0 shadow-sm h-100 bg-dark text-white">
-                    <h6 className="fw-bold mb-4 text-uppercase d-flex align-items-center gap-2 text-white-50">
+                <Card className="p-4 border-0 shadow-sm h-100 bg-primary bg-opacity-10">
+                    <h6 className="fw-bold mb-4 text-uppercase d-flex align-items-center gap-2 opacity-75">
                         <ShieldAlert size={16} /> Estado de Seguridad
                     </h6>
                     <div 
-                        className="d-flex justify-content-between align-items-center mb-3 p-3 bg-white bg-opacity-10 rounded interactive-item"
+                        className="d-flex justify-content-between align-items-center mb-3 p-3 bg-surface rounded shadow-sm interactive-item"
                         onClick={() => navigateTo('/soc/events?status=all')}
                         role="button"
                     >
-                        <span className="small fw-bold">TOTAL ALERTAS</span>
-                        <span className="h4 m-0 fw-bold">{stats.siem.total}</span>
+                        <span className="small fw-bold text-muted">TOTAL ALERTAS</span>
+                        <span className="h4 m-0 fw-bold text-primary">{stats.siem.total}</span>
                     </div>
                     <div 
-                        className="d-flex justify-content-between align-items-center mb-3 p-3 bg-success bg-opacity-25 rounded interactive-item"
+                        className="d-flex justify-content-between align-items-center mb-3 p-3 bg-success bg-opacity-10 rounded interactive-item border border-success border-opacity-10"
                         onClick={() => navigateTo('/soc/events?status=resolved')}
                         role="button"
                     >
-                        <span className="small fw-bold">REMEDIADAS</span>
-                        <span className="h4 m-0 fw-bold">{stats.siem.remediated}</span>
+                        <span className="small fw-bold text-success">REMEDIADAS</span>
+                        <span className="h4 m-0 fw-bold text-success">{stats.siem.remediated}</span>
                     </div>
                     <div 
-                        className="d-flex justify-content-between align-items-center mb-3 p-3 bg-warning bg-opacity-25 rounded text-dark interactive-item"
+                        className="d-flex justify-content-between align-items-center mb-3 p-3 bg-warning bg-opacity-10 rounded interactive-item border border-warning border-opacity-10"
                         onClick={() => navigateTo('/soc/events?status=in_progress')}
                         role="button"
                     >
-                        <span className="small fw-bold">EN PROCESO</span>
-                        <span className="h4 m-0 fw-bold">{stats.siem.in_process}</span>
+                        <span className="small fw-bold text-warning">EN PROCESO</span>
+                        <span className="h4 m-0 fw-bold text-warning">{stats.siem.in_process}</span>
                     </div>
                     <div 
-                        className="d-flex justify-content-between align-items-center p-3 bg-danger bg-opacity-25 rounded interactive-item"
+                        className="d-flex justify-content-between align-items-center p-3 bg-danger bg-opacity-10 rounded interactive-item border border-danger border-opacity-10"
                         onClick={() => navigateTo('/soc/events?status=pending')}
                         role="button"
                     >
-                        <span className="small fw-bold">ABIERTAS</span>
-                        <span className="h4 m-0 fw-bold">{stats.siem.open}</span>
+                        <span className="small fw-bold text-danger">ABIERTAS</span>
+                        <span className="h4 m-0 fw-bold text-danger">{stats.siem.open}</span>
                     </div>
                 </Card>
             </Col>
@@ -247,26 +247,30 @@ export default function Dashboard() {
 
             {/* Locations Breakdown */}
             <Col lg={12}>
-                <Card className="border-0 shadow-sm">
-                    <Card.Header className="bg-transparent border-0 py-3">
+                <Card className="border-0 shadow-sm overflow-hidden">
+                    <Card.Header className="bg-surface-muted border-0 py-3">
                         <h6 className="m-0 fw-bold small text-uppercase">Top Ubicaciones con más activos</h6>
                     </Card.Header>
-                    <Table responsive className="mb-0 align-middle">
-                        <thead className="bg-light">
-                            <tr>
-                                <th className="small text-muted border-0 ps-4">Ubicación</th>
-                                <th className="small text-muted border-0 text-end pe-4">Cantidad</th>
+                    <Table hover responsive className="mb-0 align-middle">
+                        <thead>
+                            <tr className="bg-surface">
+                                <th className="small text-muted border-0 ps-4 py-3 uppercase tracking-widest">Ubicación</th>
+                                <th className="small text-muted border-0 text-end pe-4 py-3 uppercase tracking-widest">Cantidad</th>
                             </tr>
                         </thead>
                         <tbody>
                             {(stats.assets!.by_location || []).map((loc, idx) => (
-                                <tr key={idx}>
+                                <tr key={idx} className="border-bottom border-opacity-10">
                                     <td className="ps-4 fw-bold text-primary">{loc.name}</td>
-                                    <td className="text-end pe-4"><Badge bg="secondary" className="bg-opacity-10 text-dark">{loc.count}</Badge></td>
+                                    <td className="text-end pe-4">
+                                        <Badge bg="primary" className="bg-opacity-10 text-primary border border-primary border-opacity-10">
+                                            {loc.count}
+                                        </Badge>
+                                    </td>
                                 </tr>
                             ))}
                              {(!stats.assets!.by_location || stats.assets!.by_location.length === 0) && (
-                                <tr><td colSpan={2} className="text-center py-3 text-muted small">Sin datos de ubicaciones.</td></tr>
+                                <tr><td colSpan={2} className="text-center py-4 text-muted small italic">Sin datos de ubicaciones disponibles.</td></tr>
                             )}
                         </tbody>
                     </Table>

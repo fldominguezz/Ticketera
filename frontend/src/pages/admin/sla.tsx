@@ -15,8 +15,8 @@ export default function SLAManagementPage() {
         name: '',
         description: '',
         priority: 'medium',
-        response_time_minutes: 60,
-        resolution_time_minutes: 240,
+        response_time_goal: 60,
+        resolution_time_goal: 240,
         is_active: true
     });
 
@@ -26,7 +26,7 @@ export default function SLAManagementPage() {
 
     const fetchPolicies = async () => {
         try {
-            const res = await api.get('/admin/sla/policies');
+            const res = await api.get('/admin/sla');
             setPolicies(res.data);
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
@@ -38,8 +38,8 @@ export default function SLAManagementPage() {
             name: policy.name,
             description: policy.description || '',
             priority: policy.priority,
-            response_time_minutes: policy.response_time_minutes,
-            resolution_time_minutes: policy.resolution_time_minutes,
+            response_time_goal: policy.response_time_goal,
+            resolution_time_goal: policy.resolution_time_goal,
             is_active: policy.is_active
         });
         setShowModal(true);
@@ -48,7 +48,7 @@ export default function SLAManagementPage() {
     const handleDelete = async (id: string) => {
         if (!confirm("¿Está seguro de eliminar esta política de SLA?")) return;
         try {
-            await api.delete(`/admin/sla/policies/${id}`);
+            await api.delete(`/admin/sla/${id}`);
             fetchPolicies();
         } catch (e) { alert("Error al eliminar"); }
     };
@@ -58,9 +58,9 @@ export default function SLAManagementPage() {
         setSaving(true);
         try {
             if (selectedPolicy) {
-                await api.put(`/admin/sla/policies/${selectedPolicy.id}`, formData);
+                await api.put(`/admin/sla/${selectedPolicy.id}`, formData);
             } else {
-                await api.post('/admin/sla/policies', formData);
+                await api.post('/admin/sla', formData);
             }
             setShowModal(false);
             fetchPolicies();
@@ -105,8 +105,8 @@ export default function SLAManagementPage() {
                                 <td><Badge bg={p.priority === 'critical' ? 'danger' : 'warning'} className="uppercase">{p.priority}</Badge></td>
                                 <td>
                                     <div className="fw-bold d-flex gap-2">
-                                        <Badge bg="info" className="bg-opacity-10 text-info border border-info border-opacity-25">{p.response_time_minutes} min</Badge>
-                                        <Badge bg="success" className="bg-opacity-10 text-success border border-success border-opacity-25">{p.resolution_time_minutes} min</Badge>
+                                        <Badge bg="info" className="bg-opacity-10 text-info border border-info border-opacity-25">{p.response_time_goal} min</Badge>
+                                        <Badge bg="success" className="bg-opacity-10 text-success border border-success border-opacity-25">{p.resolution_time_goal} min</Badge>
                                     </div>
                                 </td>
                                 <td>{p.is_active ? <Badge bg="success">ACTIVA</Badge> : <Badge bg="secondary">INACTIVA</Badge>}</td>
@@ -143,13 +143,13 @@ export default function SLAManagementPage() {
                             <Col md={6}>
                                 <Form.Group className="mb-3">
                                     <Form.Label className="x-small fw-black uppercase text-muted">Tiempo Respuesta (Min)</Form.Label>
-                                    <Form.Control type="number" required value={formData.response_time_minutes} onChange={e => setFormData({...formData, response_time_minutes: parseInt(e.target.value)})} />
+                                    <Form.Control type="number" required value={formData.response_time_goal} onChange={e => setFormData({...formData, response_time_goal: parseInt(e.target.value)})} />
                                 </Form.Group>
                             </Col>
                             <Col md={6}>
                                 <Form.Group className="mb-3">
                                     <Form.Label className="x-small fw-black uppercase text-muted">Tiempo Resolución (Min)</Form.Label>
-                                    <Form.Control type="number" required value={formData.resolution_time_minutes} onChange={e => setFormData({...formData, resolution_time_minutes: parseInt(e.target.value)})} />
+                                    <Form.Control type="number" required value={formData.resolution_time_goal} onChange={e => setFormData({...formData, resolution_time_goal: parseInt(e.target.value)})} />
                                 </Form.Group>
                             </Col>
                         </Row>
