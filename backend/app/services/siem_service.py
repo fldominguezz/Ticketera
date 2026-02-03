@@ -6,7 +6,7 @@ from app.db.models.endpoint import Endpoint
 from app.db.models.audit_log import AuditLog
 from app.crud.crud_endpoint import endpoint as crud_endpoint
 from app.crud.crud_ticket import ticket as crud_ticket
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import uuid
 import logging
 import xml.etree.ElementTree as ET
@@ -26,59 +26,85 @@ class SIEMService:
 
     def _parse_fortisiem_xml(self, xml_string: str):
         try:
-            root = ET.fromstring(xml_string)
-            incident_id = root.get("incidentId", "N/A")
-            severity = root.get("severity", "5")
-            rule_name = root.findtext("name", "N/A")
-            description = root.findtext("description")
+            # SANITIZACIÓN: Eliminar caracteres binarios o de control que rompen el parser
+            sanitized_xml = re.sub(r'[^\x09\x0A\x0D\x20-\x7E\x80-\xFF]', '', xml_string)
             
-            if description is None:
-                # Si no hay etiqueta description, usamos el texto del root si existe o un fragmento del XML
-                description = root.text or f"Contenido XML: {xml_string[:100]}"
+            try:
+                root = ET.fromstring(sanitized_xml)
+                incident_id = root.get("incidentId", "N/A")
+                severity = root.get("severity", "5")
+                rule_name = root.findtext("name", "N/A")
+                description = root.findtext("description")
+                
+                raw_log_element = root.find("rawEvents")
+                raw_log_content = raw_log_element.text.strip() if raw_log_element is not None and raw_log_element.text else xml_string
 
-            source_ip = "N/A"
-            incident_target = root.find("incidentTarget")
-            if incident_target is not None:
-                for entry in incident_target.findall("entry"):
-                    if entry.get("name") == "Host IP":
-                        source_ip = entry.text
+                # Extraer Metadatos Técnicos Adicionales
+                mitre_tactic = root.findtext("mitreTactic", "N/A")
+                mitre_tech = root.findtext("mitreTechniqueId", "N/A")
+                
+                source_ip = "N/A"
+                dest_ip = "N/A"
+                
+                incident_src = root.find("incidentSource")
+                if incident_src is not None:
+                    for entry in incident_src.findall("entry"):
+                        if entry.get("name") == "Source IP":
+                            source_ip = entry.text
 
-            # Extract raw_log_content after main XML parsing
-            raw_log_element = root.find("rawEvents")
-            raw_log_content = raw_log_element.text.strip() if raw_log_element is not None and raw_log_element.text else xml_string
+                incident_target = root.find("incidentTarget")
+                if incident_target is not None:
+                    for entry in incident_target.findall("entry"):
+                        if entry.get("name") == "Destination IP":
+                            dest_ip = entry.text
 
-            return {
-                "incident_id": incident_id,
-                "severity_num": severity,
-                "rule_name": rule_name,
-                "source_ip": source_ip,
-                "description": description,
-                "raw_log": raw_log_content
-            }
+                return {
+                    "incident_id": incident_id,
+                    "severity_num": severity,
+                    "rule_name": rule_name,
+                    "source_ip": source_ip,
+                    "dest_ip": dest_ip,
+                    "mitre_tactic": mitre_tactic,
+                    "mitre_tech": mitre_tech,
+                    "description": description or "Sin descripción",
+                    "raw_log": raw_log_content
+                }
+            except Exception as e:
+                logger.warning(f"Fallo parser XML, usando Regex fallback: {e}")
+                
+                # Regex Fallback
+                rule_name = "N/A"
+                description = "Error en formato de evento"
+                incident_id = "N/A"
+                severity = "5"
+                mitre_tactic = "N/A"
+
+                name_match = re.search(r'<name>(.*?)</name>', xml_string, re.DOTALL)
+                if name_match: rule_name = name_match.group(1).strip()
+
+                desc_match = re.search(r'<description>(.*?)</description>', xml_string, re.DOTALL)
+                if desc_match: description = desc_match.group(1).strip()
+
+                mitre_match = re.search(r'<mitreTactic>(.*?)</mitreTactic>', xml_string)
+                if mitre_match: mitre_tactic = mitre_match.group(1)
+
+                inc_match = re.search(r'incidentId="(.*?)"', xml_string)
+                if inc_match: incident_id = inc_match.group(1)
+
+                return {
+                    "incident_id": incident_id,
+                    "severity_num": "5",
+                    "rule_name": rule_name,
+                    "source_ip": "N/A",
+                    "dest_ip": "N/A",
+                    "mitre_tactic": mitre_tactic,
+                    "mitre_tech": "N/A",
+                    "description": description,
+                    "raw_log": xml_string
+                }
         except Exception as e:
-            logger.warning(f"Non-standard XML format received: {e}")
-            return {
-                "incident_id": "N/A",
-                "severity_num": "5",
-                "rule_name": "N/A",
-                "source_ip": "N/A",
-                "description": f"Evento de Test/No estándar: {xml_string[:200]}",
-                "raw_log": xml_string
-            }
-
-    def _calculate_final_severity(self, siem_sev: str, asset_crit: str = "medium") -> str:
-        # Simple matrix logic
-        sev_map = {"low": 1, "medium": 2, "high": 3, "critical": 4}
-        crit_map = {"low": 1, "medium": 2, "high": 3, "critical": 4}
-        
-        s_val = sev_map.get(siem_sev.lower(), 2)
-        c_val = crit_map.get(asset_crit.lower(), 2)
-        
-        score = s_val + (c_val - 2) # Adjust based on asset
-        if score >= 4: return "CRITICAL"
-        if score == 3: return "HIGH"
-        if score == 2: return "MEDIUM"
-        return "LOW"
+            logger.error(f"Error crítico en parser: {e}")
+            return None
 
     def _map_severity(self, siem_sev: str) -> str:
         try:
@@ -91,7 +117,6 @@ class SIEMService:
             return "medium"
 
     async def process_event(self, db: AsyncSession, raw_data: Any, root_group_id: uuid.UUID, created_by_id: uuid.UUID, ticket_type_id: Optional[uuid.UUID] = None):
-        from app.db.models.asset import Asset
         event_info = {}
         incident_id = None
         raw_event_text = str(raw_data)
@@ -105,39 +130,30 @@ class SIEMService:
                 parsed_kv = self._parse_kv_string(raw_event_text)
                 event_info = {
                     "ip": parsed["source_ip"],
+                    "dest_ip": parsed["dest_ip"],
                     "event_type": parsed["rule_name"],
                     "severity": self._map_severity(parsed["severity_num"]),
                     "details": parsed["description"],
-                    "incident_id": incident_id
+                    "incident_id": incident_id,
+                    "mitre": {"tactic": parsed["mitre_tactic"], "tech": parsed["mitre_tech"]}
                 }
         elif isinstance(raw_data, dict):
             incident_id = raw_data.get("incidentId") or str(raw_data.get("id", ""))
             event_info = {
                 "ip": raw_data.get("ip") or raw_data.get("src_ip"),
-                "hostname": raw_data.get("hostname"),
+                "dest_ip": raw_data.get("dest_ip") or raw_data.get("dst_ip"),
                 "event_type": raw_data.get("event_type", "Security Alert"),
                 "severity": raw_data.get("severity", "medium").lower(),
                 "details": raw_data.get("details", "Sin detalles"),
-                "incident_id": incident_id
+                "incident_id": incident_id,
+                "mitre": raw_data.get("mitre", {"tactic": "N/A", "tech": "N/A"})
             }
             parsed_kv = raw_data
         
         if not event_info:
             return None
 
-        # Idempotencia desactivada temporalmente para diagnóstico: Siempre crear nueva fila
-        """
-        if incident_id and incident_id != "N/A":
-            query = select(Alert).filter(Alert.external_id == str(incident_id))
-            result = await db.execute(query)
-            existing = result.scalars().first()
-            if existing:
-                existing.description = f"ACTUALIZADO: {event_info['details']}\n\n{existing.description}"
-                await db.commit()
-                return existing
-        """
-
-        # Crear ALERTA (No Ticket)
+        # Crear ALERTA
         new_alert = Alert(
             external_id=incident_id if incident_id != "N/A" else None,
             rule_name=event_info['event_type'],
@@ -147,6 +163,8 @@ class SIEMService:
             raw_log=raw_event_text,
             extra_data={
                 "parsed_kv": parsed_kv,
+                "mitre": event_info.get("mitre", {}),
+                "dest_ip": event_info.get("dest_ip"),
                 "original_severity": event_info['severity']
             },
             status="new"
@@ -156,13 +174,10 @@ class SIEMService:
         await db.commit()
         await db.refresh(new_alert)
 
-        # Notificación en tiempo real (Apuntando a /soc/events)
         from app.services.notification_service import notification_service
         from app.db.models.user import User
-        # Notificar a usuarios con permiso de SOC
-        res_users = await db.execute(select(User).filter(User.is_superuser == True)) # Simplificado para test
-        users = res_users.scalars().all()
-        for u in users:
+        res_users = await db.execute(select(User).filter(User.is_superuser == True))
+        for u in res_users.scalars().all():
             await notification_service.notify_user(
                 db, user_id=u.id,
                 title=f"🚨 EVENTO SIEM: {event_info['severity'].upper()}",

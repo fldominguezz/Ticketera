@@ -1,4 +1,4 @@
-from typing import List, Annotated, Optional
+from typing import List, Annotated, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -25,6 +25,7 @@ class AlertSchema(BaseModel):
     raw_log: Optional[str]
     status: str
     ticket_id: Optional[UUID]
+    extra_data: Optional[Dict[str, Any]] = None
     created_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
@@ -36,7 +37,7 @@ class AlertListResponse(BaseModel):
     size: int
     pages: int
 
-@router.get("/events", response_model=AlertListResponse)
+@router.get("/alerts", response_model=AlertListResponse)
 async def read_soc_events(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(require_permission("siem:view"))],
@@ -66,7 +67,7 @@ async def read_soc_events(
         "pages": math.ceil(total / size) if total > 0 else 0
     }
 
-@router.post("/events/{alert_id}/ack")
+@router.post("/alerts/{alert_id}/ack")
 async def acknowledge_event(
     alert_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],

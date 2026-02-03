@@ -23,8 +23,8 @@ echo "Running database migrations..."
 alembic upgrade head
 
 # 4. Sincronizar permisos
-echo "Synchronizing permissions..."
-python3 /app/scripts/sync_iam_final.py
+# echo "Synchronizing permissions..."
+# python3 /app/scripts/sync_iam_final.py
 
 # 5. Crear/Asegurar Admin de producción
 echo "Ensuring admin account..."

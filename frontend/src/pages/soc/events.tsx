@@ -114,6 +114,30 @@ export default function SIEMEventsPage() {
     element.click();
   };
 
+  const parseIntelligence = (event: any) => {
+    if (!event) return {};
+    const raw = event.raw_log || "";
+    const extra = event.extra_data || {};
+    
+    const find = (key: string) => {
+        const regex = new RegExp(`(?:[\\s\\[]|^)${key}\\s*=\\s*["']?([^"'\\]\\s,;]+)["']?`, 'i');
+        return raw.match(regex)?.[1];
+    };
+
+    return {
+        "IP Origen (Source)": event.source_ip || find("src") || find("srcIp") || "---",
+        "IP Destino (Dest)": extra.dest_ip || find("dst") || find("destIp") || "---",
+        "Dispositivo Afectado": find("devname") || find("device") || find("hostName") || "---",
+        "Acción Firewall": find("action") || find("policy_action") || "---",
+        "Severidad Original": extra.original_severity || find("pri") || "---",
+        "MITRE Táctica": extra.mitre?.tactic || "N/A",
+        "MITRE Técnica": extra.mitre?.tech || "N/A",
+        "Usuario Involucrado": find("user") || find("user_name") || "---",
+        "Protocolo / Servicio": find("proto") || find("service") || "---",
+        "Policy / Regla FW": find("policy") || find("rule") || "---"
+    };
+  };
+
   const handleRemediate = (event: any) => {
     setSelectedTicket(event);
     setAiAnalysis(null);
@@ -262,10 +286,15 @@ export default function SIEMEventsPage() {
           <div className="d-flex bg-surface-muted p-1 rounded-pill mb-4 gap-1 border border-color shadow-inner" style={{width: 'fit-content'}}>
               <Button variant={activeTab === 'structured' ? 'primary' : 'link'} size="sm" onClick={() => setActiveTab('structured')} className="rounded-pill px-4 x-small fw-black text-decoration-none">DATOS</Button>
               <Button variant={activeTab === 'raw' ? 'primary' : 'link'} size="sm" onClick={() => setActiveTab('raw')} className="rounded-pill px-4 x-small fw-black text-decoration-none">LOG</Button>
-              <Button variant={activeTab === 'ia' ? 'primary' : 'link'} size="sm" onClick={() => setActiveTab('ia')} className="rounded-pill px-4 x-small fw-black text-decoration-none">IA ANALYSIS</Button>
+              <Button variant={activeTab === 'ia' ? 'primary' : 'link'} size="sm" onClick={() => setActiveTab('ia')} className="rounded-pill px-4 x-small fw-black text-decoration-none">ANÁLISIS EXPERTO</Button>
           </div>
           <div className="mb-4">
-              {activeTab === 'structured' && (<Accordion defaultActiveKey="0" flush className="custom-accordion"><Section eventKey="0" title="Resumen" icon={ShieldCheck} items={{ "Descripción": selectedTicket?.description || "N/A" }} isDark={isDark} /><Section eventKey="1" title="Vínculo" icon={Target} items={{ "IP Origen": selectedTicket?.source_ip || "N/A" }} color="info" isDark={isDark} /></Accordion>)}
+              {activeTab === 'structured' && (
+                <Accordion defaultActiveKey="0" flush className="custom-accordion">
+                    <Section eventKey="0" title="Resumen y Descripción" icon={ShieldCheck} items={{ "Descripción": selectedTicket?.description || "N/A" }} isDark={isDark} />
+                    <Section eventKey="1" title="Inteligencia Técnica (Extraída)" icon={Target} items={parseIntelligence(selectedTicket)} color="info" isDark={isDark} />
+                </Accordion>
+              )}
               {activeTab === 'raw' && (
                 <div className="bg-dark rounded-4 overflow-hidden border border-secondary border-opacity-25">
                   <div className="p-3 bg-secondary bg-opacity-10 d-flex justify-content-between align-items-center border-bottom border-secondary border-opacity-25">
@@ -281,7 +310,7 @@ export default function SIEMEventsPage() {
                 </div>
               )}
               {activeTab === 'ia' && (<div className="ia-analysis-view p-4 rounded-4 border border-primary border-opacity-25 bg-surface-muted">
-                  {aiAnalysis ? (<><h6 className="x-small fw-black text-primary uppercase mb-2">Resumen IA</h6><div className="bg-surface p-3 rounded-3 small text-success font-monospace mb-3">{aiAnalysis.summary}</div><h6 className="x-small fw-black text-warning uppercase mb-2">Remediación</h6><div className="bg-surface p-3 rounded-3 small text-warning font-monospace">{aiAnalysis.remediation}</div></>) : <div className="text-center py-5"><Spinner animation="grow" size="sm" variant="primary" /><p className="small text-muted mt-2 uppercase fw-bold opacity-50">Procesando cerebro IA...</p></div>}
+                  {aiAnalysis ? (<><h6 className="x-small fw-black text-primary uppercase mb-2">Hallazgos Técnicos</h6><div className="bg-surface p-3 rounded-3 small text-success font-monospace mb-3">{aiAnalysis.summary}</div><h6 className="x-small fw-black text-warning uppercase mb-2">Acciones Recomendadas</h6><div className="bg-surface p-3 rounded-3 small text-warning font-monospace">{aiAnalysis.remediation}</div></>) : <div className="text-center py-5"><Spinner animation="grow" size="sm" variant="primary" /><p className="small text-muted mt-2 uppercase fw-bold opacity-50">Escaneando patrones en Raw Log...</p></div>}
               </div>)}
           </div>
           <Form.Group className="mb-4"><Form.Label className="x-small fw-black uppercase">Adjuntar Evidencia</Form.Label><Form.Control type="file" multiple className="bg-surface-muted border-0 small" onChange={(e: any) => setEvidenceFiles(e.target.files)} /></Form.Group>
