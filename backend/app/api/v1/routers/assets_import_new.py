@@ -1,19 +1,30 @@
-@router.post("/import")
+from typing import Annotated, List, Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, Body, Request # Added Request for consistency, though not used in original
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.api.deps import get_db, require_permission, require_role # Updated imports
+from app.db.models.user import User # Added User import
+from app.db.models.asset import Asset as AssetModel
+from app.db.models.location import LocationNode
+from app.crud.crud_location import location as crud_location
+from datetime import datetime
+import re
+import traceback
+
+router = APIRouter()
+
+@router.post(
+    "/import",
+    dependencies=[Depends(require_role(['owner', 'admin']))] # Restrict to owner/admin roles
+)
 async def import_assets(
     *,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
     assets_in: List[dict] = Body(...),
-    current_user: User = Depends(get_current_active_user)
+    current_user: Annotated[User, Depends(require_permission("assets:import"))] # Requires specific permission
 ):
     """
     Import assets from EMS/ESET.
     """
-    from app.db.models.asset import Asset as AssetModel
-    from app.db.models.location import LocationNode
-    from app.crud.crud_location import location as crud_location
-    from datetime import datetime
-    import re
-    import traceback
     
     stats = {"created": 0, "updated": 0, "errors": 0}
     print(f"DEBUG: Procesando importación de {len(assets_in)} items.")
@@ -123,7 +134,7 @@ async def import_assets(
                 new_asset = AssetModel(
                     hostname=hostname_final, ip_address=ip, mac_address=mac,
                     os_name=os_name, os_version=os_ver, av_product=av_product_final,
-                    location_node_id=location_id, source_system=source_system_final,
+                    location_node_id=location_id, source_system="Manual",
                     status=status_final, observations=observations_final,
                     last_seen=datetime.now()
                 )

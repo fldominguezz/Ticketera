@@ -6,7 +6,7 @@ venv/
 .pytest_cache/
 *.log
 tests/
-alembic/versions/*.py
+# alembic/versions/*.py (DO NOT IGNORE MIGRATIONS)
 !alembic/versions/.gitkeep
 Dockerfile
 docker-compose.yml

@@ -36,13 +36,11 @@ export default function Login() {
         if (result.needs_2fa) {
           setNeeds2FA(true);
           setInterimToken(result.interim_token);
-        } else if (result.force_password_change || result.reset_2fa) {
-          // El token ya fue guardado por el AuthContext.login
-          router.push('/security/onboarding');
         }
-      } else if (result === true) {
-        router.push('/');
-      } else {
+        // No redirect here, AuthGuard will handle it if force_password_change is true
+      }
+      // If result === true, AuthGuard will handle redirect to '/'
+      if (result === false) {
         setError('ACCESS DENIED: Invalid operator credentials.');
       }
     } catch (err) {

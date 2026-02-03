@@ -1,27 +1,31 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { Container, Table, Button, Badge, Card, Modal, Form, Row, Col, Spinner } from 'react-bootstrap';
-import { UserPlus, Edit, Trash2, Shield, User as UserIcon, Mail, Lock } from 'lucide-react';
+import { Container, Table, Button, Badge, Card, Modal, Form, Row, Col, Spinner, InputGroup } from 'react-bootstrap';
+import { UserPlus, Edit, Trash2, Shield, User as UserIcon, Mail, Lock as LockIcon, Search, Eye, EyeOff, Globe, ShieldCheck } from 'lucide-react';
 import Layout from '../../../components/Layout';
 import { useTheme } from '../../../context/ThemeContext';
+import api from '../../../lib/api';
 
 export default function AdminUsersPage() {
   const router = useRouter();
   const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const isDark = theme === 'dark' || theme === 'soc';
   
   const [users, setUsers] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
   const [groups, setGroups] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const [showModal, setShowModal] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [showSecurityModal, setShowSecurityModal] = useState(false);
-  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
+  const [showPass, setShowPass] = useState(false);
+  const [saving, setSaving] = useState(false);
   
   const [formData, setFormData] = useState({
     username: '', email: '', password: '', first_name: '', last_name: '',
-    is_superuser: false, group_id: '', role_ids: [] as string[]
+    is_superuser: false, is_active: true, force_password_change: false, reset_2fa_next_login: false,
+    group_id: '', role_ids: [] as string[]
   });
 
   useEffect(() => {
@@ -31,36 +35,16 @@ export default function AdminUsersPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
       const [uRes, gRes, rRes] = await Promise.all([
-        fetch('/api/v1/admin/users', { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch('/api/v1/groups', { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch('/api/v1/iam/roles', { headers: { 'Authorization': `Bearer ${token}` } })
+        api.get('/admin/users'),
+        api.get('/groups'),
+        api.get('/roles')
       ]);
-      setUsers(await uRes.json());
-      setGroups(await gRes.json());
-      setRoles(await rRes.json());
+      setUsers(Array.isArray(uRes.data) ? uRes.data : []);
+      setGroups(Array.isArray(gRes.data) ? gRes.data : []);
+      setRoles(Array.isArray(rRes.data) ? rRes.data : []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  };
-
-  const handleSecurityAction = async (action: string) => {
-    if (!editingUserId) return;
-    const token = localStorage.getItem('access_token');
-    try {
-      const res = await fetch(`/api/v1/admin/users/${editingUserId}/${action}`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (action === 'reset-password' && data.new_password) {
-        setGeneratedPassword(data.new_password);
-      } else {
-        alert(data.detail || "Acción completada con éxito");
-        setShowModal(false);
-        fetchData();
-      }
-    } catch (e) { alert("Error al ejecutar acción de seguridad"); }
   };
 
   const handleOpenModal = (user: any = null) => {
@@ -69,41 +53,52 @@ export default function AdminUsersPage() {
       setFormData({
         username: user.username, email: user.email, password: '',
         first_name: user.first_name || '', last_name: user.last_name || '',
-        is_superuser: user.is_superuser || false, group_id: user.group_id || '',
+        is_superuser: user.is_superuser || false,
+        is_active: user.is_active ?? true,
+        force_password_change: user.force_password_change ?? false,
+        reset_2fa_next_login: user.reset_2fa_next_login ?? false,
+        group_id: user.group_id || '',
         role_ids: Array.isArray(user.roles) ? user.roles.map((r: any) => r.id) : []
       });
     } else {
       setEditingUserId(null);
-      setFormData({ username: '', email: '', password: '', first_name: '', last_name: '', is_superuser: false, group_id: '', role_ids: [] });
+      setFormData({ 
+        username: '', email: '', password: '', first_name: '', last_name: '', 
+        is_superuser: false, is_active: true, force_password_change: false, reset_2fa_next_login: false,
+        group_id: '', role_ids: [] 
+      });
     }
     setShowModal(true);
   };
 
   const handleSubmit = async () => {
-    console.log('handleSubmit called!');
-    const token = localStorage.getItem('access_token');
-    const method = editingUserId ? 'PUT' : 'POST';
-    const url = editingUserId ? `/api/v1/admin/users/${editingUserId}` : '/api/v1/admin/users';
-    
-    const payload: any = { ...formData };
-    if (editingUserId && !payload.password) delete payload.password;
-
+    if (!formData.username || !formData.email || (!editingUserId && !formData.password)) {
+        alert("Complete los campos obligatorios.");
+        return;
+    }
+    setSaving(true);
     try {
-      const res = await fetch(url, {
-        method, headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        setShowModal(false);
+      const url = editingUserId ? `/admin/users/${editingUserId}` : '/admin/users';
+      const payload = { ...formData };
+      if (editingUserId && !payload.password) delete (payload as any).password;
+
+      if (editingUserId) await api.put(url, payload);
+      else await api.post(url, payload);
+      
+      setShowModal(false);
+      fetchData();
+    } catch (e: any) {
+      alert(e.response?.data?.detail || "Error al procesar usuario");
+    } finally { setSaving(false); }
+  };
+
+  const handleDeleteUser = async (user: any) => {
+    if (!confirm(`¿Está seguro de que desea eliminar permanentemente a ${user.username}? Esta acción lo desactivará del sistema.`)) return;
+    try {
+        await api.delete(`/admin/users/${user.id}`);
         fetchData();
-      } else {
-        const errorData = await res.json();
-        const errorMessage = errorData.detail || errorData.message || `Error: ${res.status} ${res.statusText}`;
-        alert(`Error al guardar usuario: ${errorMessage}`);
-      }
-    } catch (e) {
-      console.error(e);
-      alert(`Error de red o inesperado: ${e.message || e}`);
+    } catch (e: any) {
+        alert(e.response?.data?.detail || "Error al eliminar usuario");
     }
   };
 
@@ -114,59 +109,84 @@ export default function AdminUsersPage() {
     }));
   };
 
+  const filteredUsers = users.filter(u => 
+    u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    `${u.first_name} ${u.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
-    <Layout title="Gestión de Cuentas">
-      <Container fluid className="px-0">
+    <Layout title="Gestión de Identidades">
+      <Container fluid className="py-4">
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
-            <h2 className="fw-black text-uppercase m-0">Usuarios del Sistema</h2>
-            <p className="text-muted small mb-0">Administre el acceso del personal y analistas del SOC.</p>
+            <h4 className="fw-black text-white m-0 uppercase tracking-tighter">Cuentas de Usuario</h4>
+            <small className="text-muted fw-bold x-small uppercase tracking-widest">Control de analistas y personal del sistema</small>
           </div>
-          <Button variant="primary" onClick={() => handleOpenModal()} className="shadow-sm fw-bold">
-            <UserPlus size={18} className="me-2" /> NUEVO USUARIO
+          <Button variant="primary" onClick={() => handleOpenModal()} className="shadow-sm fw-black x-small px-4">
+            <UserPlus size={16} className="me-2" /> REGISTRAR NUEVO
           </Button>
         </div>
 
-        <Card className="border-0 shadow-sm overflow-hidden">
-          <Table hover responsive variant={isDark ? 'dark' : undefined} className="align-middle mb-0">
-            <thead className={isDark ? 'bg-black' : 'bg-light'}>
-              <tr className="small text-uppercase text-muted opacity-75">
-                <th className="ps-4 py-3">Identidad</th>
-                <th>Usuario</th>
-                <th>Roles / Nivel</th>
-                <th>Área / Grupo</th>
-                <th className="text-end pe-4">Acciones</th>
+        <Card className="bg-dark border-0 shadow-2xl rounded-xl overflow-hidden border border-white border-opacity-5">
+          <div className="p-3 bg-black bg-opacity-20 border-bottom border-white border-opacity-10">
+             <InputGroup style={{ maxWidth: '400px' }}>
+                <InputGroup.Text className="bg-transparent border-0 text-muted ps-0"><Search size={18}/></InputGroup.Text>
+                <Form.Control 
+                    className="bg-transparent border-0 text-white shadow-none small" 
+                    placeholder="Filtrar por nombre, usuario o email..." 
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                />
+             </InputGroup>
+          </div>
+          <Table hover responsive variant="dark" className="align-middle mb-0 custom-user-table">
+            <thead>
+              <tr className="x-small text-muted uppercase tracking-widest border-bottom border-white border-opacity-10">
+                <th className="ps-4 py-3">IDENTIDAD</th>
+                <th>USUARIO</th>
+                <th>NIVEL / ROLES</th>
+                <th>GRUPO / ÁREA</th>
+                <th>ESTADO</th>
+                <th className="text-end pe-4">GESTIÓN</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} className="text-center py-5"><Spinner animation="border" variant="primary" /></td></tr>
-              ) : users.map(u => (
-                <tr key={u.id}>
+                <tr><td colSpan={6} className="text-center py-5"><Spinner animation="border" variant="primary" size="sm" /></td></tr>
+              ) : filteredUsers.map(u => (
+                <tr key={u.id} className="border-bottom border-white border-opacity-5">
                   <td className="ps-4 py-3">
                     <div className="d-flex align-items-center gap-3">
                       <div className="avatar bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center" style={{width:32, height:32}}>
                         <UserIcon size={16} />
                       </div>
                       <div>
-                        <div className="fw-bold">{u.first_name} {u.last_name}</div>
+                        <div className="fw-bold small text-white">{u.first_name} {u.last_name}</div>
                         <div className="x-small text-muted">{u.email}</div>
                       </div>
                     </div>
                   </td>
-                  <td><code className="small">@{u.username}</code></td>
+                  <td><code className="small text-info">@{u.username}</code></td>
                   <td>
                     <div className="d-flex flex-wrap gap-1">
-                        {u.is_superuser && <Badge bg="danger" className="bg-opacity-10 text-danger border border-danger border-opacity-25 x-small fw-black">SUPERADMIN</Badge>}
-                        {u.roles?.map((r: any) => (
-                            <Badge key={r.id} bg="primary" className="bg-opacity-10 text-primary border border-primary border-opacity-25 x-small fw-bold">{r.name}</Badge>
+                        {u.is_superuser && <Badge bg="danger" className="bg-opacity-10 text-danger border border-danger border-opacity-10 x-small fw-black">SUPERADMIN</Badge>}
+                        {(u.roles || []).map((r: any) => (
+                            <Badge key={r.id} bg="primary" className="bg-opacity-10 text-primary border border-primary border-opacity-10 x-small fw-bold">{r.name}</Badge>
                         ))}
-                        {(!u.is_superuser && (!u.roles || u.roles.length === 0)) && <span className="text-muted small italic opacity-50">Sin rol</span>}
                     </div>
                   </td>
-                  <td className="small">{u.group_name || '-'}</td>
+                  <td className="small text-muted">{u.group?.name || u.group_name || '-'}</td>
+                  <td>
+                    <Badge bg={u.is_active ? 'success' : 'secondary'} className="x-small uppercase fw-bold">
+                        {u.is_active ? 'ACTIVO' : 'INACTIVO'}
+                    </Badge>
+                  </td>
                   <td className="text-end pe-4">
-                    <Button variant={isDark ? "dark" : "light"} size="sm" onClick={() => handleOpenModal(u)} className="border border-opacity-10"><Edit size={14} /></Button>
+                    <div className="d-flex justify-content-end gap-2">
+                        <Button variant="link" size="sm" onClick={() => handleOpenModal(u)} className="text-primary hover-opacity-100 p-0"><Edit size={16} /></Button>
+                        <Button variant="link" size="sm" onClick={() => handleDeleteUser(u)} className="text-danger hover-opacity-100 p-0"><Trash2 size={16} /></Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -175,70 +195,77 @@ export default function AdminUsersPage() {
         </Card>
       </Container>
 
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered>
-        <Modal.Header closeButton><Modal.Title className="h6 fw-bold">PERFIL DE USUARIO</Modal.Title></Modal.Header>
-        <Modal.Body>
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered contentClassName="bg-dark text-white border-primary border-opacity-25 shadow-2xl">
+        <Modal.Header closeButton closeVariant="white" className="border-white border-opacity-10 bg-black bg-opacity-20">
+           <Modal.Title className="x-small fw-black uppercase text-primary tracking-widest">
+              Ficha de Identidad: {editingUserId ? 'Actualización' : 'Nuevo Registro'}
+           </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-4 custom-scrollbar">
           <Form>
-            <Row className="g-3 mb-4">
-              <Col md={6}><Form.Label className="x-small fw-bold text-muted">NOMBRE</Form.Label><Form.Control size="sm" value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} /></Col>
-              <Col md={6}><Form.Label className="x-small fw-bold text-muted">APELLIDO</Form.Label><Form.Control size="sm" value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} /></Col>
-              <Col md={6}><Form.Label className="x-small fw-bold text-muted">USERNAME</Form.Label><Form.Control size="sm" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} /></Col>
-              <Col md={6}><Form.Label className="x-small fw-bold text-muted">EMAIL</Form.Label><Form.Control size="sm" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></Col>
-              <Col md={6}><Form.Label className="x-small fw-bold text-muted">PASSWORD</Form.Label><Form.Control size="sm" type="password" placeholder={editingUserId ? "Dejar en blanco..." : "Clave temporal"} value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /></Col>
-              <Col md={6}><Form.Label className="x-small fw-bold text-muted">GRUPO</Form.Label><Form.Select size="sm" value={formData.group_id} onChange={e => setFormData({...formData, group_id: e.target.value})}><option value="">Seleccionar...</option>{groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</Form.Select></Col>
+            <h6 className="fw-black mb-3 x-small text-primary uppercase tracking-tighter d-flex align-items-center gap-2"><UserIcon size={14}/> Información Personal</h6>
+            <Row className="g-3 mb-4 bg-black bg-opacity-20 p-3 rounded-lg border border-white border-opacity-5">
+              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Nombre</Form.Label><Form.Control className="bg-dark text-white border-white border-opacity-10 shadow-none" value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} /></Col>
+              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Apellido</Form.Label><Form.Control className="bg-dark text-white border-white border-opacity-10 shadow-none" value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} /></Col>
+              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Email Institucional</Form.Label><Form.Control className="bg-dark text-white border-white border-opacity-10 shadow-none" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></Col>
+              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Área / Grupo</Form.Label><Form.Select className="bg-dark text-white border-white border-opacity-10 shadow-none" value={formData.group_id} onChange={e => setFormData({...formData, group_id: e.target.value})}><option value="">Seleccionar...</option>{groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</Form.Select></Col>
             </Row>
 
-            <h6 className="fw-bold mb-3 d-flex align-items-center gap-2 x-small uppercase opacity-75"><Lock size={14} /> Asignación de Roles</h6>
-            <div className="border rounded p-3 mb-4 bg-light bg-opacity-10">
-                <Row className="g-2">
+            <h6 className="fw-black mb-3 x-small text-primary uppercase tracking-tighter d-flex align-items-center gap-2"><LockIcon size={14}/> Credenciales y Seguridad</h6>
+            <Row className="g-3 mb-4 bg-black bg-opacity-20 p-3 rounded-lg border border-white border-opacity-5">
+              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Username</Form.Label><Form.Control className="bg-dark text-white border-white border-opacity-10 shadow-none" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} /></Col>
+              <Col md={6}>
+                <Form.Label className="x-small fw-black text-muted uppercase">Contraseña {editingUserId && '(opcional)'}</Form.Label>
+                <InputGroup>
+                    <Form.Control className="bg-dark text-white border-white border-opacity-10 shadow-none" type={showPass ? "text" : "password"} value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+                    <Button variant="outline-secondary" className="border-white border-opacity-10" onClick={() => setShowPass(!showPass)}>{showPass ? <EyeOff size={14}/> : <Eye size={14}/>}</Button>
+                </InputGroup>
+              </Col>
+              <Col md={4}>
+                <Form.Check type="switch" id="active-switch" label={<span className="x-small fw-bold uppercase">Cuenta Activa</span>} checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} />
+              </Col>
+              <Col md={4}>
+                <Form.Check type="switch" id="force-pass-switch" label={<span className="x-small fw-bold uppercase">Forzar Cambio Clave</span>} checked={formData.force_password_change} onChange={e => setFormData({...formData, force_password_change: e.target.checked})} />
+              </Col>
+              <Col md={4}>
+                <Form.Check type="switch" id="reset-2fa-switch" label={<span className="x-small fw-bold uppercase">Resetear 2FA</span>} checked={formData.reset_2fa_next_login} onChange={e => setFormData({...formData, reset_2fa_next_login: e.target.checked})} />
+              </Col>
+            </Row>
+
+            <h6 className="fw-black mb-3 x-small text-primary uppercase tracking-tighter d-flex align-items-center gap-2"><Shield size={14}/> Privilegios y Roles</h6>
+            <div className="bg-black bg-opacity-20 p-3 rounded-lg mb-4 border border-white border-opacity-5">
+                <Row className="g-2 mb-3">
                     {roles.map(role => (
                         <Col md={6} key={role.id}>
-                            <Form.Check 
-                                type="checkbox" id={`role-${role.id}`} label={<span className="small">{role.name}</span>}
-                                checked={formData.role_ids.includes(role.id)}
-                                onChange={() => toggleRole(role.id)}
-                            />
+                            <div className={`p-2 rounded border cursor-pointer transition-all ${formData.role_ids.includes(role.id) ? 'bg-primary bg-opacity-10 border-primary border-opacity-50' : 'bg-white bg-opacity-5 border-white border-opacity-10'}`} onClick={() => toggleRole(role.id)}>
+                                <Form.Check type="checkbox" id={`role-${role.id}`} label={<span className="small fw-bold">{role.name}</span>} checked={formData.role_ids.includes(role.id)} onChange={() => {}} />
+                            </div>
                         </Col>
                     ))}
                 </Row>
+                <Form.Check type="switch" id="superuser-switch" label={<span className="fw-bold text-danger small uppercase">Nivel Superadministrador (Acceso Total)</span>} checked={formData.is_superuser} onChange={e => setFormData({...formData, is_superuser: e.target.checked})} />
             </div>
-
-            <Form.Check 
-              type="switch" label={<span className="fw-bold text-danger small">OTORGAR PERMISOS DE SUPERADMINISTRADOR</span>}
-              checked={formData.is_superuser} onChange={e => setFormData({...formData, is_superuser: e.target.checked})} 
-            />
-
-            {editingUserId && (
-                <div className="mt-4 pt-4 border-top">
-                    <h6 className="fw-bold mb-3 x-small uppercase text-danger"><Shield size={14} /> Acciones de Seguridad Críticas</h6>
-                    <div className="d-flex flex-wrap gap-2">
-                        <Button variant="outline-danger" size="sm" className="fw-bold x-small" onClick={() => handleSecurityAction('reset-password')}>RESET PASSWORD (NUEVA CLAVE)</Button>
-                        <Button variant="outline-warning" size="sm" className="fw-bold x-small" onClick={() => handleSecurityAction('force-password-change')}>FORZAR CAMBIO CLAVE</Button>
-                        <Button variant="outline-secondary" size="sm" className="fw-bold x-small" onClick={() => handleSecurityAction('reset-2fa')}>RESETEAR 2FA LOGIN</Button>
-                        <Button variant="outline-dark" size="sm" className="fw-bold x-small" onClick={() => handleSecurityAction('disable-2fa')}>DESACTIVAR 2FA</Button>
-                    </div>
-                </div>
-            )}
           </Form>
         </Modal.Body>
-        <Modal.Footer className="border-0 pt-0">
-          <Button variant="primary" className="w-100 fw-bold" onClick={handleSubmit}>GUARDAR USUARIO</Button>
+        <Modal.Footer className="border-white border-opacity-10 bg-black bg-opacity-20">
+          <Button variant="primary" className="w-100 py-3 fw-black uppercase x-small tracking-widest shadow-lg" onClick={handleSubmit} disabled={saving}>
+            {saving ? <Spinner animation="border" size="sm" /> : 'Confirmar y Guardar Identidad'}
+          </Button>
         </Modal.Footer>
       </Modal>
 
-      {/* Modal para mostrar contraseña generada */}
-      <Modal show={!!generatedPassword} onHide={() => setGeneratedPassword(null)} centered>
-        <Modal.Header closeButton className="bg-danger text-white"><Modal.Title className="h6 fw-bold">NUEVA CONTRASEÑA GENERADA</Modal.Title></Modal.Header>
-        <Modal.Body className="text-center py-4">
-            <p className="text-muted small">Copie esta clave y entréguela al usuario. Se le obligará a cambiarla al iniciar sesión.</p>
-            <div className="bg-light p-3 rounded border font-monospace h4 fw-bold mb-0 text-dark select-all">
-                {generatedPassword}
-            </div>
-        </Modal.Body>
-        <Modal.Footer>
-            <Button variant="secondary" onClick={() => setGeneratedPassword(null)}>CERRAR</Button>
-        </Modal.Footer>
-      </Modal>
+      <style jsx global>{`
+        .rounded-xl { border-radius: 1.25rem; }
+        .rounded-lg { border-radius: 10px; }
+        .fw-black { font-weight: 900; }
+        .x-small { font-size: 11px; }
+        .tracking-tighter { letter-spacing: -0.05em; }
+        .custom-user-table th { border: 0 !important; }
+        .custom-user-table td { border-color: rgba(255,255,255,0.05) !important; }
+        .hover-opacity-100:hover { opacity: 1 !important; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+      `}</style>
     </Layout>
   );
 }

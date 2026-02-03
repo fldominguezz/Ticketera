@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  output: 'standalone',
+  reactStrictMode: false,
+  poweredByHeader: false, // Seguridad: Ocultar header X-Powered-By
   eslint: {
     ignoreDuringBuilds: true,
   },

@@ -48,7 +48,7 @@ export default function NewDailyReport() {
 
     useEffect(() => {
         setDate(new Date().toISOString().split('T')[0]);
-        api.get('/daily-reports/config/licenses')
+        api.get('/reports/daily/config/licenses')
             .then(res => setLicensesMax(res.data))
             .catch(err => {
                 console.error("Error loading config:", err);
@@ -99,7 +99,7 @@ export default function NewDailyReport() {
                 novedades_generales: [novedadesGenerales] // Backend expects a list
             };
             
-            await api.post('/daily-reports/', payload);
+            await api.post('/reports/daily/', payload);
             alert("Parte creado exitosamente");
             router.push('/reports/daily');
         } catch (error: any) {

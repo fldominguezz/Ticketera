@@ -1,4 +1,16 @@
 FROM nginx:alpine
+
+# Instalar openssl para generar certificados y gettext para envsubst si fuera necesario
+RUN apk add --no-cache openssl
+
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY conf.d/ /etc/nginx/conf.d/
-COPY ssl/ /etc/nginx/ssl/
+
+# Crear directorio ssl
+RUN mkdir -p /etc/nginx/ssl
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["nginx", "-g", "daemon off;"]

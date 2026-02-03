@@ -11,6 +11,7 @@ class LocationNode(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     parent_id = Column(UUID(as_uuid=True), ForeignKey("location_nodes.id"), nullable=True)
     name = Column(String(255), nullable=False)
+    dependency_code = Column(String(50), unique=True, nullable=True)
     path = Column(Text, nullable=False, unique=True) # Materialized path e.g., "Division/Edificio/Piso1"
     
     owner_group_id = Column(UUID(as_uuid=True), ForeignKey("groups.id"), nullable=True)

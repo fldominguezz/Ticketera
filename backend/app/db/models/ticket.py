@@ -6,7 +6,7 @@ import uuid
 
 from app.db.base_class import Base
 
-# Association table for tickets and endpoints (M2M) - Legacy keeping for compatibility
+# Association table for tickets and endpoints (M2M)
 ticket_endpoints = Table(
     "ticket_endpoints",
     Base.metadata,
@@ -17,10 +17,15 @@ ticket_endpoints = Table(
 class TicketType(Base):
     __tablename__ = "ticket_types"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = Column(String(50), unique=True, nullable=False) # Instalación, Alerta SIEM, Incidente, etc.
+    name = Column(String(50), unique=True, nullable=False)
     description = Column(String(255))
     icon = Column(String(50)) 
-    color = Column(String(20)) 
+    color = Column(String(20))
+    requires_sla = Column(Boolean, default=True)
+    has_severity = Column(Boolean, default=True)
+    workflow_id = Column(UUID(as_uuid=True), ForeignKey("workflows.id"), nullable=True)
+
+    workflow = relationship("Workflow")
 
 class Ticket(Base):
     __tablename__ = "tickets"
@@ -28,29 +33,22 @@ class Ticket(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    
-    status = Column(String(50), default="open") # open, in_progress, pending, resolved, closed
-    priority = Column(String(50), default="medium") # low, medium, high, critical
-    platform = Column(String(100), nullable=True) # Forti-EMS, ESET CLOUD, etc.
+    status = Column(String(50), default="open")
+    priority = Column(String(50), default="medium")
+    platform = Column(String(100), nullable=True)
     
     ticket_type_id = Column(UUID(as_uuid=True), ForeignKey("ticket_types.id"), nullable=False)
-    group_id = Column(UUID(as_uuid=True), ForeignKey("groups.id"), nullable=False)
+    group_id = Column(UUID(as_uuid=True), ForeignKey("groups.id"), nullable=False) # Current Group
+    owner_group_id = Column(UUID(as_uuid=True), ForeignKey("groups.id"), nullable=False) # Creator's Group
     asset_id = Column(UUID(as_uuid=True), ForeignKey("assets.id"), nullable=True)
+    expediente_id = Column(UUID(as_uuid=True), ForeignKey("expedientes.id"), nullable=True)
     created_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     assigned_to_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     
     parent_ticket_id = Column(UUID(as_uuid=True), ForeignKey("tickets.id"), nullable=True)
+    template_id = Column(UUID(as_uuid=True), ForeignKey("forms.id"), nullable=True)
     sla_deadline = Column(DateTime(timezone=True), nullable=True)
     extra_data = Column(JSON, nullable=True)
-
-    # SOC / SIEM Alert Enrichment
-    raw_event = Column(Text, nullable=True)
-    parsed_event = Column(JSON, nullable=True)
-    enrichment = Column(JSON, nullable=True)
-    remediation_suggestions = Column(JSON, nullable=True) # Array of steps/markdown
-    siem_metadata = Column(JSON, nullable=True) # rule, mitre, original_sev
-    final_severity = Column(String(20), nullable=True) # LOW, MEDIUM, HIGH, CRITICAL
-    correlation_tags = Column(JSON, nullable=True) # []
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -59,16 +57,20 @@ class Ticket(Base):
 
     # Relaciones
     ticket_type = relationship("TicketType")
-    group = relationship("Group", back_populates="tickets")
+    group = relationship("Group", foreign_keys=[group_id], back_populates="tickets")
+    owner_group = relationship("Group", foreign_keys=[owner_group_id], back_populates="owned_tickets")
     asset = relationship("Asset")
-    created_by = relationship("User", foreign_keys=[created_by_id], back_populates="tickets_created")
-    assigned_to = relationship("User", foreign_keys=[assigned_to_id], back_populates="tickets_assigned")
+    expediente = relationship("Expediente")
+    created_by = relationship("User", foreign_keys=[created_by_id])
+    assigned_to = relationship("User", foreign_keys=[assigned_to_id])
     
     parent_ticket = relationship("Ticket", remote_side=[id], back_populates="subtickets")
     subtickets = relationship("Ticket", back_populates="parent_ticket")
     
     comments = relationship("TicketComment", back_populates="ticket", cascade="all, delete-orphan")
+    watchers = relationship("TicketWatcher", back_populates="ticket", cascade="all, delete-orphan")
     endpoints = relationship("Endpoint", secondary=ticket_endpoints)
+    sla_metric = relationship("SLAMetric", back_populates="ticket", uselist=False, cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Ticket(title='{self.title}', status='{self.status}')>"
@@ -80,7 +82,6 @@ class TicketComment(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     content = Column(Text, nullable=False)
     is_internal = Column(Boolean, default=False)
-    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -92,8 +93,7 @@ class TicketRelation(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     source_ticket_id = Column(UUID(as_uuid=True), ForeignKey("tickets.id"), nullable=False)
     target_ticket_id = Column(UUID(as_uuid=True), ForeignKey("tickets.id"), nullable=False)
-    relation_type = Column(String(50), nullable=False) # relates_to, blocks, blocked_by, duplicate_of, parent_of
-    
+    relation_type = Column(String(50), nullable=False) 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     source_ticket = relationship("Ticket", foreign_keys=[source_ticket_id], backref="relations_out")
@@ -107,15 +107,14 @@ class TicketSubtask(Base):
     is_completed = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    ticket = relationship("Ticket", backref="subtasks")
+    ticket = relationship("Ticket", backref="subtasks_list")
 
 class TicketWatcher(Base):
     __tablename__ = "ticket_watchers"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     ticket_id = Column(UUID(as_uuid=True), ForeignKey("tickets.id"), nullable=False)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    ticket = relationship("Ticket", backref="watchers")
+    ticket = relationship("Ticket", back_populates="watchers")
     user = relationship("User")

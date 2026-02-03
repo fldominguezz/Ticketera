@@ -1,7 +1,7 @@
 from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.deps import get_db, get_current_active_user
+from app.api.deps import get_db, require_permission
 from app.crud import crud_ticket
 from app.db.models import User
 from app.services.export_service import export_service
@@ -13,7 +13,7 @@ router = APIRouter()
 async def export_tickets(
     format: str,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(require_permission("reports:export:tickets"))],
 ):
     """
     Export tickets to CSV, Excel or PDF.

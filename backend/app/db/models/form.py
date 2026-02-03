@@ -13,8 +13,11 @@ class Form(Base):
     description = Column(Text, nullable=True)
     version = Column(Integer, default=1)
     is_active = Column(Boolean, default=True)
-    
+    is_production = Column(Boolean, default=False)
+    category = Column(String(50), nullable=True) # 'ticket_creation', etc.
+    system_slug = Column(String(50), unique=True, nullable=True) # 'ticket-standard', 'asset-install'
     group_id = Column(UUID(as_uuid=True), ForeignKey("groups.id"), nullable=False)
+
     created_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     
     # Configuration of the form (visual builder state)

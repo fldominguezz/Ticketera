@@ -130,13 +130,13 @@ export default function Dashboard() {
                     <div style={{ width: '100%', height: 300 }}>
                     {mounted && stats.siem.categories && stats.siem.categories.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                        <BarChart data={stats.siem.categories} layout="vertical" margin={{ left: 20, right: 30 }}>
+                        <BarChart data={stats.siem.categories || []} layout="vertical" margin={{ left: 20, right: 30 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"} vertical={false} />
                             <XAxis type="number" hide />
                             <YAxis dataKey="name" type="category" width={150} fontSize={10} tick={{ fill: isDark ? '#adb5bd' : '#495057' }} axisLine={false} tickLine={false} />
                             <Tooltip contentStyle={{ backgroundColor: isDark ? '#161b22' : '#ffffff', borderColor: 'rgba(128,128,128,0.2)', color: isDark ? '#fff' : '#000' }} />
                             <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={20}>
-                            {stats.siem.categories.map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                            {(stats.siem.categories || []).map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                             </Bar>
                         </BarChart>
                         </ResponsiveContainer>
@@ -259,13 +259,13 @@ export default function Dashboard() {
                             </tr>
                         </thead>
                         <tbody>
-                            {stats.assets!.by_location.map((loc, idx) => (
+                            {(stats.assets!.by_location || []).map((loc, idx) => (
                                 <tr key={idx}>
                                     <td className="ps-4 fw-bold text-primary">{loc.name}</td>
                                     <td className="text-end pe-4"><Badge bg="secondary" className="bg-opacity-10 text-dark">{loc.count}</Badge></td>
                                 </tr>
                             ))}
-                             {stats.assets!.by_location.length === 0 && (
+                             {(!stats.assets!.by_location || stats.assets!.by_location.length === 0) && (
                                 <tr><td colSpan={2} className="text-center py-3 text-muted small">Sin datos de ubicaciones.</td></tr>
                             )}
                         </tbody>

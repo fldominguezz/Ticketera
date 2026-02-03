@@ -81,9 +81,9 @@ class CRUDUser:
             group_id=obj_in.group_id,
             is_active=obj_in.is_active,
             is_superuser=obj_in.is_superuser,
-            force_password_change=not is_service_user, # No forzar para servicios
-            reset_2fa_next_login=False,
-            enroll_2fa_mandatory=not is_service_user # Obligatorio para humanos
+            force_password_change=obj_in.force_password_change,
+            reset_2fa_next_login=obj_in.reset_2fa_next_login,
+            enroll_2fa_mandatory=obj_in.reset_2fa_next_login # Si resetea 2FA, es obligatorio enrollar
         )
         db.add(db_user)
         await db.flush() # Flush the user to get its ID before assigning roles

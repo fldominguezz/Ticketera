@@ -17,7 +17,7 @@ class TicketBase(BaseModel):
     extra_data: Optional[Dict[str, Any]] = None
 
 class TicketCreate(TicketBase):
-    pass
+    attachment_ids: Optional[List[UUID]] = []
 
 class TicketUpdate(BaseModel):
     title: Optional[str] = None
@@ -58,6 +58,23 @@ class UserSchemaMinimal(BaseModel):
     last_name: str
     model_config = ConfigDict(from_attributes=True)
 
+class AssetSchemaMinimal(BaseModel):
+    id: UUID
+    hostname: str
+    ip_address: Optional[str] = None
+    asset_tag: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class SLAMetricSchema(BaseModel):
+    id: UUID
+    response_deadline: Optional[datetime] = None
+    resolution_deadline: Optional[datetime] = None
+    responded_at: Optional[datetime] = None
+    resolved_at: Optional[datetime] = None
+    is_response_breached: bool = False
+    is_resolution_breached: bool = False
+    model_config = ConfigDict(from_attributes=True)
+
 class Ticket(TicketInDBBase):
     ticket_type_name: Optional[str] = None
     group_name: Optional[str] = None
@@ -67,6 +84,8 @@ class Ticket(TicketInDBBase):
     ticket_type: Optional[TicketTypeSchema] = None
     group: Optional[GroupSchema] = None
     assigned_to: Optional[UserSchemaMinimal] = None
+    asset: Optional[AssetSchemaMinimal] = None
+    sla_metric: Optional[SLAMetricSchema] = None
 
     @model_validator(mode='before')
     @classmethod
@@ -82,6 +101,8 @@ class Ticket(TicketInDBBase):
             ticket_type = safe_getattr(data, "ticket_type")
             group = safe_getattr(data, "group")
             assigned_to = safe_getattr(data, "assigned_to")
+            asset = safe_getattr(data, "asset")
+            sla_metric = safe_getattr(data, "sla_metric")
 
             return {
                 "id": data.id,
@@ -97,6 +118,8 @@ class Ticket(TicketInDBBase):
                 "group_name": group.name if group else None,
                 "group": group if group else None,
                 "asset_id": data.asset_id,
+                "asset": asset if asset else None,
+                "sla_metric": sla_metric if sla_metric else None,
                 "created_by_id": data.created_by_id,
                 "assigned_to_id": data.assigned_to_id,
                 "assigned_to_name": f"{assigned_to.first_name} {assigned_to.last_name}" if assigned_to else None,

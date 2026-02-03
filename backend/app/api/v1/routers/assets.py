@@ -1,16 +1,17 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Annotated
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
-from app.api.deps import get_db, get_current_active_user
+from app.api.deps import get_db, require_permission, get_current_active_user
 from app.schemas.asset import Asset, AssetUpdate, AssetInstallRequest, AssetWithDetails
 from sqlalchemy.orm import selectinload
 from sqlalchemy.future import select as sa_select
 from sqlalchemy import delete, func, and_
 from app.crud.crud_asset import asset as crud_asset
 from app.db.models.user import User
+from app.services.group_service import group_service
 from datetime import datetime
 import re
 
@@ -28,23 +29,40 @@ class BulkActionRequest(BaseModel):
     status: Optional[str] = None
     criticality: Optional[str] = None
 
-@router.get("/search", response_model=Dict[str, List[Any]])
+@router.get(
+    "/search", 
+    response_model=Dict[str, List[Any]]
+)
 async def search_inventory(
-    search: str = Query(..., min_length=2),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    search: str = Query(..., min_length=2)
 ):
     from app.db.models.asset import Asset as AssetModel
     from app.db.models.location import LocationNode
     
+    has_global = current_user.has_permission("assets:read:global")
+    has_group = current_user.has_permission("assets:read:group")
+    
+    if not has_global and not has_group:
+        raise HTTPException(status_code=403, detail="No tienes permiso para buscar activos.")
+    
     search_filter = f"%{search}%"
     
+    # Lógica de jerarquía y permisos para Activos
+    asset_conditions = [AssetModel.deleted_at == None]
+    if not has_global and has_group:
+        if not current_user.group_id:
+            return {"assets": [], "locations": []}
+        group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
+        asset_conditions.append(AssetModel.owner_group_id.in_(group_ids))
+
     # Search Assets
     query_assets = sa_select(AssetModel, LocationNode.path.label("loc_path")).outerjoin(
         LocationNode, AssetModel.location_node_id == LocationNode.id
     ).filter(
         and_(
-            AssetModel.deleted_at == None,
+            *asset_conditions,
             (AssetModel.hostname.ilike(search_filter)) |
             (AssetModel.ip_address.ilike(search_filter)) |
             (AssetModel.mac_address.ilike(search_filter))
@@ -82,28 +100,46 @@ async def search_inventory(
         
     return {"assets": assets_out, "locations": locs_out}
 
-@router.post("/bulk-action")
+@router.post(
+    "/bulk-action"
+)
 async def bulk_action(
     *,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
     action_in: BulkActionRequest,
-    current_user: User = Depends(get_current_active_user)
+    current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     print(f"DEBUG BULK ACTION: {action_in}")
     from app.db.models.asset import Asset as AssetModel
     
+    # Permission Check
+    has_global_manage = current_user.has_permission("assets:manage:global")
+    has_group_manage = current_user.has_permission("assets:manage:group")
+    
+    if not has_global_manage and not has_group_manage:
+        raise HTTPException(status_code=403, detail="No tienes permiso para gestionar activos.")
+
     if not action_in.asset_ids:
         return {"status": "ok", "message": "No assets selected"}
         
     query = sa_select(AssetModel).where(AssetModel.id.in_(action_in.asset_ids))
+    
+    # Scope Filter for Group Managers
+    if not has_global_manage and has_group_manage:
+        if not current_user.group_id:
+            raise HTTPException(status_code=403, detail="Usuario sin grupo asignado.")
+        group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
+        query = query.filter(AssetModel.owner_group_id.in_(group_ids))
+        
     result = await db.execute(query)
     assets = result.scalars().all()
     
+    if len(assets) != len(action_in.asset_ids) and not has_global_manage:
+         # Some assets were filtered out
+         raise HTTPException(status_code=403, detail="No tienes permiso sobre algunos de los activos seleccionados.")
+    
     for a in assets:
         if action_in.location_node_id:
-            # We use crud_asset.update to trigger history records if needed, 
-            # but for simplicity in bulk we can also do direct if logic permits.
-            # Here we'll do direct update for speed, matching crud logic manually.
             from app.db.models.asset_history import AssetLocationHistory
             if a.location_node_id != action_in.location_node_id:
                 history = AssetLocationHistory(
@@ -126,23 +162,21 @@ async def bulk_action(
     await db.commit()
     return {"status": "ok", "updated_count": len(assets)}
 
-@router.delete("/bulk-delete")
+@router.delete(
+    "/bulk-delete"
+)
 async def bulk_delete(
     *,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
     asset_ids: List[UUID] = Body(...),
     hard: bool = Query(False),
-    current_user: User = Depends(get_current_active_user)
+    current_user: Annotated[User, Depends(require_permission("assets:delete"))]
 ):
-    if not (current_user.is_superuser or current_user.role_id): # Add more strict check if needed
-         # Check permissions manually if not using global deps
-         pass
-
     from app.db.models.asset import Asset as AssetModel
     
     if hard:
         query = delete(AssetModel).where(AssetModel.id.in_(asset_ids))
-        res = await db.execute(query)
+        await db.execute(query) # Use await with execute
     else:
         # Soft delete
         query = sa_select(AssetModel).where(AssetModel.id.in_(asset_ids))
@@ -156,23 +190,40 @@ async def bulk_delete(
     await db.commit()
     return {"status": "ok", "deleted_count": len(asset_ids)}
 
-@router.get("", response_model=List[Any])
+@router.get(
+    "", 
+    response_model=List[Any]
+)
 async def read_assets(
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
     skip: int = 0,
     limit: int = 1000,
     location_node_id: Optional[UUID] = None,
     show_decommissioned: bool = Query(False),
-    search: Optional[str] = Query(None),
-    current_user: User = Depends(get_current_active_user)
+    search: Optional[str] = Query(None)
 ):
     from app.db.models.asset import Asset as AssetModel
     from app.db.models.location import LocationNode
     
-    query = sa_select(AssetModel, LocationNode.name.label("loc_name")).outerjoin(
+    # 1. Validar Permisos (Scope explícito)
+    has_global = current_user.has_permission("assets:read:global")
+    has_group = current_user.has_permission("assets:read:group")
+    
+    if not has_global and not has_group:
+        raise HTTPException(status_code=403, detail="No tienes permiso para ver activos.")
+
+    query = sa_select(AssetModel, LocationNode.name.label("loc_name"), LocationNode.dependency_code.label("dep_code")).outerjoin(
         LocationNode, AssetModel.location_node_id == LocationNode.id
     ).filter(AssetModel.deleted_at == None)
     
+    # 2. Aplicar Filtros de Scope
+    if not has_global and has_group:
+        if not current_user.group_id:
+            return []
+        group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
+        query = query.filter(AssetModel.owner_group_id.in_(group_ids))
+
     if location_node_id:
         query = query.filter(AssetModel.location_node_id == location_node_id)
     if not show_decommissioned:
@@ -201,7 +252,7 @@ async def read_assets(
             "mac_address": a.mac_address or "---", 
             "status": a.status,
             "dependencia": a.dependencia,
-            "codigo_dependencia": a.codigo_dependencia,
+            "codigo_dependencia": row.dep_code or a.codigo_dependencia or "---",
             "criticality": a.criticality or "medium", 
             "av_product": a.av_product or "Sin Protección",
             "location_name": row.loc_name or "Sin Ubicación",
@@ -211,18 +262,21 @@ async def read_assets(
         })
     return assets
 
-@router.get("/{asset_id}", response_model=Any)
+@router.get(
+    "/{asset_id}", 
+    response_model=Any
+)
 async def read_asset(
     asset_id: UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_permission("assets:read:all"))]
 ):
     from app.db.models.asset import Asset as AssetModel
     from app.db.models.location import LocationNode
     
     query = sa_select(AssetModel, LocationNode.name.label("loc_name")).outerjoin(
         LocationNode, AssetModel.location_node_id == LocationNode.id
-    ).where(AssetModel.id == asset_id)
+    ).options(selectinload(AssetModel.expedientes)).where(AssetModel.id == asset_id)
     
     result = await db.execute(query)
     row = result.first()
@@ -237,16 +291,20 @@ async def read_asset(
         "os_name": a.os_name or "Desconocido", "os_version": a.os_version or "---",
         "last_seen": str(a.last_seen) if a.last_seen else None,
         "location_name": row.loc_name or "Sin Ubicación",
+        "expedientes": a.expedientes,
         "location_history": [], "install_records": [], "ip_history": []
     }
 
-@router.post("/import", response_model=ImportResult)
+@router.post(
+    "/import", 
+    response_model=ImportResult
+)
 async def import_assets(
     *,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
     assets_in: List[Dict[str, Any]] = Body(...),
     source: str = Query("auto", description="Source system: 'fortiems', 'eset', or 'auto'"),
-    current_user: User = Depends(get_current_active_user)
+    current_user: Annotated[User, Depends(require_permission("assets:import"))]
 ):
     from app.services.asset_import_service import process_fortiems_import, process_eset_import, ImportResult as SrvImportResult
     from app.db.models.asset import Asset as AssetModel
@@ -319,21 +377,128 @@ async def import_assets(
     await db.commit()
     return res
 
-@router.post("/install", response_model=Any)
-async def install_asset(*, db: AsyncSession = Depends(get_db), request_payload: AssetInstallRequest, current_user: User = Depends(get_current_active_user)):
-    from app.db.models.asset import Asset as AssetModel
+@router.post(
+    "/install", 
+    response_model=Any
+)
+async def install_asset(
+    *,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    request_payload: AssetInstallRequest,
+    current_user: Annotated[User, Depends(require_permission("assets:install"))]
+):
     asset = await crud_asset.process_installation(db, asset_data=request_payload.asset_data, install_data=request_payload.install_data, user_id=current_user.id)
     return {"status": "ok", "id": str(asset.id)}
 
-@router.delete("/{asset_id}")
-async def delete_asset(asset_id: UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+@router.post("/{asset_id}/expedientes")
+async def link_expediente_to_asset(
+    asset_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    expediente_in: Any = Body(...)
+):
+    # Permission Check
+    has_global_manage = current_user.has_permission("assets:manage:global")
+    has_group_manage = current_user.has_permission("assets:manage:group")
+    
+    if not has_global_manage and not has_group_manage:
+        raise HTTPException(status_code=403, detail="No tienes permiso para editar activos.")
+
+    from app.db.models.asset import Asset as AssetModel
+    from app.db.models.expediente import Expediente
+    from app.crud import crud_expediente
+    from app.schemas.expediente import ExpedienteCreate
+
+    asset_obj = await db.get(AssetModel, asset_id)
+    if not asset_obj:
+        raise HTTPException(status_code=404, detail="Asset not found")
+        
+    # Scope Check
+    if not has_global_manage and has_group_manage:
+        if not current_user.group_id:
+             raise HTTPException(status_code=403, detail="Fuera de jerarquía")
+        group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
+        if asset_obj.owner_group_id not in group_ids:
+            raise HTTPException(status_code=403, detail="No tienes permiso sobre este activo (Grupo).")
+
+    gde_number = expediente_in.get("number")
+    if not gde_number:
+        raise HTTPException(status_code=400, detail="GDE number is required")
+
+    # Buscar o crear expediente
+    res_exp = await db.execute(sa_select(Expediente).where(Expediente.number == gde_number))
+    expediente_obj = res_exp.scalar_one_or_none()
+    
+    if not expediente_obj:
+        expediente_obj = await crud_expediente.expediente.create(db, obj_in=ExpedienteCreate(
+            number=gde_number,
+            title=expediente_in.get("title") or "Vinculación Manual",
+            description=f"Vinculado a {asset_obj.hostname} por {current_user.username}"
+        ))
+
+    # Evitar duplicados en la relación
+    if expediente_obj not in asset_obj.expedientes:
+        asset_obj.expedientes.append(expediente_obj)
+        await db.commit()
+    
+    return {"status": "ok"}
+
+@router.delete(
+    "/{asset_id}"
+)
+async def delete_asset(
+    asset_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    # Permission Check
+    has_global_manage = current_user.has_permission("assets:manage:global") or current_user.has_permission("assets:delete")
+    has_group_manage = current_user.has_permission("assets:manage:group")
+    
+    if not has_global_manage and not has_group_manage:
+        raise HTTPException(status_code=403, detail="No tienes permiso para eliminar activos.")
+
     asset_obj = await crud_asset.get(db, id=asset_id)
     if not asset_obj: raise HTTPException(status_code=404, detail="Asset not found")
+    
+    # Scope Check
+    if not has_global_manage and has_group_manage:
+        if not current_user.group_id:
+             raise HTTPException(status_code=403, detail="Fuera de jerarquía")
+        group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
+        if asset_obj.owner_group_id not in group_ids:
+            raise HTTPException(status_code=403, detail="No tienes permiso sobre este activo (Grupo).")
+
     await crud_asset.remove(db, id=asset_id)
     return {"status": "success"}
 
-@router.put("/{asset_id}", response_model=Any)
-async def update_asset(*, db: AsyncSession = Depends(get_db), asset_id: UUID, asset_in: AssetUpdate, current_user: User = Depends(get_current_active_user)):
+@router.put(
+    "/{asset_id}", 
+    response_model=Any
+)
+async def update_asset(
+    *,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    asset_id: UUID,
+    asset_in: AssetUpdate,
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    # Permission Check
+    has_global_manage = current_user.has_permission("assets:manage:global")
+    has_group_manage = current_user.has_permission("assets:manage:group")
+    
+    if not has_global_manage and not has_group_manage:
+        raise HTTPException(status_code=403, detail="No tienes permiso para editar activos.")
+
     asset_obj = await crud_asset.get(db, id=asset_id)
     if not asset_obj: raise HTTPException(status_code=404, detail="Asset not found")
+    
+    # Scope Check
+    if not has_global_manage and has_group_manage:
+        if not current_user.group_id:
+             raise HTTPException(status_code=403, detail="Fuera de jerarquía")
+        group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
+        if asset_obj.owner_group_id not in group_ids:
+            raise HTTPException(status_code=403, detail="No tienes permiso sobre este activo (Grupo).")
+
     return await crud_asset.update(db, db_obj=asset_obj, obj_in=asset_in, user_id=current_user.id)

@@ -1,173 +1,316 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
 from datetime import datetime, timedelta
-from typing import Any, List
+from typing import Any, List, Annotated, Dict
+from uuid import UUID
 
-from app.api.deps import get_db, get_current_active_user
+from app.api.deps import get_db, require_permission, require_role
 from app.db.models.user import User
+from app.db.models.group import Group
 from app.db.models.ticket import Ticket, TicketType
 from app.db.models.asset import Asset
 from app.db.models.location import LocationNode
+from app.db.models.dashboard import DashboardConfig as DashboardModel
+from app.schemas.dashboard import DashboardConfig, DashboardConfigCreate, DashboardConfigUpdate, WidgetConfig
+from app.services.group_service import group_service
 
 router = APIRouter()
 
-@router.get("/stats")
-async def get_dashboard_stats(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-) -> Any:
-    # --- RBAC Logic ---
-    # Try to extract group name safely
-    group_name = current_user.group.name if current_user.group else "General"
-    
-    # Check permissions (assuming they are loaded into a list of strings for easier checking)
-    user_perms = []
-    if current_user.roles:
-        for ur in current_user.roles:
-            if ur.role and ur.role.permissions:
-                for rp in ur.role.permissions:
-                    if rp.permission:
-                        user_perms.append(rp.permission.name)
-    
-    # --- RBAC Logic ---
-    # Try to extract group name safely
-    group_name = current_user.group.name if current_user.group else "General"
-    
-    # Check permissions (assuming they are loaded into a list of strings for easier checking)
-    user_perms = []
-    if current_user.roles:
-        for ur in current_user.roles:
-            if ur.role and ur.role.permissions:
-                for rp in ur.role.permissions:
-                    if rp.permission:
-                        user_perms.append(rp.permission.name)
-    
-    # Dashboard flags - STRICT SEGMENTATION
-    # Only Division Seguridad or Superuser get global view
-    is_division_seguridad = group_name == "División Seguridad Informática" or any(r.role.name == "División Seguridad Informática" for r in current_user.roles if r.role)
-    
-    can_view_global = current_user.is_superuser or is_division_seguridad
-    
-    # Other areas see their specific tools
-    is_soc = group_name == "Área SOC" or any(r.role.name == "Área SOC" for r in current_user.roles if r.role)
-    is_tecnica = group_name == "Área Técnica" or any(r.role.name == "Área Técnica" for r in current_user.roles if r.role)
+# --- Helpers ---
 
-    can_view_siem = is_soc or can_view_global or "dashboard:view_siem" in user_perms
-    can_view_inventory = is_tecnica or can_view_global or "dashboard:view_inventory_stats" in user_perms
+async def get_siem_type_ids(db: AsyncSession):
+    res = await db.execute(select(TicketType.id).where(TicketType.name.ilike('%SIEM%')))
+    return res.scalars().all()
 
-    # Get ALL SIEM-related Ticket Type IDs to exclude them from general stats
-    siem_types_res = await db.execute(select(TicketType.id).where(TicketType.name.ilike('%SIEM%')))
-    siem_type_ids = [row for row in siem_types_res.scalars().all()]
+# --- Config Management ---
 
-    # --- 1. Ticket Stats (Strictly User Tickets, EXCLUDING SIEM) ---
-    ticket_filters = [Ticket.deleted_at == None]
-    if siem_type_ids:
-        ticket_filters.append(Ticket.ticket_type_id.notin_(siem_type_ids))
+@router.get("/config", response_model=DashboardConfig)
+async def get_my_dashboard_config(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_permission("dashboard:view"))]
+):
+    """
+    Get the active dashboard config for the current user.
+    Priority: 1. Personal, 2. Group Default, 3. System Default.
+    """
+    # 1. Look for Personal Default
+    res = await db.execute(
+        select(DashboardModel).where(DashboardModel.user_id == current_user.id, DashboardModel.is_default == True)
+    )
+    config = res.scalar_one_or_none()
     
-    # RESTRICTION: If not global view, only see own tickets (assigned or created)
-    if not can_view_global:
-        ticket_filters.append(
-            or_(
-                Ticket.assigned_to_id == current_user.id,
-                Ticket.created_by_id == current_user.id
-            )
+    # 2. Look for Group Default
+    if not config and current_user.group_id:
+        res = await db.execute(
+            select(DashboardModel).where(DashboardModel.group_id == current_user.group_id, DashboardModel.is_default == True)
         )
-    
-    status_query = select(
-        Ticket.status,
-        func.count(Ticket.id).label('count')
-    ).where(and_(*ticket_filters)).group_by(Ticket.status)
-    
-    status_res = await db.execute(status_query)
-    tickets_by_status = {row.status: row.count for row in status_res}
-    
-    # Calculate total of user-only tickets
-    total_tickets = sum(tickets_by_status.values())
-
-    # --- 2. SIEM Stats (Strictly Alert Metrics) ---
-    siem_data = None
-    if can_view_siem and siem_type_ids:
-             # If not global, SOC only sees alerts they are involved in? 
-             # No, standard SOC practice is to see all alerts of their area.
-             # We assume SIEM tickets ARE the SOC domain.
-             siem_filters = [Ticket.ticket_type_id.in_(siem_type_ids), Ticket.deleted_at == None]
-             
-             total_alerts = await db.execute(
-                 select(func.count(Ticket.id))
-                 .where(and_(*siem_filters))
-             )
-             
-             alerts_status_res = await db.execute(
-                 select(Ticket.status, func.count(Ticket.id))
-                 .where(and_(*siem_filters))
-                 .group_by(Ticket.status)
-             )
-             alerts_by_status = {row.status: row.count for row in alerts_status_res}
-             
-             remediated = alerts_by_status.get("resolved", 0) + alerts_by_status.get("closed", 0)
-             in_process = alerts_by_status.get("in_progress", 0)
-             open_alerts = alerts_by_status.get("open", 0)
-             
-             cat_query = select(
-                Ticket.title,
-                func.count(Ticket.id).label('count')
-            ).where(
-                and_(*siem_filters)
-            ).group_by(Ticket.title).order_by(func.count(Ticket.id).desc()).limit(5)
-            
-             cat_res = await db.execute(cat_query)
-             categories = [{"name": r.title.replace("SIEM: ", "")[:25], "count": r.count} for r in cat_res]
-             
-             siem_data = {
-                 "total": total_alerts.scalar() or 0,
-                 "remediated": remediated,
-                 "in_process": in_process,
-                 "open": open_alerts,
-                 "categories": categories
-             }
-
-    # --- 3. Inventory Stats ---
-    asset_data = None
-    if can_view_inventory:
-        asset_filters = [Asset.deleted_at == None]
-        # Inventory is usually shared for the Technical area
+        config = res.scalar_one_or_none()
         
-        op_count = await db.execute(select(func.count(Asset.id)).where(and_(Asset.status == 'operative', *asset_filters)))
-        pending_tag_count = await db.execute(select(func.count(Asset.id)).where(and_(Asset.status == 'tagging_pending', *asset_filters)))
-        installing_count = await db.execute(select(func.count(Asset.id)).where(and_(Asset.status == 'installing', *asset_filters)))
-        no_folder_count = await db.execute(select(func.count(Asset.id)).where(and_(Asset.location_node_id == None, *asset_filters)))
+    # 3. Fallback to System Default (no user, no group)
+    if not config:
+        res = await db.execute(
+            select(DashboardModel).where(DashboardModel.user_id == None, DashboardModel.group_id == None, DashboardModel.is_default == True)
+        )
+        config = res.scalar_one_or_none()
         
-        loc_query = select(
-            LocationNode.name,
-            func.count(Asset.id).label('count')
-        ).join(Asset, Asset.location_node_id == LocationNode.id)\
-         .where(and_(*asset_filters))\
-         .group_by(LocationNode.name)\
-         .order_by(func.count(Asset.id).desc())\
-         .limit(5)
-         
-        loc_res = await db.execute(loc_query)
-        by_location = [{"name": r.name, "count": r.count} for r in loc_res]
-        
-        asset_data = {
-            "operative": op_count.scalar() or 0,
-            "pending_tagging": pending_tag_count.scalar() or 0,
-            "installing": installing_count.scalar() or 0,
-            "no_folder": no_folder_count.scalar() or 0,
-            "by_location": by_location
+    if not config:
+        # Create a hardcoded fallback if absolutely nothing exists in DB
+        return {
+            "id": UUID("00000000-0000-0000-0000-000000000000"),
+            "name": "Default Dashboard",
+            "layout": [
+                {"id": "w1", "type": "kpi", "title": "Tickets Activos", "data_source": "tickets_count", "w": 6, "h": 2, "x": 0, "y": 0},
+                {"id": "w2", "type": "chart_donut", "title": "Estado de Alertas", "data_source": "siem_alerts", "w": 6, "h": 2, "x": 6, "y": 0}
+            ],
+            "is_default": True,
+            "is_locked": False
         }
+        
+    return config
 
+@router.post("/config", response_model=DashboardConfig)
+async def save_dashboard_config(
+    config_in: DashboardConfigCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_permission("dashboard:edit"))]
+):
+    """
+    Save a dashboard configuration. 
+    If group_id is provided, checks for 'admin:dashboard:group' permission.
+    """
+    # Check if saving as group template
+    if config_in.group_id:
+        # Verify user belongs to group or is admin
+        is_admin = current_user.is_superuser or any(r.role.name in ['admin', 'owner', 'Administrator'] for r in current_user.roles if r.role)
+        if not is_admin and current_user.group_id != config_in.group_id:
+             raise HTTPException(status_code=403, detail="Not authorized to save group templates")
+        
+        target_user = None
+        target_group = config_in.group_id
+    else:
+        target_user = current_user.id
+        target_group = None
+
+    # Update or Create
+    # For simplicity in this iteration, we look for an existing one with the same name to update, or create new.
+    res = await db.execute(
+        select(DashboardModel).where(
+            DashboardModel.name == config_in.name,
+            DashboardModel.user_id == target_user,
+            DashboardModel.group_id == target_group
+        )
+    )
+    db_obj = res.scalar_one_or_none()
+    
+    layout_data = [w.model_dump() for w in config_in.layout]
+
+    if db_obj:
+        db_obj.layout = layout_data
+        db_obj.is_default = config_in.is_default
+    else:
+        db_obj = DashboardModel(
+            name=config_in.name,
+            description=config_in.description,
+            user_id=target_user,
+            group_id=target_group,
+            layout=layout_data,
+            is_default=config_in.is_default
+        )
+        db.add(db_obj)
+        
+    await db.commit()
+    await db.refresh(db_obj)
+    return db_obj
+
+@router.post("/reset", response_model=DashboardConfig)
+async def reset_dashboard_config(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_permission("dashboard:edit"))]
+):
+    """
+    Elimina la configuración personal para volver a la del grupo o sistema.
+    """
+    res = await db.execute(
+        select(DashboardModel).where(DashboardModel.user_id == current_user.id)
+    )
+    configs = res.scalars().all()
+    for c in configs:
+        await db.delete(c)
+    
+    await db.commit()
+    return await get_my_dashboard_config(db, current_user)
+
+# --- Data Provisioning (The Heart of the Widget System) ---
+
+@router.post("/widget-data")
+async def get_widget_data(
+    widget: WidgetConfig,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_permission("dashboard:view"))]
+):
+    """
+    Dynamic data provider for a single widget.
+    Processes data_source and filters based on user context.
+    """
+    source = widget.data_source
+    filters = widget.filters or {}
+    
+    # 1. Source: Tickets
+    if source == "tickets_count":
+        siem_type_ids = await get_siem_type_ids(db)
+        ticket_filters = [Ticket.deleted_at == None]
+        if siem_type_ids:
+            ticket_filters.append(Ticket.ticket_type_id.notin_(siem_type_ids))
+        
+        # Lógica de jerarquía: Ver mi grupo y descendientes
+        if not current_user.is_superuser:
+            if not current_user.group_id:
+                return {"type": "tickets", "data": {}, "total": 0}
+            group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
+            ticket_filters.append(Ticket.group_id.in_(group_ids))
+            
+        # Apply specific widget filters if any
+        if filters.get("status"):
+            ticket_filters.append(Ticket.status == filters.get("status"))
+
+        status_query = select(Ticket.status, func.count(Ticket.id)).where(and_(*ticket_filters)).group_by(Ticket.status)
+        res = await db.execute(status_query)
+        data = {row.status: row.count for row in res}
+        return {"type": "tickets", "data": data, "total": sum(data.values())}
+
+    # 2. Source: SIEM
+    if source == "siem_alerts":
+        siem_type_ids = await get_siem_type_ids(db)
+        if not siem_type_ids: return {"data": {}}
+        
+        siem_filters = [Ticket.ticket_type_id.in_(siem_type_ids), Ticket.deleted_at == None]
+        
+        # Lógica de jerarquía para SIEM
+        if not current_user.is_superuser:
+            if current_user.group_id:
+                group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
+                siem_filters.append(Ticket.group_id.in_(group_ids))
+            else:
+                return {"type": "siem", "categories": []}
+
+        # SIEM categories
+        cat_query = select(Ticket.title, func.count(Ticket.id)).where(and_(*siem_filters)).group_by(Ticket.title).order_by(func.count(Ticket.id).desc()).limit(5)
+        res = await db.execute(cat_query)
+        return {"type": "siem", "categories": [{"name": r.title.replace("SIEM: ", "")[:25], "count": r.count} for r in res]}
+
+    # 3. Source: Assets
+    if source == "assets_status":
+        asset_filters = [Asset.deleted_at == None]
+        
+        # Lógica de jerarquía para Activos
+        if not current_user.is_superuser:
+            if current_user.group_id:
+                group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
+                asset_filters.append(Asset.owner_group_id.in_(group_ids))
+            else:
+                return {"type": "assets", "data": {}}
+
+        res = await db.execute(select(Asset.status, func.count(Asset.id)).where(and_(*asset_filters)).group_by(Asset.status))
+        return {"type": "assets", "data": {row.status: row.count for row in res}}
+
+    return {"error": "Unknown data source"}
+
+# Keep legacy stats for compatibility during transition
+@router.get("/stats")
+async def get_dashboard_stats_legacy(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_permission("dashboard:view"))]
+) -> Any:
+    """
+    Endpoint de estadísticas unificado para el Dashboard Principal.
+    """
+    # 1. Obtener IDs de tipos de ticket SIEM
+    siem_type_ids = await get_siem_type_ids(db)
+    
+    # 2. Filtros base
+    ticket_filters = [Ticket.deleted_at == None]
+    asset_filters = [Asset.deleted_at == None]
+    
+    # Silos de visibilidad
+    if not current_user.is_superuser:
+        if current_user.group_id:
+            group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
+            ticket_filters.append(Ticket.group_id.in_(group_ids))
+            asset_filters.append(Asset.owner_group_id.in_(group_ids))
+        else:
+            ticket_filters.append(Ticket.id == None)
+            asset_filters.append(Asset.id == None)
+
+    # --- SIEM CONDITION (DEFINED FIRST) ---
+    # Criterio ampliado: Tipo SIEM O Título que contenga SOC/SIEM/ALERTA
+    siem_condition = or_(
+        Ticket.ticket_type_id.in_(siem_type_ids) if siem_type_ids else False,
+        Ticket.title.ilike("%SOC%"),
+        Ticket.title.ilike("%SIEM%"),
+        Ticket.title.ilike("%ALERTA%")
+    )
+
+    # --- TICKETS STATS ---
+    # Contar por estado, excluyendo SIEM/SOC de los contadores de "Tickets" normales
+    tickets_query = select(Ticket.status, func.count(Ticket.id)).where(
+        and_(*ticket_filters, ~siem_condition)
+    ).group_by(Ticket.status)
+    res_tickets = await db.execute(tickets_query)
+    t_data = {row.status: row.count for row in res_tickets}
+    
+    # --- SIEM STATS ---
+    siem_data = {"total": 0, "remediated": 0, "in_process": 0, "open": 0, "categories": []}
+    
+    siem_q = select(Ticket.status, func.count(Ticket.id)).where(
+        and_(*ticket_filters, siem_condition)
+    ).group_by(Ticket.status)
+    res_siem = await db.execute(siem_q)
+    s_stats = {row.status: row.count for row in res_siem}
+    
+    siem_data["total"] = sum(s_stats.values())
+    siem_data["remediated"] = s_stats.get("resolved", 0) + s_stats.get("closed", 0)
+    siem_data["in_process"] = s_stats.get("in_progress", 0)
+    siem_data["open"] = s_stats.get("open", 0) + s_stats.get("new", 0)
+    
+    # Categorías (Top 5) - Limpiamos el título para el gráfico
+    cat_q = select(Ticket.title, func.count(Ticket.id)).where(
+        and_(*ticket_filters, siem_condition)
+    ).group_by(Ticket.title).order_by(func.count(Ticket.id).desc()).limit(5)
+    res_cats = await db.execute(cat_q)
+    
+    def clean_title(t):
+        for prefix in ["INCIDENTE: ", "ALERTA: ", "SOC - PFA - "]:
+            t = t.replace(prefix, "")
+        return t[:25]
+
+    siem_data["categories"] = [{"name": clean_title(r.title), "count": r.count} for r in res_cats]
+
+    # --- ASSETS STATS ---
+    res_assets = await db.execute(select(Asset.status, func.count(Asset.id)).where(and_(*asset_filters)).group_by(Asset.status))
+    a_stats = {row.status: row.count for row in res_assets}
+    
+    # Top Ubicaciones
+    loc_q = select(LocationNode.name, func.count(Asset.id)).join(Asset, Asset.location_node_id == LocationNode.id).where(
+        and_(*asset_filters)
+    ).group_by(LocationNode.name).order_by(func.count(Asset.id).desc()).limit(5)
+    res_locs = await db.execute(loc_q)
+    
     return {
-        "role": group_name,
-        "is_global": can_view_global, # Front-end can use this to adjust UI further
+        "role": current_user.group.name if current_user.group else "Usuario",
         "tickets": {
-            "total": total_tickets,
-            "open": tickets_by_status.get("open", 0),
-            "in_progress": tickets_by_status.get("in_progress", 0),
-            "resolved": tickets_by_status.get("resolved", 0),
-            "closed": tickets_by_status.get("closed", 0)
+            "total": sum(t_data.values()),
+            "open": t_data.get("open", 0) + t_data.get("new", 0),
+            "in_progress": t_data.get("in_progress", 0),
+            "resolved": t_data.get("resolved", 0),
+            "closed": t_data.get("closed", 0)
         },
         "siem": siem_data,
-        "assets": asset_data
+        "assets": {
+            "operative": a_stats.get("operative", 0),
+            "pending_tagging": a_stats.get("tagging_pending", 0),
+            "installing": a_stats.get("maintenance", 0),
+            "no_folder": a_stats.get("no_folder", 0),
+            "by_location": [{"name": r.name, "count": r.count} for r in res_locs]
+        }
     }

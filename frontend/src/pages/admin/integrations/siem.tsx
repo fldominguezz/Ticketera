@@ -1,128 +1,281 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
-import { Card, Row, Col, Badge, Button, Form, Alert, Table, Spinner } from 'react-bootstrap';
-import { Zap, Shield, Key, Activity, Copy, CheckCircle, AlertCircle, Terminal, Globe } from 'lucide-react';
+import { Card, Row, Col, Badge, Button, Form, Alert, Spinner, Toast, ToastContainer } from 'react-bootstrap';
+import { Zap, Shield, Key, Activity, CheckCircle, AlertCircle, Terminal, Save, RefreshCw } from 'lucide-react';
+import api from '../../../lib/api';
 
 const SIEMIntegration = () => {
-    const [status, setStatus] = useState<any>(null);
+    const [status, setStatus] = useState<any>({});
+    const [config, setConfig] = useState<any>({
+        siem_user_id: '',
+        default_group_id: '',
+        api_username: '',
+        api_password: '',
+        allowed_ips: '',
+        is_active: true
+    });
+    const [users, setUsers] = useState<any[]>([]);
+    const [groups, setGroups] = useState<any[]>([]);
+    const [ticketTypes, setTicketTypes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [apiKey] = useState('sk_live_fortisiem_550e8400-e29b-41d4-a716-446655440000');
+    const [saving, setSaving] = useState(false);
+    const [testing, setTesting] = useState(false);
+    const [testResult, setTestResult] = useState<any>(null);
+    const [showToast, setShowToast] = useState(false);
+    const [toastMsg, setToastMsg] = useState('');
 
     useEffect(() => {
-        fetchStatus();
-        const interval = setInterval(fetchStatus, 10000); // Actualizar cada 10s
+        fetchData();
+        const interval = setInterval(fetchStatus, 15000);
         return () => clearInterval(interval);
     }, []);
 
+    const fetchData = async () => {
+        setLoading(true);
+        console.log("SIEM: Iniciando carga de metadatos...");
+        try {
+            const [statusRes, configRes, usersRes, groupsRes, typesRes] = await Promise.all([
+                api.get('/integrations/status').catch(e => ({ data: {} })),
+                api.get('/integrations/siem/config').catch(e => ({ data: {} })),
+                api.get('/users').catch(e => ({ data: [] })),
+                api.get('/groups').catch(e => ({ data: [] })),
+                api.get('/ticket-types').catch(e => ({ data: [] }))
+            ]);
+            
+            console.log("SIEM - Usuarios:", usersRes.data);
+            console.log("SIEM - Grupos:", groupsRes.data);
+            console.log("SIEM - Config:", configRes.data);
+
+            setStatus(statusRes.data || {});
+            setConfig(configRes.data?.id ? configRes.data : {
+                siem_user_id: '',
+                default_group_id: '',
+                ticket_type_id: '',
+                api_username: '',
+                api_password: '',
+                allowed_ips: '',
+                is_active: true
+            });
+            setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
+            setGroups(Array.isArray(groupsRes.data) ? groupsRes.data : []);
+            setTicketTypes(Array.isArray(typesRes.data) ? typesRes.data : []);
+        } catch (e) {
+            console.error("SIEM: Error crítico en fetchData", e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const fetchStatus = async () => {
         try {
-            const token = localStorage.getItem('access_token');
-            const res = await fetch('/api/v1/integrations/status', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                setStatus(await res.json());
-            }
+            const res = await api.get('/integrations/status');
+            setStatus(res.data || {});
         } catch (e) { console.error(e); }
-        finally { setLoading(false); }
     };
+
+    const handleUserChange = (userId: string) => {
+        const selectedUser = users.find(u => u.id === userId);
+        setConfig((prev: any) => ({
+            ...prev,
+            siem_user_id: userId,
+            api_username: selectedUser ? selectedUser.email : (prev?.api_username || '')
+        }));
+    };
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSaving(true);
+        try {
+            const res = await api.post('/integrations/siem/config', config);
+            setConfig(res.data || config);
+            setToastMsg('Configuración guardada');
+            setShowToast(true);
+        } catch (e: any) {
+            setToastMsg('Error: ' + (e.response?.data?.detail || e.message));
+            setShowToast(true);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleTest = async () => {
+        setTesting(true);
+        setTestResult(null);
+        try {
+            const res = await api.post('/integrations/siem/test');
+            setTestResult(res.data);
+            if (res.data) fetchData();
+        } catch (e: any) {
+            setTestResult({ status: 'error', message: e.message });
+        } finally {
+            setTesting(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <Layout title="Integración FortiSIEM">
+                <div className="d-flex justify-content-center align-items-center" style={{ height: '60vh' }}>
+                    <div className="text-center">
+                        <Spinner animation="border" variant="primary" className="mb-3" />
+                        <p className="text-muted fw-bold">Sincronizando seguridad...</p>
+                    </div>
+                </div>
+            </Layout>
+        );
+    }
 
     return (
         <Layout title="Integración FortiSIEM">
+            <ToastContainer position="top-end" className="p-3">
+                <Toast show={showToast} onClose={() => setShowToast(false)} delay={3000} autohide bg="dark">
+                    <Toast.Body className="text-white fw-bold">{toastMsg}</Toast.Body>
+                </Toast>
+            </ToastContainer>
+
             <div className="mb-4 d-flex justify-content-between align-items-center">
                 <div>
-                    <h1 className="fw-bold">Integración con FortiSIEM</h1>
-                    <p className="text-muted">Monitor de conectividad y gestión de reglas de correlación.</p>
+                    <h1 className="fw-black h3 mb-1 uppercase">INTEGRACIÓN SIEM</h1>
+                    <p className="text-muted small fw-bold opacity-75 uppercase">Control Layer</p>
                 </div>
-                {status?.status === 'online' ? 
-                    <Badge bg="success" className="px-3 py-2"><CheckCircle size={14} className="me-1"/> SISTEMA ACTIVO</Badge> :
-                    <Badge bg="warning" className="px-3 py-2 text-dark"><Activity size={14} className="me-1"/> ESPERANDO CONEXIÓN</Badge>
-                }
+                <div className="d-flex gap-2">
+                    <Button variant="outline-secondary" size="sm" onClick={fetchData} className="fw-bold">REFRESH</Button>
+                    {status?.status === 'online' ? 
+                        <Badge bg="success" className="px-3 py-2">ACTIVO</Badge> :
+                        <Badge bg="warning" className="px-3 py-2 text-dark">WAITING</Badge>
+                    }
+                </div>
             </div>
 
             <Row className="g-4">
-                <Col lg={4}>
-                    <Card className="border-0 shadow-sm h-100">
-                        <Card.Body>
-                            <h6 className="fw-bold mb-3 d-flex align-items-center">
-                                <Globe size={18} className="me-2 text-primary"/> Conectividad del Sensor
-                            </h6>
-                            <div className="bg-light p-3 rounded-3 mb-3">
-                                <div className="d-flex justify-content-between small mb-1">
-                                    <span className="text-muted">Source IP:</span>
-                                    <span className="fw-bold">10.1.78.10</span>
+                <Col lg={7}>
+                    <Card className="border-0 shadow-sm mb-4">
+                        <Card.Body className="p-4">
+                            <Form onSubmit={handleSave}>
+                                <Form.Group className="mb-3">
+                                    <Form.Label className="x-small fw-bold text-muted uppercase">Cuenta de Servicio</Form.Label>
+                                    <Form.Select 
+                                        value={config?.siem_user_id || ''} 
+                                        onChange={e => handleUserChange(e.target.value)}
+                                        required
+                                        className="bg-light border-0 fw-bold py-2"
+                                    >
+                                        <option value="">Seleccionar cuenta...</option>
+                                        {users.map(u => (
+                                            <option key={u.id} value={u.id}>
+                                                {u.first_name ? `${u.first_name} ${u.last_name}` : u.username} ({u.email})
+                                            </option>
+                                        ))}
+                                    </Form.Select>
+                                </Form.Group>
+
+                                <Row className="g-3">
+                                    <Col md={12}>
+                                        <Form.Group className="mb-3">
+                                            <Form.Label className="x-small fw-bold text-muted uppercase">Tipo de Ticket por Defecto</Form.Label>
+                                            <Form.Select 
+                                                value={config?.ticket_type_id || ''} 
+                                                onChange={e => setConfig({...config, ticket_type_id: e.target.value})}
+                                                required
+                                                className="bg-light border-0 fw-bold py-2"
+                                            >
+                                                <option value="">Seleccionar tipo...</option>
+                                                {ticketTypes.map(t => (
+                                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                                ))}
+                                            </Form.Select>
+                                            <Form.Text className="text-muted x-small">Categoría que se aplicará a los incidentes recibidos.</Form.Text>
+                                        </Form.Group>
+                                    </Col>
+
+                                    <Col md={6}>
+                                        <Form.Group className="mb-3">
+                                            <Form.Label className="x-small fw-bold text-muted uppercase">Grupo SOC</Form.Label>
+                                            <Form.Select 
+                                                value={config?.default_group_id || ''} 
+                                                onChange={e => setConfig({...config, default_group_id: e.target.value})}
+                                                required
+                                                className="bg-light border-0 fw-bold py-2"
+                                            >
+                                                <option value="">Seleccionar grupo...</option>
+                                                {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                                            </Form.Select>
+                                        </Form.Group>
+                                    </Col>
+                                    <Col md={6}>
+                                                                        <Form.Group className="mb-3">
+                                                                            <Form.Label className="x-small fw-bold text-muted uppercase">API Username</Form.Label>
+                                                                            <Form.Control 
+                                                                                type="text" 
+                                                                                value={config?.api_username || ''} 
+                                                                                readOnly 
+                                                                                className="bg-dark bg-opacity-5 border-0 fw-bold" 
+                                                                                autoComplete="off"
+                                                                            />
+                                                                        </Form.Group>
+                                                                    </Col>
+                                                                    <Col md={12}>
+                                                                        <Form.Group className="mb-3">
+                                                                            <Form.Label className="x-small fw-bold text-muted uppercase">API Password</Form.Label>
+                                                                            <Form.Control 
+                                                                                type="password" 
+                                                                                value={config?.api_password || ''} 
+                                                                                onChange={e => setConfig({...config, api_password: e.target.value.trim()})}
+                                                                                className="bg-light border-0 py-2" 
+                                                                                required
+                                                                                autoComplete="new-password"
+                                                                            />
+                                                                        </Form.Group>
+                                                                    </Col>                                    <Col md={12}>
+                                        <Form.Group className="mb-3">
+                                            <Form.Label className="x-small fw-bold text-muted uppercase">IP Allowlist</Form.Label>
+                                            <Form.Control 
+                                                type="text" value={config?.allowed_ips || ''} 
+                                                onChange={e => setConfig({...config, allowed_ips: e.target.value})}
+                                                className="bg-light border-0" placeholder="10.1.78.10"
+                                            />
+                                        </Form.Group>
+                                    </Col>
+                                </Row>
+                                <div className="d-flex justify-content-between align-items-center mt-4">
+                                    <Form.Check type="switch" label="Activa" checked={config?.is_active || false} onChange={e => setConfig({...config, is_active: e.target.checked})} />
+                                    <Button variant="primary" type="submit" disabled={saving} className="fw-black px-4">
+                                        {saving ? <Spinner size="sm" /> : <Save size={16} className="me-2"/>} SAVE
+                                    </Button>
                                 </div>
-                                <div className="d-flex justify-content-between small">
-                                    <span className="text-muted">Estado:</span>
-                                    {status?.last_seen_ip === '10.1.78.10' ? 
-                                        <span className="text-success fw-bold">Online</span> : 
-                                        <span className="text-muted">Waiting...</span>
-                                    }
-                                </div>
-                            </div>
-                            <div className="small text-muted mb-4">
-                                <AlertCircle size={14} className="me-1"/>
-                                El sensor en la 10.1.78.10 está configurado para enviar alertas vía HTTPS POST (Puerto 443).
-                            </div>
-                            <Button variant="outline-primary" size="sm" className="w-100" onClick={fetchStatus}>
-                                Probar Conectividad
-                            </Button>
+                            </Form>
                         </Card.Body>
+                    </Card>
+
+                    <Card className="border-0 shadow-sm bg-dark text-white p-4">
+                        <h6 className="fw-black mb-3 text-success uppercase small"><Terminal size={18} className="me-2"/> Ingestion Log</h6>
+                        <div className="font-monospace x-small p-3 bg-black rounded" style={{ height: '100px', overflowY: 'auto', color: '#00ff00' }}>
+                            <div>Listening on: /api/v1/integrations/fortisiem-incident</div>
+                            {status?.last_event_time && <div className="text-info mt-1">LAST: {new Date(status.last_event_time).toLocaleString()}</div>}
+                        </div>
                     </Card>
                 </Col>
 
-                <Col lg={8}>
-                    <Card className="border-0 shadow-sm">
-                        <Card.Header className="bg-white border-0 pt-4">
-                            <h5 className="fw-bold mb-0">Reglas de Correlación</h5>
-                        </Card.Header>
-                        <Card.Body>
-                            <Table responsive hover className="align-middle">
-                                <thead className="bg-light">
-                                    <tr>
-                                        <th className="small fw-bold">REGLA</th>
-                                        <th className="small fw-bold">ESTADO</th>
-                                        <th className="small fw-bold">ERRORES</th>
-                                        <th className="small fw-bold">ÚLTIMA ALERTA</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {loading ? (
-                                        <tr><td colSpan={4} className="text-center py-4"><Spinner animation="border" size="sm" /></td></tr>
-                                    ) : status?.active_rules.map((rule: any, i: number) => (
-                                        <tr key={i}>
-                                            <td className="fw-bold">{rule.name}</td>
-                                            <td><Badge bg="success">Activa</Badge></td>
-                                            <td>{rule.errors}</td>
-                                            <td className="small text-muted">{status.last_event_time ? new Date(status.last_event_time).toLocaleString() : 'Nunca'}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </Table>
-                        </Card.Body>
+                <Col lg={5}>
+                    <Card className="border-0 shadow-sm mb-4 p-4 text-center">
+                        <h6 className="fw-black mb-4 uppercase text-muted small text-start">Health Check</h6>
+                        {config?.last_test_status === 'success' ? (
+                            <div className="text-success"><Shield size={48} className="mb-2"/><h5 className="fw-black">OPERATIONAL</h5></div>
+                        ) : (
+                            <div className="text-danger"><AlertCircle size={48} className="mb-2"/><h5 className="fw-black">ACTION REQUIRED</h5></div>
+                        )}
+                        <Button variant="outline-primary" className="w-100 mt-4 fw-black" onClick={handleTest} disabled={testing}>
+                            {testing ? <Spinner size="sm" /> : <Zap size={18} className="me-2"/>} RUN DIAGNOSTIC
+                        </Button>
                     </Card>
-                </Col>
 
-                <Col lg={12}>
-                    <Card className="border-0 shadow-sm bg-dark text-white">
-                        <Card.Header className="bg-transparent border-secondary border-opacity-25 pt-4">
-                            <h5 className="fw-bold mb-0 d-flex align-items-center">
-                                <Terminal size={18} className="me-2 text-success"/> Webhook Ingestion Log
-                            </h5>
-                        </Card.Header>
-                        <Card.Body>
-                            <div className="font-monospace small p-3 bg-black rounded" style={{ height: '150px', overflowY: 'auto', color: '#00ff00' }}>
-                                {status?.status === 'online' ? (
-                                    <>
-                                        <div>[2026-01-24 18:33:31] INFO: Received event from 10.1.78.10</div>
-                                        <div>[2026-01-24 18:33:31] INFO: Rule matched: Brute Force Attack</div>
-                                        <div>[2026-01-24 18:33:31] SUCCESS: Ticket {status.last_seen_ip === '10.1.78.10' ? 'created' : 'pending'}</div>
-                                    </>
-                                ) : (
-                                    <div>[SYSTEM] Listening for events on https://10.1.9.245/api/v1/integrations/fortisiem-incident ...</div>
-                                )}
-                            </div>
-                        </Card.Body>
+                    <Card className="border-0 shadow-sm p-4 bg-light">
+                        <h6 className="fw-black mb-3 small uppercase text-muted">Quick Guide</h6>
+                        <div className="x-small fw-bold text-muted">
+                            <p>1. Create Target in FortiSIEM.</p>
+                            <p>2. Set URL to this server's endpoint.</p>
+                            <p>3. Use Basic Auth with the username shown here.</p>
+                        </div>
                     </Card>
                 </Col>
             </Row>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Layout from '../../components/Layout';
-import { Container, Row, Col, Card, Form, Button, Table, Tabs, Tab, Badge, Spinner, Alert, ListGroup } from 'react-bootstrap';
-import { UploadCloud, Mail, ShieldAlert, Globe, Link as LinkIcon, FileText, Search, Fingerprint, ChevronRight, Download, Eye } from 'lucide-react';
+import { Container, Row, Col, Card, Form, Button, Table, Tabs, Tab, Badge, Spinner, Alert, ListGroup, InputGroup } from 'react-bootstrap';
+import { UploadCloud, Mail, ShieldAlert, Globe, Link as LinkIcon, FileText, Search, Fingerprint, ChevronRight, Download, Eye, ExternalLink, ShieldCheck, ShieldX, Info } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../lib/api';
 
@@ -13,10 +13,15 @@ export default function EMLForensicsPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  
+  // VT Options
+  const [checkVT, setCheckVT] = useState(false);
+  const [vtApiKey, setVtApiKey] = useState('');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
+      setResult(null);
       setError(null);
     }
   };
@@ -28,6 +33,8 @@ export default function EMLForensicsPage() {
     
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('check_vt', String(checkVT));
+    if (vtApiKey) formData.append('vt_api_key', vtApiKey);
 
     try {
       const res = await api.post('/forensics/analyze-eml', formData, {
@@ -41,21 +48,57 @@ export default function EMLForensicsPage() {
     }
   };
 
+  const getVerdictBadge = (verdict: string) => {
+    switch(verdict) {
+      case 'MALICIOUS': return <Badge bg="danger" className="p-2 px-3 fw-black shadow-sm d-flex align-items-center gap-2"><ShieldX size={16}/> MALICIOSO</Badge>;
+      case 'SUSPICIOUS': return <Badge bg="warning" className="p-2 px-3 text-dark fw-black shadow-sm d-flex align-items-center gap-2"><AlertTriangle size={16}/> SOSPECHOSO</Badge>;
+      case 'CLEAN': return <Badge bg="success" className="p-2 px-3 fw-black shadow-sm d-flex align-items-center gap-2"><ShieldCheck size={16}/> LIMPIO</Badge>;
+      case 'ERROR_NO_KEY': return <Badge bg="secondary" className="p-2 px-3 fw-black shadow-sm d-flex align-items-center gap-2"><Info size={16}/> FALTA API KEY</Badge>;
+      default: return <Badge bg="dark" className="p-2 px-3 fw-black shadow-sm border border-secondary opacity-50">SIN ESCANEAR</Badge>;
+    }
+  };
+
+  const VTResultSmall = ({ item }: { item: any }) => {
+    if (item.status === 'Redirected (Rate Limit)') {
+      return (
+        <div className="d-flex align-items-center gap-2">
+          <Badge bg="secondary" className="x-tiny fw-bold opacity-75">LIMITE API</Badge>
+          {item.link && (
+            <a href={item.link} target="_blank" rel="noreferrer" className="btn btn-outline-primary btn-xs py-0 x-tiny fw-bold text-decoration-none">
+              REVISAR MANUAL <ExternalLink size={10} className="ms-1"/>
+            </a>
+          )}
+        </div>
+      );
+    }
+    if (!item.scanned) return <span className="x-tiny text-muted italic">{item.status || 'No disponible'}</span>;
+    return (
+      <div className="d-flex align-items-center gap-2">
+        <Badge bg={item.malicious > 0 ? 'danger' : item.suspicious > 0 ? 'warning' : 'success'} className="x-tiny fw-bold">
+          {item.malicious}/{item.malicious + item.suspicious + item.harmless} engines
+        </Badge>
+        {item.link && <a href={item.link} target="_blank" rel="noreferrer" className="text-primary"><ExternalLink size={10}/></a>}
+      </div>
+    );
+  };
+
   return (
     <Layout title="Laboratorio Forense EML">
       <div className="mb-4">
-        <h4 className="fw-black text-uppercase m-0">Análisis Forense de Correo</h4>
+        <h4 className="fw-black text-uppercase m-0 d-flex align-items-center gap-2">
+          <Mail className="text-primary" size={24}/> Análisis Forense de Correo
+        </h4>
         <p className="text-muted small m-0 text-uppercase tracking-widest fw-bold opacity-75">CyberCase EML Intelligence Lab</p>
       </div>
 
       <Row className="g-4">
-        {/* Panel de Carga */}
+        {/* Panel de Carga y Opciones */}
         <Col lg={result ? 4 : 12}>
-          <Card className="border-0 shadow-sm">
+          <Card className="border-0 shadow-sm mb-4">
             <Card.Body className="p-4">
               <h6 className="fw-bold mb-3 small text-uppercase text-muted">Cargar Archivo .EML</h6>
               <div 
-                className={`text-center py-5 border border-dashed rounded bg-light bg-opacity-10 cursor-pointer transition-all ${file ? 'border-primary' : 'border-secondary opacity-50'}`}
+                className={`text-center py-5 border border-dashed rounded bg-light bg-opacity-10 cursor-pointer transition-all mb-4 ${file ? 'border-primary' : 'border-secondary opacity-50'}`}
                 onClick={() => document.getElementById('eml-upload')?.click()}
               >
                 <UploadCloud size={48} className={file ? 'text-primary mb-3' : 'text-muted mb-3'} />
@@ -72,14 +115,26 @@ export default function EMLForensicsPage() {
                 )}
                 <input type="file" id="eml-upload" className="d-none" accept=".eml" onChange={handleFileChange} />
               </div>
+
+              <div className="bg-dark bg-opacity-10 p-3 rounded border mb-4">
+                <Form.Check 
+                  type="switch"
+                  id="vt-switch"
+                  label="Integración VirusTotal"
+                  className="fw-bold small text-uppercase mb-2"
+                  checked={checkVT}
+                  onChange={(e) => setCheckVT(e.target.checked)}
+                />
+                <p className="x-tiny text-muted mb-0 italic">Consulta hashes de adjuntos y URLs extraídas automáticamente.</p>
+              </div>
               
               <Button 
                 variant="primary" 
-                className="w-100 mt-4 fw-bold shadow-sm" 
+                className="w-100 fw-bold shadow-sm" 
                 disabled={!file || loading}
                 onClick={analyzeEmail}
               >
-                {loading ? <Spinner animation="border" size="sm" /> : <><Search size={16} className="me-2" /> INICIAR ANÁLISIS FORENSE</>}
+                {loading ? <Spinner animation="border" size="sm" /> : <><Search size={16} className="me-2" /> INICIAR ANÁLISIS</>}
               </Button>
               
               {error && <Alert variant="danger" className="mt-3 x-small fw-bold">{error}</Alert>}
@@ -91,16 +146,40 @@ export default function EMLForensicsPage() {
         {result && (
           <Col lg={8}>
             <div className="d-flex flex-column gap-4">
-              {/* Resumen Superior */}
-              <Card className="border-0 shadow-sm overflow-hidden">
-                <Card.Header className="bg-primary text-white py-3">
-                  <div className="d-flex align-items-center gap-2">
-                    <Mail size={20} />
-                    <span className="fw-bold small text-uppercase">Resultado del Análisis: Detalles del EML</span>
+              {/* Veredicto VT */}
+              <Card className="border-0 shadow-sm bg-dark text-white overflow-hidden">
+                <Card.Body className="p-4 d-flex justify-content-between align-items-center">
+                  <div>
+                    <h6 className="x-small fw-black text-muted text-uppercase mb-1 tracking-widest">Veredicto de Inteligencia</h6>
+                    <div className="d-flex align-items-center gap-3">
+                      {getVerdictBadge(result.vt_analysis.verdict)}
+                      <div className="vr opacity-25"></div>
+                      <div className="d-flex gap-4">
+                        <div className="text-center">
+                          <div className="h4 m-0 fw-black">{result.iocs.urls.length}</div>
+                          <div className="x-tiny text-muted uppercase">URLs</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="h4 m-0 fw-black">{result.attachments.length}</div>
+                          <div className="x-tiny text-muted uppercase">Adjuntos</div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </Card.Header>
-                <Card.Body className="p-4 bg-light bg-opacity-10">
+                  <Badge bg="primary" className="bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2 small fw-bold">
+                    ID: {result.summary['Message-ID']?.substring(0, 15)}...
+                  </Badge>
+                </Card.Body>
+              </Card>
+
+              {/* Resumen de Cabeceras */}
+              <Card className="border-0 shadow-sm">
+                <Card.Body className="p-4">
                   <div className="d-flex flex-column gap-2">
+                    <div className="border-bottom pb-2 mb-2 d-flex justify-content-between align-items-center">
+                      <h6 className="m-0 fw-bold small text-uppercase text-muted">Cabecera de Correo</h6>
+                      <Badge bg="info" className="bg-opacity-10 text-info uppercase x-small">Original</Badge>
+                    </div>
                     <div><span className="fw-bold text-muted x-small text-uppercase">De:</span> <span className="small fw-bold">{result.summary.From}</span></div>
                     <div><span className="fw-bold text-muted x-small text-uppercase">Para:</span> <span className="small">{result.summary.To}</span></div>
                     <div><span className="fw-bold text-muted x-small text-uppercase">Asunto:</span> <span className="small fw-bold text-primary">{result.summary.Subject}</span></div>
@@ -109,68 +188,92 @@ export default function EMLForensicsPage() {
                 </Card.Body>
               </Card>
 
-              {/* Análisis de Seguridad Heurístico */}
-              <Card className="border-0 shadow-sm overflow-hidden">
-                <Card.Header className="bg-dark text-white py-3 d-flex align-items-center gap-2">
-                  <ShieldAlert size={20} className="text-warning" />
-                  <span className="fw-bold small text-uppercase">Análisis de Seguridad</span>
-                </Card.Header>
-                <Card.Body className="p-4">
-                  <Row className="g-4">
-                    <Col md={4}>
-                      <h6 className="fw-bold small text-uppercase text-danger mb-3 border-bottom pb-2">Enlaces Maliciosos</h6>
-                      {result.security.malicious_links.length > 0 ? (
-                        result.security.malicious_links.map((l: string, i: number) => <div key={i} className="x-small text-danger mb-2 font-monospace">⚠️ {l}</div>)
-                      ) : <div className="x-small text-muted italic">No se detectaron enlaces maliciosos obvios.</div>}
-                    </Col>
-                    <Col md={4} className="border-start border-end">
-                      <h6 className="fw-bold small text-uppercase text-warning mb-3 border-bottom pb-2">Adjuntos Sospechosos</h6>
-                      {result.security.suspicious_attachments.length > 0 ? (
-                        result.security.suspicious_attachments.map((a: string, i: number) => <div key={i} className="x-small text-warning mb-2 font-monospace">☢️ {a}</div>)
-                      ) : <div className="x-small text-muted italic">No se detectaron adjuntos sospechosos.</div>}
-                    </Col>
-                    <Col md={4}>
-                      <h6 className="fw-bold small text-uppercase text-info mb-3 border-bottom pb-2">Indicadores de Phishing</h6>
-                      {result.security.phishing_indicators.length > 0 ? (
-                        result.security.phishing_indicators.map((p: string, i: number) => <div key={i} className="x-small text-info mb-2 font-monospace">🚩 {p}</div>)
-                      ) : <div className="x-small text-muted italic">No se detectaron indicadores de phishing obvios.</div>}
-                      
-                      {/* Agregado: IPs detectadas con VirusTotal */}
-                      <div className="mt-4 pt-2 border-top">
-                        <h6 className="fw-bold small text-uppercase text-muted mb-2" style={{fontSize: '0.6rem'}}>IPs Públicas (VT)</h6>
-                        <div className="d-flex flex-wrap gap-1">
-                          {result.iocs.ips?.map((ip: string, i: number) => (
-                            <a key={i} href={`https://www.virustotal.com/gui/ip-address/${ip}`} target="_blank" rel="noreferrer" className="badge bg-dark text-warning border border-warning border-opacity-25 text-decoration-none d-flex align-items-center gap-1">
-                              {ip} <Search size={10} />
-                            </a>
-                          )) || <span className="x-small text-muted italic">Ninguna</span>}
-                        </div>
-                      </div>
-                    </Col>
-                  </Row>
-                </Card.Body>
-              </Card>
-
-              {/* Cuerpo del Correo */}
-              <Card className="border-0 shadow-sm">
-                <Card.Header className="bg-transparent py-3 border-bottom d-flex align-items-center gap-2">
-                  <FileText size={18} className="text-muted" />
-                  <span className="fw-bold small text-uppercase">Cuerpo del Correo</span>
-                </Card.Header>
-                <Card.Body className="p-4 bg-dark bg-opacity-10">
-                  <pre className="small m-0 lh-base text-white" style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{result.body}</pre>
-                </Card.Body>
-              </Card>
-
-              {/* Tabs Técnicos (Adjuntos, IOCs, Rutas, Encabezados Completos) */}
+              {/* Tabs Forenses */}
               <Card className="border-0 shadow-sm overflow-hidden">
                 <Card.Body className="p-0">
-                  <Tabs defaultActiveKey="full_headers" className="custom-tabs px-3 pt-2 bg-light">
-                    <Tab eventKey="full_headers" title="Encabezados Completos" className="p-0">
+                  <Tabs defaultActiveKey="security" className="custom-tabs px-3 pt-2 bg-light">
+                    <Tab eventKey="security" title="Análisis de Amenaza" className="p-4">
+                      <Row className="g-4">
+                        <Col md={12}>
+                          <h6 className="fw-bold small text-uppercase text-primary mb-3">VirusTotal: Resultados Detallados</h6>
+                          {result.vt_analysis.verdict === 'SKIPPED' ? (
+                            <div className="p-4 text-center bg-light rounded border border-dashed">
+                              <Info size={32} className="text-muted mb-2 opacity-50"/>
+                              <p className="small text-muted m-0">No se realizó análisis de VirusTotal para este archivo.</p>
+                            </div>
+                          ) : (
+                            <Table hover size="sm" className="x-small border">
+                              <thead className="bg-dark text-white">
+                                <tr><th>Tipo</th><th>Objetivo</th><th>Veredicto VT</th></tr>
+                              </thead>
+                              <tbody>
+                                {[...result.vt_analysis.urls, ...result.vt_analysis.attachments].map((item: any, i: number) => (
+                                  <tr key={i}>
+                                    <td><Badge bg="dark" className="uppercase x-tiny">{item.type}</Badge></td>
+                                    <td className="text-truncate" style={{maxWidth: '300px'}} title={item.target}>{item.target}</td>
+                                    <td><VTResultSmall item={item}/></td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </Table>
+                          )}
+                        </Col>
+                        
+                        <Col md={6}>
+                          <div className="p-3 border rounded bg-danger bg-opacity-10 h-100">
+                            <h6 className="fw-bold x-small text-danger text-uppercase mb-2 d-flex align-items-center gap-2">
+                              <ShieldAlert size={14}/> Enlaces Maliciosos
+                            </h6>
+                            {result.security.malicious_links.length > 0 ? (
+                              result.security.malicious_links.map((l: string, i: number) => <div key={i} className="x-tiny text-danger mb-1 font-monospace">● {l}</div>)
+                            ) : <div className="x-tiny text-muted italic">Ninguno detectado por heurística.</div>}
+                          </div>
+                        </Col>
+                        <Col md={6}>
+                          <div className="p-3 border rounded bg-warning bg-opacity-10 h-100">
+                            <h6 className="fw-bold x-small text-warning text-uppercase mb-2 d-flex align-items-center gap-2">
+                              <ShieldAlert size={14}/> Adjuntos Sospechosos
+                            </h6>
+                            {result.security.suspicious_attachments.length > 0 ? (
+                              result.security.suspicious_attachments.map((a: string, i: number) => <div key={i} className="x-tiny text-warning mb-1 font-monospace">● {a}</div>)
+                            ) : <div className="x-tiny text-muted italic">Ninguno detectado por heurística.</div>}
+                          </div>
+                        </Col>
+                      </Row>
+                    </Tab>
+
+                    <Tab eventKey="body" title="Cuerpo del Mensaje" className="p-4">
+                      <div className="bg-dark text-white p-4 rounded shadow-inner" style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                        <pre className="small m-0 lh-base" style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{result.body}</pre>
+                      </div>
+                    </Tab>
+
+                    <Tab eventKey="attachments" title="Hashes de Adjuntos" className="p-4">
+                      {result.attachments.length > 0 ? (
+                        <div className="table-responsive">
+                          <Table hover className="align-middle">
+                            <thead className="bg-light">
+                              <tr className="x-small text-uppercase"><th>Archivo</th><th>Tipo</th><th>SHA-256</th></tr>
+                            </thead>
+                            <tbody className="small">
+                              {result.attachments.map((a: any, i: number) => (
+                                <tr key={i}>
+                                  <td><div className="fw-bold"><Fingerprint size={14} className="me-2 text-primary" /> {a.filename}</div></td>
+                                  <td className="x-small text-muted">{a.content_type}</td>
+                                  <td><code className="x-small bg-dark text-success px-2 py-1 rounded">{a.sha256}</code></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </Table>
+                        </div>
+                      ) : <p className="small text-muted italic">Sin adjuntos.</p>}
+                    </Tab>
+
+                    <Tab eventKey="headers" title="Encabezados Técnicos" className="p-0">
                       <div className="table-responsive" style={{ maxHeight: '400px' }}>
                         <Table striped hover size="sm" className="mb-0 x-small font-monospace">
                           <thead className="bg-dark text-white sticky-top">
-                            <tr><th className="ps-3 py-2">Header</th><th className="py-2">Value</th></tr>
+                            <tr><th className="ps-3 py-2">Header</th><th className="py-2">Valor</th></tr>
                           </thead>
                           <tbody>
                             {result.full_headers.map((h: any, i: number) => (
@@ -178,51 +281,6 @@ export default function EMLForensicsPage() {
                             ))}
                           </tbody>
                         </Table>
-                      </div>
-                    </Tab>
-                    
-                    <Tab eventKey="attachments" title="Adjuntos & Hashes" className="p-4">
-                      {result.attachments.length > 0 ? (
-                        <div className="table-responsive">
-                          <Table hover className="align-middle">
-                            <thead className="bg-light">
-                              <tr className="x-small text-uppercase"><th>Archivo</th><th>Técnico</th><th>Hash SHA-256</th></tr>
-                            </thead>
-                            <tbody className="small">
-                              {result.attachments.map((a: any, i: number) => (
-                                <tr key={i}>
-                                  <td><div className="fw-bold"><Fingerprint size={14} className="me-2 text-primary" /> {a.filename}</div></td>
-                                  <td><div className="x-small text-muted">{a.content_type} ({(a.size / 1024).toFixed(1)} KB)</div></td>
-                                  <td>
-                                    <div className="d-flex align-items-center gap-2">
-                                      <code className="x-small bg-dark text-success px-2 py-1 rounded text-truncate" style={{maxWidth: '150px'}} title={a.sha256}>{a.sha256}</code>
-                                      <a 
-                                        href={`https://www.virustotal.com/gui/file/${a.sha256}`} 
-                                        target="_blank" 
-                                        rel="noreferrer"
-                                        className="text-success hover-opacity-100"
-                                        title="Consultar en VirusTotal"
-                                      >
-                                        <Search size={14} />
-                                      </a>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </Table>
-                        </div>
-                      ) : <p className="small text-muted italic">Sin adjuntos detectados.</p>}
-                    </Tab>
-
-                    <Tab eventKey="hops" title="Ruta Forense" className="p-4">
-                      <div className="timeline-hops">
-                        {result.hops.map((hop: string, i: number) => (
-                          <div key={i} className="d-flex mb-3 position-relative border-start ps-4" style={{ borderColor: 'var(--bs-primary)' }}>
-                            <div className="position-absolute bg-primary rounded-circle" style={{ width: 10, height: 10, left: -6, top: 5 }}></div>
-                            <div className="x-small font-monospace text-muted text-break">{hop}</div>
-                          </div>
-                        ))}
                       </div>
                     </Tab>
                   </Tabs>
@@ -235,10 +293,16 @@ export default function EMLForensicsPage() {
 
       <style jsx>{`
         .fw-black { font-weight: 900; }
-        .x-small { font-size: 0.7rem; }
+        .x-small { font-size: 0.75rem; }
+        .x-tiny { font-size: 0.65rem; }
         .custom-tabs { border-bottom: none !important; }
-        .timeline-hops::before { content: ""; position: absolute; }
+        .shadow-inner { box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5); }
       `}</style>
     </Layout>
   );
 }
+
+// Icono faltante en import anterior
+const AlertTriangle = ({ size, className }: any) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+);

@@ -48,5 +48,5 @@ class SLAMetric(Base):
     is_response_breached = Column(Boolean, default=False)
     is_resolution_breached = Column(Boolean, default=False)
 
-    ticket = relationship("Ticket", backref="sla_metrics")
+    ticket = relationship("Ticket", back_populates="sla_metric")
     policy = relationship("SLAPolicy")

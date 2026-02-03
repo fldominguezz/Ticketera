@@ -33,4 +33,35 @@ class CRUDForm:
         result = await db.execute(select(FormSubmission).filter(FormSubmission.form_id == form_id))
         return result.scalars().all()
 
+    async def update(self, db: AsyncSession, *, db_obj: Form, obj_in: FormUpdate) -> Form:
+        update_data = obj_in.model_dump(exclude_unset=True)
+        for field in update_data:
+            setattr(db_obj, field, update_data[field])
+        db.add(db_obj)
+        await db.commit()
+        await db.refresh(db_obj)
+        return db_obj
+
+    async def clone(self, db: AsyncSession, *, form_id: UUID, created_by_id: UUID) -> Form:
+        original = await self.get(db, id=form_id)
+        if not original:
+            return None
+        
+        new_form = Form(
+            name=f"{original.name} (Copy)",
+            description=original.description,
+            version=original.version + 1,
+            is_active=False,
+            is_production=False,
+            category=original.category,
+            group_id=original.group_id,
+            fields_schema=original.fields_schema,
+            automation_rules=original.automation_rules,
+            created_by_id=created_by_id
+        )
+        db.add(new_form)
+        await db.commit()
+        await db.refresh(new_form)
+        return new_form
+
 form = CRUDForm()

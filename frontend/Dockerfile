@@ -1,21 +1,44 @@
-# Usa una imagen base de Node.js
-FROM node:20-alpine
-
-# Establece el directorio de trabajo dentro del contenedor
+# Etapa 1: Dependencias
+FROM node:20-alpine AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copia package.json y package-lock.json (si existe) para instalar dependencias
-COPY package*.json ./
-RUN npm install --legacy-peer-deps
+COPY package.json ./
+# Eliminamos package-lock.json del COPY para regenerarlo fresco debido al cambio de versiones
+# COPY package-lock.json* ./ 
 
-# Copia el resto del código de la aplicación
+# Usamos npm install para generar un nuevo lockfile compatible con las nuevas versiones
+RUN npm install
+
+# Etapa 2: Builder
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Construye la aplicación Next.js
+# Deshabilitar telemetría de Next.js
+ENV NEXT_TELEMETRY_DISABLED 1
+
 RUN npm run build
 
-# Expone el puerto en el que la aplicación Next.js se ejecutará
+# Etapa 3: Runner (Producción)
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copiar solo los archivos necesarios para ejecutar en modo standalone
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
 EXPOSE 3000
 
-# Comando para ejecutar la aplicación Next.js
-CMD ["npm", "start"]
+ENV PORT 3000
+CMD ["node", "server.js"]

@@ -1,5 +1,5 @@
-from sqlalchemy import Column, String, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, ForeignKey, Boolean
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 import uuid
 
@@ -10,6 +10,7 @@ class Role(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(100), unique=True, nullable=False)
     description = Column(String(255), nullable=True)
+    hidden_nav_items = Column(JSONB, default=list, nullable=False)
 
     permissions = relationship("RolePermission", back_populates="role", cascade="all, delete-orphan")
     users = relationship("UserRole", back_populates="role", cascade="all, delete-orphan")
@@ -17,9 +18,17 @@ class Role(Base):
 class Permission(Base):
     __tablename__ = "permissions"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    # e.g., "ticket:create", "ticket:read", "user:create"
-    name = Column(String(100), unique=True, nullable=False)
+    
+    # Internal key: "ticket:create", "ticket:read:group"
+    key = Column(String(100), unique=True, nullable=False)
+    
+    # Human readable name: "Crear Tickets", "Leer Tickets de Grupo"
+    name = Column(String(100), nullable=False)
+    
     description = Column(String(255), nullable=True)
+    module = Column(String(50), nullable=True) # tickets, partes, admin, assets
+    scope_type = Column(String(20), default="none") # none, own, group, global
+    is_active = Column(Boolean, default=True)
 
     roles = relationship("RolePermission", back_populates="permission", cascade="all, delete-orphan")
 

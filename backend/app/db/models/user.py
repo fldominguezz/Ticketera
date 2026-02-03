@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Boolean, DateTime, Text, ARRAY, ForeignKey, Integer
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
@@ -31,6 +31,8 @@ class User(Base):
     force_password_change = Column(Boolean, default=False, nullable=False)
     reset_2fa_next_login = Column(Boolean, default=False, nullable=False)
     enroll_2fa_mandatory = Column(Boolean, default=False, nullable=False)
+    policy_exempt = Column(Boolean, default=False, nullable=False)
+    dashboard_layout = Column(JSONB, default=list, nullable=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -56,3 +58,18 @@ class User(Base):
 
     def __repr__(self):
         return f"<User(username='{self.username}', email='{self.email}')>"
+
+    def get_permissions(self) -> set:
+        perms = set()
+        # Ensure roles are loaded
+        if self.roles:
+            for user_role in self.roles:
+                if user_role.role and user_role.role.permissions:
+                    for role_perm in user_role.role.permissions:
+                        if role_perm.permission:
+                            perms.add(role_perm.permission.key)
+        return perms
+
+    def has_permission(self, perm_key: str) -> bool:
+        if self.is_superuser: return True
+        return perm_key in self.get_permissions()

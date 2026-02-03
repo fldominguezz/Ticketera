@@ -1,119 +1,168 @@
-import { useEffect, useState } from 'react';
-import Layout from '../../components/Layout';
-import { Container, Table, Button, Card, Form, Modal, Spinner, Alert, Row, Col } from 'react-bootstrap';
-import { Plus, Edit, Save, ArrowLeft, Clock, CheckCircle, AlertCircle } from 'lucide-react';
-import { useRouter } from 'next/router';
-import { useTheme } from '../../context/ThemeContext';
+import React, { useState, useEffect } from 'react';
+import Layout from '../../../components/Layout';
+import { Card, Table, Button, Badge, Modal, Form, Spinner, Row, Col, InputGroup } from 'react-bootstrap';
+import { Clock, Plus, Trash2, Edit, Save, AlertCircle, ShieldCheck } from 'lucide-react';
+import api from '../../../lib/api';
 
 export default function SLAManagementPage() {
-  const router = useRouter();
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
-  const [policies, setPolicies] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editingPolicy, setEditingPolicy] = useState<any>(null);
-  const [error, setError] = useState('');
-  
-  const [formData, setFormData] = useState({
-    name: '', priority: 'medium', response_time_goal: 60, resolution_time_goal: 480, is_active: true
-  });
+    const [policies, setPolicies] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [selectedPolicy, setSelectedPolicy] = useState<any>(null);
+    
+    const [formData, setFormData] = useState({
+        name: '',
+        description: '',
+        priority: 'medium',
+        response_time_minutes: 60,
+        resolution_time_minutes: 240,
+        is_active: true
+    });
 
-  useEffect(() => { fetchPolicies(); }, []);
+    useEffect(() => {
+        fetchPolicies();
+    }, []);
 
-  const fetchPolicies = async () => {
-    try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch('/api/v1/sla', { headers: { 'Authorization': `Bearer ${token}` } });
-      if (res.ok) setPolicies(await res.json());
-    } catch (e) { setError('Error loading policies'); }
-    finally { setLoading(false); }
-  };
+    const fetchPolicies = async () => {
+        try {
+            const res = await api.get('/admin/sla/policies');
+            setPolicies(res.data);
+        } catch (e) { console.error(e); }
+        finally { setLoading(false); }
+    };
 
-  const handleShow = (policy: any = null) => {
-    if (policy) {
-      setEditingPolicy(policy);
-      setFormData({
-        name: policy.name, priority: policy.priority, 
-        response_time_goal: policy.response_time_goal, 
-        resolution_time_goal: policy.resolution_time_goal, 
-        is_active: policy.is_active
-      });
-    } else {
-      setEditingPolicy(null);
-      setFormData({ name: '', priority: 'medium', response_time_goal: 60, resolution_time_goal: 480, is_active: true });
-    }
-    setShowModal(true);
-  };
+    const handleEdit = (policy: any) => {
+        setSelectedPolicy(policy);
+        setFormData({
+            name: policy.name,
+            description: policy.description || '',
+            priority: policy.priority,
+            response_time_minutes: policy.response_time_minutes,
+            resolution_time_minutes: policy.resolution_time_minutes,
+            is_active: policy.is_active
+        });
+        setShowModal(true);
+    };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const token = localStorage.getItem('access_token');
-    const method = editingPolicy ? 'PUT' : 'POST';
-    const url = editingPolicy ? `/api/v1/sla/${editingPolicy.id}` : '/api/v1/sla';
-    try {
-      const res = await fetch(url, {
-        method, headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      if (res.ok) { setShowModal(false); fetchPolicies(); }
-    } catch (e) { setError('Connection error'); }
-  };
+    const handleDelete = async (id: string) => {
+        if (!confirm("¿Está seguro de eliminar esta política de SLA?")) return;
+        try {
+            await api.delete(`/admin/sla/policies/${id}`);
+            fetchPolicies();
+        } catch (e) { alert("Error al eliminar"); }
+    };
 
-  return (
-    <Layout title="Gestión de SLA">
-      <Container>
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <div className="d-flex align-items-center">
-            <Button variant="link" className="text-muted p-0 me-3" onClick={() => router.push('/admin')}><ArrowLeft size={24} /></Button>
-            <h2 className="fw-bold mb-0 text-body">Políticas de SLA</h2>
-          </div>
-          <Button variant="primary" onClick={() => handleShow()} className="shadow-sm fw-bold"><Plus size={18} className="me-2" /> NUEVA META</Button>
-        </div>
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSaving(true);
+        try {
+            if (selectedPolicy) {
+                await api.put(`/admin/sla/policies/${selectedPolicy.id}`, formData);
+            } else {
+                await api.post('/admin/sla/policies', formData);
+            }
+            setShowModal(false);
+            fetchPolicies();
+        } catch (e) { alert("Error al guardar la política"); }
+        finally { setSaving(false); }
+    };
 
-        {error && <Alert variant="danger">{error}</Alert>}
+    return (
+        <Layout title="Gestión de SLA">
+            <div className="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h4 className="fw-black text-uppercase m-0">Políticas de SLA</h4>
+                    <p className="text-muted small m-0 uppercase opacity-50 tracking-widest fw-bold">Service Level Agreement Management</p>
+                </div>
+                <Button variant="primary" size="sm" className="fw-bold px-4 rounded-pill shadow-sm" onClick={() => { setSelectedPolicy(null); setShowModal(true); }}>
+                    <Plus size={16} className="me-2" /> NUEVA POLÍTICA
+                </Button>
+            </div>
 
-        <Card className="border-0 shadow-sm overflow-hidden">
-          <Table hover responsive variant={isDark ? 'dark' : undefined} className="mb-0 align-middle">
-            <thead className={isDark ? 'bg-black' : 'bg-light'}>
-              <tr className="small text-uppercase text-muted opacity-75">
-                <th className="ps-4 py-3">Nombre</th>
-                <th>Prioridad</th>
-                <th>Respuesta</th>
-                <th>Resolución</th>
-                <th>Estado</th>
-                <th className="text-end pe-4">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={6} className="text-center py-5"><Spinner animation="border" size="sm" /></td></tr>
-              ) : policies.map(p => (
-                <tr key={p.id}>
-                  <td className="ps-4 fw-bold">{p.name}</td>
-                  <td><Badge bg={p.priority === 'critical' ? 'danger' : 'info'}>{p.priority?.toUpperCase()}</Badge></td>
-                  <td><Clock size={14} className="me-1" /> {p.response_time_goal}m</td>
-                  <td><Clock size={14} className="me-1" /> {p.resolution_time_goal}m</td>
-                  <td>{p.is_active ? <CheckCircle size={18} className="text-success" /> : <AlertCircle size={18} className="text-muted" />}</td>
-                  <td className="text-end pe-4"><Button variant={isDark ? "dark" : "light"} size="sm" onClick={() => handleShow(p)} className="border border-opacity-10"><Edit size={14} /></Button></td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </Card>
-      </Container>
+            <Card className="border-0 shadow-sm overflow-hidden bg-surface">
+                <Table hover responsive className="m-0 align-middle">
+                    <thead className="bg-surface-muted border-bottom">
+                        <tr className="small text-uppercase text-muted fw-black">
+                            <th className="ps-4">POLÍTICA</th>
+                            <th>PRIORIDAD</th>
+                            <th>TIEMPOS (RESP/RESOL)</th>
+                            <th>ESTADO</th>
+                            <th className="text-end pe-4">ACCIONES</th>
+                        </tr>
+                    </thead>
+                    <tbody className="small">
+                        {loading ? (
+                            <tr><td colSpan={5} className="text-center py-5"><Spinner animation="border" size="sm" /></td></tr>
+                        ) : policies.length === 0 ? (
+                            <tr><td colSpan={5} className="text-center py-5 text-muted italic">No hay políticas de SLA configuradas.</td></tr>
+                        ) : policies.map(p => (
+                            <tr key={p.id}>
+                                <td className="ps-4">
+                                    <div className="fw-bold text-primary">{p.name}</div>
+                                    <div className="x-small text-muted">{p.description || 'Sin descripción'}</div>
+                                </td>
+                                <td><Badge bg={p.priority === 'critical' ? 'danger' : 'warning'} className="uppercase">{p.priority}</Badge></td>
+                                <td>
+                                    <div className="fw-bold d-flex gap-2">
+                                        <Badge bg="info" className="bg-opacity-10 text-info border border-info border-opacity-25">{p.response_time_minutes} min</Badge>
+                                        <Badge bg="success" className="bg-opacity-10 text-success border border-success border-opacity-25">{p.resolution_time_minutes} min</Badge>
+                                    </div>
+                                </td>
+                                <td>{p.is_active ? <Badge bg="success">ACTIVA</Badge> : <Badge bg="secondary">INACTIVA</Badge>}</td>
+                                <td className="text-end pe-4">
+                                    <Button variant="link" size="sm" onClick={() => handleEdit(p)} className="p-1 me-2"><Edit size={16}/></Button>
+                                    <Button variant="link" size="sm" onClick={() => handleDelete(p.id)} className="p-1 text-danger"><Trash2 size={16}/></Button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </Table>
+            </Card>
 
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
-        <Modal.Header closeButton><Modal.Title className="h6 fw-bold text-uppercase">{editingPolicy ? 'Editar SLA' : 'Nuevo SLA'}</Modal.Title></Modal.Header>
-        <Form onSubmit={handleSubmit}><Modal.Body>
-            <Form.Group className="mb-3"><Form.Label className="x-small fw-bold text-muted">NOMBRE</Form.Label><Form.Control required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></Form.Group>
-            <Row><Col md={6}><Form.Group className="mb-3"><Form.Label className="x-small fw-bold text-muted">PRIORIDAD</Form.Label><Form.Select value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})}><option value="low">BAJA</option><option value="medium">MEDIA</option><option value="high">ALTA</option><option value="critical">CRÍTICA</option></Form.Select></Form.Group></Col><Col md={6}><Form.Group className="mb-3"><Form.Label className="x-small fw-bold text-muted">RESPUESTA (MIN)</Form.Label><Form.Control type="number" value={formData.response_time_goal} onChange={e => setFormData({...formData, response_time_goal: parseInt(e.target.value)})} /></Form.Group></Col></Row>
-            <Form.Check type="switch" label="Política Activa" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} />
-          </Modal.Body><Modal.Footer className="border-0">
-            <Button variant="link" onClick={() => setShowModal(false)} className="text-muted text-decoration-none">Cancelar</Button>
-            <Button variant="primary" type="submit" className="fw-bold px-4">GUARDAR</Button>
-          </Modal.Footer></Form>
-      </Modal>
-    </Layout>
-  );
+            <Modal show={showModal} onHide={() => setShowModal(false)} centered>
+                <Modal.Header closeButton className="border-0 pb-0">
+                    <Modal.Title className="h6 fw-black text-uppercase">{selectedPolicy ? 'Editar Política' : 'Nueva Política'}</Modal.Title>
+                </Modal.Header>
+                <Form onSubmit={handleSubmit}>
+                    <Modal.Body className="pt-3">
+                        <Form.Group className="mb-3">
+                            <Form.Label className="x-small fw-black uppercase text-muted">Nombre de la Política</Form.Label>
+                            <Form.Control required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                        </Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label className="x-small fw-black uppercase text-muted">Prioridad Aplicable</Form.Label>
+                            <Form.Select value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})}>
+                                <option value="low">BAJA</option>
+                                <option value="medium">MEDIA</option>
+                                <option value="high">ALTA</option>
+                                <option value="critical">CRÍTICA</option>
+                            </Form.Select>
+                        </Form.Group>
+                        <Row>
+                            <Col md={6}>
+                                <Form.Group className="mb-3">
+                                    <Form.Label className="x-small fw-black uppercase text-muted">Tiempo Respuesta (Min)</Form.Label>
+                                    <Form.Control type="number" required value={formData.response_time_minutes} onChange={e => setFormData({...formData, response_time_minutes: parseInt(e.target.value)})} />
+                                </Form.Group>
+                            </Col>
+                            <Col md={6}>
+                                <Form.Group className="mb-3">
+                                    <Form.Label className="x-small fw-black uppercase text-muted">Tiempo Resolución (Min)</Form.Label>
+                                    <Form.Control type="number" required value={formData.resolution_time_minutes} onChange={e => setFormData({...formData, resolution_time_minutes: parseInt(e.target.value)})} />
+                                </Form.Group>
+                            </Col>
+                        </Row>
+                        <Form.Check type="switch" label="Política Activa" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} className="fw-bold small" />
+                    </Modal.Body>
+                    <Modal.Footer className="border-0">
+                        <Button variant="link" size="sm" onClick={() => setShowModal(false)} className="text-muted text-decoration-none fw-bold">CANCELAR</Button>
+                        <Button variant="primary" size="sm" type="submit" disabled={saving} className="fw-bold px-4">
+                            {saving ? <Spinner animation="border" size="sm" /> : <Save size={16} className="me-2" />} GUARDAR SLA
+                        </Button>
+                    </Modal.Footer>
+                </Form>
+            </Modal>
+        </Layout>
+    );
 }

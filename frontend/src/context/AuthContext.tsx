@@ -15,18 +15,27 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Empezar en false para evitar bloqueo SSR
   const router = useRouter();
 
   const fetchUser = async (token: string): Promise<boolean> => {
-    setLoading(true);
+    setLoading(true); // Solo activamos carga si hay un proceso real
+    if (!token) {
+        setUser(null);
+        setLoading(false);
+        return false;
+    }
+    
     try {
       const res = await fetch('/api/v1/users/me', {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+        }
       });
       
-      // Si es 200 o 403, intentamos leer el usuario (nuestro backend envía el JSON en ambos)
-      if (res.ok || res.status === 403) {
+      const contentType = res.headers.get("content-type");
+      if (res.ok && contentType && contentType.indexOf("application/json") !== -1) {
         const userData = await res.json();
         if (userData && (userData.id || userData.email)) {
           setUser(userData);
@@ -34,13 +43,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
       
-      // Si llegamos acá, el token es inválido de verdad
-      localStorage.removeItem('access_token');
-      setUser(null);
+      if (res.status === 401) {
+          const isInterim = router.pathname.includes('security/onboarding');
+          if (!isInterim) {
+              localStorage.removeItem('access_token');
+              setUser(null);
+          }
+      }
       return false;
     } catch (e) {
-      console.error("Auth fetch error", e);
-      localStorage.removeItem('access_token');
+      console.error("Auth context critical error", e);
       setUser(null);
       return false;
     } finally {
@@ -49,20 +61,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-    
-    if (!token) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-
-    if (!user) {
-      fetchUser(token);
-    } else {
-      setLoading(false);
-    }
-  }, [user]);
+    const initAuth = async () => {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+        if (token) {
+            await fetchUser(token);
+        } else {
+            setLoading(false);
+        }
+    };
+    initAuth();
+  }, []);
 
   const login = async (identifier: string, password: string) => {
     try {

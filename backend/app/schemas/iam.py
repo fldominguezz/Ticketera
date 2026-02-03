@@ -3,8 +3,23 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, model_validator
 
 class PermissionBase(BaseModel):
-    name: str
+    key: str
+    name: str # Human readable name
     description: Optional[str] = None
+    module: Optional[str] = "custom"
+    scope_type: Optional[str] = "none" # none, own, group, global
+    is_active: bool = True
+
+class PermissionCreate(PermissionBase):
+    pass
+
+class PermissionUpdate(BaseModel):
+    key: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    module: Optional[str] = None
+    scope_type: Optional[str] = None
+    is_active: Optional[bool] = None
 
 class Permission(PermissionBase):
     id: UUID
@@ -13,6 +28,7 @@ class Permission(PermissionBase):
 class RoleBase(BaseModel):
     name: str
     description: Optional[str] = None
+    hidden_nav_items: List[str] = []
 
 class RoleCreate(RoleBase):
     permission_ids: List[UUID] = []
@@ -20,6 +36,7 @@ class RoleCreate(RoleBase):
 class RoleUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    hidden_nav_items: Optional[List[str]] = None
     permission_ids: Optional[List[UUID]] = None
 
 class Role(RoleBase):
@@ -30,25 +47,18 @@ class Role(RoleBase):
     @classmethod
     def wrap_permissions(cls, data: Any) -> Any:
         if hasattr(data, "permissions"):
-            # Si es un objeto de SQLAlchemy, extraemos las de RolePermission
-            # En SQLAlchemy, role.permissions es una lista de RolePermission
-            # Queremos que sea una lista de Permission
             permissions = []
             for rp in data.permissions:
                 if hasattr(rp, "permission"):
                     permissions.append(rp.permission)
                 else:
-                    # Si ya es un dict o algo procesado
                     permissions.append(rp)
             
-            # Creamos un nuevo dict o modificamos el objeto para Pydantic
-            # Pero como es 'before', 'data' es lo que se va a validar.
-            # No podemos modificar el objeto de SQLAlchemy fácilmente.
-            # Así que devolvemos un dict.
             return {
                 "id": data.id,
                 "name": data.name,
                 "description": data.description,
+                "hidden_nav_items": getattr(data, "hidden_nav_items", []),
                 "permissions": permissions
             }
         return data

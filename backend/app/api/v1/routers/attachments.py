@@ -15,6 +15,32 @@ router = APIRouter()
 UPLOAD_DIR = "/app/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+@router.post("/upload-temp")
+async def upload_temp_attachment(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    file: UploadFile = File(...),
+):
+    file_id = uuid.uuid4()
+    file_path = os.path.join(UPLOAD_DIR, f"temp_{file_id}_{file.filename}")
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    db_obj = AttachmentModel(
+        id=file_id,
+        ticket_id=None, # Temporal
+        uploaded_by_id=current_user.id,
+        filename=file.filename,
+        file_path=file_path,
+        content_type=file.content_type,
+        size=os.path.getsize(file_path)
+    )
+    db.add(db_obj)
+    await db.commit()
+    await db.refresh(db_obj)
+    return db_obj
+
 @router.post("/{ticket_id}")
 async def upload_attachment(
     ticket_id: UUID,

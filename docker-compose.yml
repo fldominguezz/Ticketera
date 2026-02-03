@@ -7,16 +7,17 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    environment:
-      POSTGRES_DB: ticketera_db
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+    env_file:
+      - .env
     volumes:
       - db_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -31,6 +32,32 @@ services:
       - redis_data:/data
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.6
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-masterKeyTicketeraSOC}
+      - MEILI_ENV=production
+    volumes:
+      - meili_data:/meili_data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
@@ -44,16 +71,20 @@ services:
         max-file: "3"
     env_file:
       - .env
-    ports:
-      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+      MEILISEARCH_URL: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILI_MASTER_KEY:-masterKeyTicketeraSOC}
+      ENABLE_METRICS: "True" # Activa Prometheus exporter
     volumes:
       - ./backend:/app
       - uploads_data:/app/uploads
-    depends_on:
-      - db
-      - redis
     networks:
       - app-network
+    command: gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 300
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   frontend:
     build:
@@ -65,8 +96,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    ports:
-      - "3000:3000"
     depends_on:
       - backend
     networks:
@@ -85,13 +114,88 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    depends_on:
+      - backend
+      - frontend
     networks:
       - app-network
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: always
+    container_name: ticketera-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - app-network
+    # Si tienes GPU NVIDIA, descomenta esto:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # --- FASE 5: OBSERVABILIDAD ---
+  prometheus:
+    image: prom/prometheus:latest
+    restart: always
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - app-network
+    # ports:
+    #   - "9090:9090" # Opcional: exponer solo si necesitas debuggear prometheus directo
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: always
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin # CAMBIAR EN PRIMER LOGIN
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3002:3000" # Grafana en puerto 3002 para no chocar con Frontend o servicios locales
+    depends_on:
+      - prometheus
+    networks:
+      - app-network
+
+  soc-module:
+    build:
+      context: ./soc-module
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      - BACKEND_URL=http://backend:8000/api/v1/integrations/fortisiem-incident
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "514:514/udp"
+    networks:
+      - app-network
+    depends_on:
+      - backend
 
 volumes:
   db_data:
   redis_data:
   uploads_data:
+  meili_data:
+  prometheus_data:
+  grafana_data:
+  ollama_data:
 
 networks:
   app-network:

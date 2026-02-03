@@ -1,170 +1,277 @@
-import { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
-import { Container, Row, Col, Card, Button, Badge, Spinner } from 'react-bootstrap';
-import { 
-  Users, FolderTree, FileText, Settings, ArrowRight, RefreshCw, 
-  Clock, GitBranch, ShieldCheck, Tag, Lock, Server
-} from 'lucide-react';
+import { Card, Row, Col, Button, Form, Spinner, Toast, ToastContainer } from 'react-bootstrap';
+import { Settings, Shield, Globe, Palette, Clock, GitBranch, Users, Database, Server, FileText, ShieldAlert, Activity, Save, Lock as LockIcon, Key } from 'lucide-react';
+import api from '../../lib/api';
 import Link from 'next/link';
-import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
 
-export default function AdminDashboardPage() {
-  const { t } = useTranslation();
-  const { isSuperuser, loading } = useAuth();
-  const { theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+const AdminDashboard = () => {
+    const { user } = useAuth();
+    const [settings, setSettings] = useState<any>({
+        app_name: 'CyberCase SOC',
+        primary_color: '#0d6efd',
+        accent_color: '#6c757d',
+        login_footer_text: '© 2026 CyberCase Security',
+        require_2fa_all_users: false
+    });
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [showToast, setShowToast] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted || loading) {
-    return (
-      <div className="d-flex justify-content-center align-items-center vh-100">
-        <Spinner animation="border" variant="primary" />
-      </div>
+    const userPermissions = new Set(
+        user?.roles?.flatMap((r: any) => {
+            const perms = r.role?.permissions || r.permissions || [];
+            return perms.map((p: any) => p.key || p.name);
+        }) || []
     );
-  }
 
-  if (!isSuperuser) {
-    return (
-      <Layout title="Acceso Denegado">
-        <Container className="text-center py-5">
-          <ShieldCheck size={64} className="text-danger mb-4" />
-          <h2 className="fw-bold">Acceso Restringido</h2>
-          <p className="text-muted">No tiene permisos suficientes para acceder al panel de administración.</p>
-          <Button variant="primary" onClick={() => window.location.href = '/'}>Volver al Dashboard</Button>
-        </Container>
-      </Layout>
-    );
-  }
+    const can = (perm: string) => user?.is_superuser || userPermissions.has(perm);
 
-  const adminModules = [
-    { 
-      title: 'Cuentas de Usuario', 
-      desc: 'Gestione usuarios, contraseñas y accesos', 
-      icon: <Users size={24} />, 
-      link: '/admin/users', 
-      color: 'primary' 
-    },
-    { 
-      title: 'Roles y Permisos', 
-      desc: 'Defina perfiles y matriz RBAC granulares', 
-      icon: <Lock size={24} />, 
-      link: '/admin/roles', 
-      color: 'success' 
-    },
-    { 
-      title: 'Estructura Org.', 
-      desc: 'Defina grupos, jerarquías y departamentos', 
-      icon: <FolderTree size={24} />, 
-      link: '/admin/groups', 
-      color: 'info' 
-    },
-    { 
-      title: 'Tipos de Ticket', 
-      desc: 'Gestione categorías, iconos y colores de flujo', 
-      icon: <Tag size={24} />, 
-      link: '/admin/ticket-types', 
-      color: 'warning' 
-    },
-    { 
-      title: 'Formularios Dinámicos', 
-      desc: 'Diseñe fichas de recolección de datos', 
-      icon: <FileText size={24} />, 
-      link: '/admin/forms', 
-      color: 'primary' 
-    },
-    { 
-      title: 'Políticas SLA', 
-      desc: 'Defina metas de respuesta y resolución', 
-      icon: <Clock size={24} />, 
-      link: '/admin/sla', 
-      color: 'danger' 
-    },
-    { 
-      title: 'Flujos de Trabajo', 
-      desc: 'Defina estados y transiciones automáticas', 
-      icon: <GitBranch size={24} />, 
-      link: '/admin/workflow', 
-      color: 'secondary' 
-    },
-    { 
-      title: 'Política de Seguridad', 
-      desc: 'Refuerzo de contraseñas, 2FA y sesiones', 
-      icon: <ShieldCheck size={24} />, 
-      link: '/admin/security', 
-      color: 'success' 
-    },
-    { 
-      title: 'Actualizaciones', 
-      desc: 'Versión del núcleo, parches y logs del sistema', 
-      icon: <RefreshCw size={24} />, 
-      link: '/admin/updates', 
-      color: 'info' 
-    },
-  ];
+    useEffect(() => {
+        fetchSettings();
+    }, []);
 
-  return (
-    <Layout title="Panel de Administración">
-      <Container fluid className="px-0">
-        <div className="mb-5">
-          <h2 className="fw-black text-uppercase m-0">Administración del Sistema</h2>
-          <p className="text-muted fw-medium">Configure los ajustes principales del sistema y gestione las políticas de seguridad.</p>
-        </div>
+    const fetchSettings = async () => {
+        try {
+            const res = await api.get('/admin/settings');
+            if (res.data) setSettings(res.data);
+        } catch (e) { console.error(e); }
+        finally { setLoading(false); }
+    };
 
-        <Row className="g-4">
-          {adminModules.map((m, idx) => (
-            <Col key={idx} md={6} lg={4}>
-              <Link href={m.link} style={{ textDecoration: 'none' }}>
-                <Card className="h-100 shadow-sm border-0 border-top border-4 border-primary hover-lift transition-all">
-                  <Card.Body className="p-4 d-flex flex-column">
-                    <div className={`bg-${m.color} bg-opacity-10 text-${m.color} p-3 rounded mb-3 d-inline-flex align-items-center justify-content-center shadow-sm`} style={{ width: 'fit-content' }}>
-                      {m.icon}
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSaving(true);
+        try {
+            await api.post('/admin/settings', settings);
+            setShowToast(true);
+        } catch (e) { alert("Error al guardar"); }
+        finally { setSaving(false); }
+    };
+
+    const openGrafana = () => {
+        const host = window.location.hostname;
+        window.open(`http://${host}:3002`, '_blank');
+    };
+
+    const AdminCard = ({ title, desc, icon: Icon, href, color, onClick, perm }: any) => {
+        if (perm && !can(perm)) return null;
+
+        const content = (
+            <Card className="border-0 shadow-sm h-100 admin-card-hover transition-all">
+                <Card.Body className="d-flex align-items-center p-4">
+                    <div className={`bg-${color} bg-opacity-10 p-3 rounded-3 me-4`}>
+                        <Icon size={24} className={`text-${color}`}/>
                     </div>
-                    <h5 className="fw-bold mb-2">{m.title}</h5>
-                    <p className="text-muted small mb-4 flex-grow-1">{m.desc}</p>
-                    <div className={`text-${m.color} x-small fw-bold d-flex align-items-center mt-auto text-uppercase letter-spacing-1`}>
-                      Gestionar módulo <ArrowRight size={14} className="ms-2" />
+                    <div>
+                        <h6 className="fw-bold mb-1 text-dark">{title}</h6>
+                        <p className="small text-muted mb-0">{desc}</p>
                     </div>
-                  </Card.Body>
-                </Card>
-              </Link>
+                </Card.Body>
+            </Card>
+        );
+
+        if (onClick) {
+            return <Col md={4}><div role="button" onClick={onClick} className="text-decoration-none h-100">{content}</div></Col>;
+        }
+
+        return (
+            <Col md={4}>
+                <Link href={href} className="text-decoration-none">
+                    {content}
+                </Link>
             </Col>
-          ))}
-        </Row>
+        );
+    };
 
-        <Card className="mt-5 border-0 shadow-sm bg-primary bg-opacity-10">
-          <Card.Body className="p-4 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
-            <div className="d-flex align-items-center text-primary">
-              <Server size={32} className="me-3 opacity-75" />
-              <div>
-                <h6 className="mb-0 fw-black text-uppercase">Seguridad de la Plataforma v1.3.5_STABLE</h6>
-                <p className="small mb-0 opacity-75 fw-medium">Cumplimiento de auditoría inmutable y cifrado de extremo a extremo activo.</p>
-              </div>
-            </div>
-            <div className="d-flex gap-2">
-                <Badge bg="success" className="px-3 py-2 fw-bold shadow-sm">CORE EN LÍNEA</Badge>
-                <Badge bg="primary" className="px-3 py-2 fw-bold shadow-sm">SSL ACTIVO</Badge>
-            </div>
-          </Card.Body>
-        </Card>
-      </Container>
+    if (loading) return <div className="text-center py-5"><Spinner animation="border" /></div>;
 
-      <style jsx>{`
-        .hover-lift {
-          transition: transform 0.2s ease, box-shadow 0.2s ease !important;
-        }
-        .hover-lift:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 1rem 3rem rgba(0,0,0,0.1) !important;
-        }
-        .fw-black { font-weight: 900; }
-        .letter-spacing-1 { letter-spacing: 1px; }
-        .x-small { font-size: 11px; }
-      `}</style>
-    </Layout>
-  );
-}
+    return (
+        <Layout title="Panel de Administración">
+            <ToastContainer position="top-end" className="p-3">
+                <Toast show={showToast} onClose={() => setShowToast(false)} delay={3000} autohide bg="success">
+                    <Toast.Body className="text-white fw-bold">Configuración actualizada</Toast.Body>
+                </Toast>
+            </ToastContainer>
+
+            <div className="mb-5">
+                <h1 className="fw-bold h2 mb-1">Administración del Sistema</h1>
+                <p className="text-muted">Control centralizado de infraestructura, seguridad y procesos SOC.</p>
+            </div>
+
+            <h5 className="fw-bold mb-4 d-flex align-items-center">
+                <Server size={20} className="me-2 text-primary"/> Módulos de Gestión
+            </h5>
+            <Row className="g-4 mb-5">
+                <AdminCard title="Usuarios" desc="Gestionar cuentas y accesos" icon={Users} href="/admin/users" color="primary" perm="admin:users:read"/>
+                <AdminCard title="Roles" desc="Configurar RBAC y seguridad" icon={Shield} href="/admin/roles" color="danger" perm="admin:roles:read"/>
+                <AdminCard title="Diccionario de Permisos" desc="Registro global de capacidades" icon={Key} href="/admin/permissions" color="warning" perm="admin:roles:manage"/>
+                <AdminCard title="Seguridad Global" desc="Política de claves y 2FA" icon={LockIcon} href="/admin/security" color="warning" perm="admin:settings:read"/>
+                <AdminCard title="Grupos Org." desc="Jerarquía y visibilidad" icon={GitBranch} href="/admin/groups" color="primary" perm="admin:groups:read"/>
+                <AdminCard title="Ubicaciones" desc="Carpetas y dependencias" icon={Database} href="/admin/locations" color="success" perm="admin:locations:read"/>
+                <AdminCard title="Tipos de Tickets" desc="Categorías y comportamientos" icon={Settings} href="/admin/ticket-types" color="secondary" perm="admin:catalogs:read"/>
+                <AdminCard title="Políticas de SLA" desc="Tiempos de respuesta y resolución" icon={Clock} href="/admin/sla" color="warning" perm="admin:settings:read"/>
+                <AdminCard title="Workflows" desc="Flujos de estado y transiciones" icon={GitBranch} href="/admin/workflows" color="info" perm="admin:catalogs:read"/>
+                <AdminCard title="Plantillas" desc="Constructor de formularios dinámicos" icon={FileText} href="/admin/forms" color="info" perm="admin:catalogs:read"/>
+                <AdminCard title="Monitoreo (Grafana)" desc="Métricas de servidor y API en vivo" icon={Activity} onClick={openGrafana} color="primary" perm="admin:settings:read"/>
+                <AdminCard title="Estado y Backups" desc="Salud del sistema y respaldos" icon={Database} href="/admin/system" color="success" perm="admin:settings:manage"/>
+                <AdminCard title="Auditoría Global" desc="Registro inmutable de acciones" icon={Shield} href="/admin/audit" color="secondary" perm="admin:access"/>
+                <AdminCard title="Integración SIEM" desc="Configurar FortiSIEM y Webhooks" icon={ShieldAlert} href="/admin/integrations/siem" color="danger" perm="admin:settings:manage"/>
+            </Row>
+
+            <h5 className="fw-bold mb-4 d-flex align-items-center">
+                <Palette size={20} className="me-2 text-primary"/> Personalización y Marca (White Label)
+            </h5>
+            <Card className="border-0 shadow-sm">
+                <Card.Body className="p-4">
+                    <Form onSubmit={handleSave}>
+                        <Row className="g-4">
+                            <Col md={6}>
+                                <Form.Group>
+                                    <Form.Label className="small fw-bold">Nombre de la Aplicación</Form.Label>
+                                    <Form.Control 
+                                        value={settings.app_name} 
+                                        onChange={e => setSettings({...settings, app_name: e.target.value})}
+                                    />
+                                </Form.Group>
+                            </Col>
+                            <Col md={3}>
+                                <Form.Group>
+                                    <Form.Label className="small fw-bold">Color Primario</Form.Label>
+                                    <Form.Control 
+                                        type="color" 
+                                        value={settings.primary_color} 
+                                        onChange={e => setSettings({...settings, primary_color: e.target.value})}
+                                    />
+                                </Form.Group>
+                            </Col>
+                            <Col md={3}>
+                                <Form.Group className="d-flex flex-column h-100 justify-content-end">
+                                    <Form.Check 
+                                        type="switch"
+                                        label="Obligar 2FA global"
+                                        checked={settings.require_2fa_all_users}
+                                        onChange={e => setSettings({...settings, require_2fa_all_users: e.target.checked})}
+                                    />
+                                </Form.Group>
+                            </Col>
+                            <Col md={12}>
+                                <Form.Group>
+                                    <Form.Label className="small fw-bold">Texto de Pie de Página (Login)</Form.Label>
+                                    <Form.Control 
+                                        value={settings.login_footer_text} 
+                                        onChange={e => setSettings({...settings, login_footer_text: e.target.value})}
+                                    />
+                                </Form.Group>
+                            </Col>
+                        </Row>
+                        <div className="mt-4 text-end">
+                            <Button variant="primary" type="submit" disabled={saving} className="px-4 fw-bold">
+                                {saving ? <Spinner animation="border" size="sm" className="me-2"/> : <Settings size={18} className="me-2"/>}
+                                GUARDAR CONFIGURACIÓN GLOBAL
+                            </Button>
+                        </div>
+                    </Form>
+                </Card.Body>
+            </Card>
+
+            <h5 className="fw-bold mb-4 mt-5 d-flex align-items-center">
+                <Globe size={20} className="me-2 text-primary"/> Configuración de Correo (SMTP - Previsión)
+            </h5>
+            <Card className="border-0 shadow-sm mb-5">
+                <Card.Body className="p-4">
+                    <p className="small text-muted mb-4">
+                        Configure el servidor de correo para futuras automatizaciones, alertas de SLA y notificaciones por email.
+                    </p>
+                    <Form onSubmit={handleSave}>
+                        <Row className="g-4">
+                            <Col md={8}>
+                                <Form.Group>
+                                    <Form.Label className="small fw-bold">Servidor SMTP (Host)</Form.Label>
+                                    <Form.Control 
+                                        placeholder="ej: smtp.gmail.com"
+                                        value={settings.smtp_host || ''} 
+                                        onChange={e => setSettings({...settings, smtp_host: e.target.value})}
+                                    />
+                                </Form.Group>
+                            </Col>
+                            <Col md={4}>
+                                <Form.Group>
+                                    <Form.Label className="small fw-bold">Puerto</Form.Label>
+                                    <Form.Control 
+                                        type="number"
+                                        placeholder="587"
+                                        value={settings.smtp_port || ''} 
+                                        onChange={e => setSettings({...settings, smtp_port: parseInt(e.target.value)})}
+                                    />
+                                </Form.Group>
+                            </Col>
+                            <Col md={6}>
+                                <Form.Group>
+                                    <Form.Label className="small fw-bold">Usuario / Email</Form.Label>
+                                    <Form.Control 
+                                        value={settings.smtp_user || ''} 
+                                        onChange={e => setSettings({...settings, smtp_user: e.target.value})}
+                                    />
+                                </Form.Group>
+                            </Col>
+                            <Col md={6}>
+                                <Form.Group>
+                                    <Form.Label className="small fw-bold">Contraseña</Form.Label>
+                                    <Form.Control 
+                                        type="password"
+                                        value={settings.smtp_password || ''} 
+                                        onChange={e => setSettings({...settings, smtp_password: e.target.value})}
+                                    />
+                                    <Form.Text className="text-muted" style={{ fontSize: '10px' }}>
+                                        <Shield size={10} className="me-1 text-warning"/> 
+                                        Si usas 2FA (Gmail/Outlook), usa una <strong>Contraseña de Aplicación</strong>.
+                                    </Form.Text>
+                                </Form.Group>
+                            </Col>
+                            <Col md={6}>
+                                <Form.Group>
+                                    <Form.Label className="small fw-bold">Email Remitente (From)</Form.Label>
+                                    <Form.Control 
+                                        placeholder="no-reply@empresa.com"
+                                        value={settings.smtp_from_email || ''} 
+                                        onChange={e => setSettings({...settings, smtp_from_email: e.target.value})}
+                                    />
+                                </Form.Group>
+                            </Col>
+                            <Col md={3}>
+                                <Form.Group className="d-flex flex-column h-100 justify-content-end">
+                                    <Form.Check 
+                                        type="switch"
+                                        label="Usar TLS"
+                                        checked={settings.smtp_use_tls}
+                                        onChange={e => setSettings({...settings, smtp_use_tls: e.target.checked})}
+                                    />
+                                </Form.Group>
+                            </Col>
+                            <Col md={3}>
+                                <Form.Group className="d-flex flex-column h-100 justify-content-end">
+                                    <Form.Check 
+                                        type="switch"
+                                        label="Usar SSL"
+                                        checked={settings.smtp_use_ssl}
+                                        onChange={e => setSettings({...settings, smtp_use_ssl: e.target.checked})}
+                                    />
+                                </Form.Group>
+                            </Col>
+                        </Row>
+                        <div className="mt-4 text-end">
+                            <Button variant="outline-primary" type="submit" disabled={saving} className="px-4 fw-bold">
+                                {saving ? <Spinner animation="border" size="sm" className="me-2"/> : <Save size={18} className="me-2"/>}
+                                GUARDAR AJUSTES DE CORREO
+                            </Button>
+                        </div>
+                    </Form>
+                </Card.Body>
+            </Card>
+        </Layout>
+    );
+};
+
+export default AdminDashboard;

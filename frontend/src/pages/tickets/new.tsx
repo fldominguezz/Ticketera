@@ -5,6 +5,8 @@ import { Container, Card, Form, Button, Row, Col, Spinner, Alert, ListGroup, Bad
 import { Save, ArrowLeft, AlertCircle, Monitor, Search, X, MapPin } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
+import api from '../../lib/api';
+import RichTextEditor from '../../components/common/RichTextEditor';
 
 export default function NewTicketPage() {
   const { t } = useTranslation();
@@ -17,6 +19,8 @@ export default function NewTicketPage() {
   const [error, setError] = useState<string | null>(null);
   const [ticketTypes, setTicketTypes] = useState<any[]>([]);
   const [groups, setGroups] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [attachmentIds, setAttachmentIds] = useState<string[]>([]);
   
   // Asset search states
   const [assets, setAssets] = useState<any[]>([]);
@@ -71,18 +75,21 @@ export default function NewTicketPage() {
         return;
       }
 
-      const [typesRes, groupsRes, assetsRes] = await Promise.all([
+      const [typesRes, groupsRes, assetsRes, usersRes] = await Promise.all([
         fetch('/api/v1/ticket-types', { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch('/api/v1/groups', { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch('/api/v1/assets?limit=500', { headers: { 'Authorization': `Bearer ${token}` } })
+        fetch('/api/v1/assets?limit=500', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('/api/v1/users', { headers: { 'Authorization': `Bearer ${token}` } })
       ]);
 
-      if (typesRes.ok && groupsRes.ok && assetsRes.ok) {
+      if (typesRes.ok && groupsRes.ok && assetsRes.ok && usersRes.ok) {
         const typesData = await typesRes.json();
         const groupsData = await groupsRes.json();
         const assetsData = await assetsRes.json();
+        const usersData = await usersRes.json();
         
         setAssets(Array.isArray(assetsData) ? assetsData : []);
+        setUsers(Array.isArray(usersData) ? usersData : []);
         
         const filteredTypes = Array.isArray(typesData) 
           ? typesData.filter((t: any) => t.name !== 'FortiSIEM')
@@ -142,6 +149,7 @@ export default function NewTicketPage() {
         group_id: formData.group_id || null,
         asset_id: formData.asset_id || null,
         parent_ticket_id: null,
+        attachment_ids: attachmentIds
       };
 
       const res = await fetch('/api/v1/tickets', {
@@ -324,13 +332,12 @@ export default function NewTicketPage() {
               <Card className="shadow-sm border-0 mb-4">
                 <Card.Body className="p-4">
                   <Form.Group>
-                    <Form.Label className="small fw-bold text-uppercase text-muted">Descripción del Incidente *</Form.Label>
-                    <Form.Control 
-                      as="textarea" rows={6} 
-                      placeholder="Detalle aquí toda la información técnica relevante..."
+                    <Form.Label className="small fw-bold text-uppercase text-muted mb-3">Descripción Detallada del Incidente *</Form.Label>
+                    <RichTextEditor 
                       value={formData.description}
-                      onChange={e => setFormData({ ...formData, description: e.target.value })}
-                      required
+                      onChange={content => setFormData({ ...formData, description: content })}
+                      placeholder="Detalle aquí toda la información técnica... (Usa @ para mencionar)"
+                      users={users}
                     />
                   </Form.Group>
                 </Card.Body>

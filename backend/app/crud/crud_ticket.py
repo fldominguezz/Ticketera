@@ -1,108 +1,177 @@
-from typing import Optional, List
+from typing import Optional, List, Any, Dict, Annotated
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from uuid import UUID
 from datetime import datetime
+import logging
 
-from app.db.models.ticket import Ticket, TicketComment, TicketSubtask
-from app.schemas.ticket import TicketCreate, TicketUpdate, TicketCommentCreate, TicketSubtaskCreate, TicketSubtaskUpdate
+from app.db.models.ticket import Ticket, TicketComment, TicketSubtask, TicketWatcher
+from app.db.models.user import User # Importar User para type hinting
+from app.schemas.ticket import (
+    TicketCreate, TicketUpdate, TicketCommentCreate, TicketSubtaskCreate, 
+    TicketSubtaskUpdate, TicketRelation, TicketSubtask, TicketRelationCreate
+)
 from app.services.sla_service import sla_service
+from app.crud.crud_audit import audit_log
+from app.services.group_service import group_service # Importar group_service
+from app.core.scopes import apply_scope_to_query # Importar funciones de scopes
+
+logger = logging.getLogger(__name__)
 
 class CRUDTicket:
-    async def get(self, db: AsyncSession, id: UUID) -> Optional[Ticket]:
+    async def get(self, db: AsyncSession, id: UUID, current_user: User, permission_key: str) -> Optional[Ticket]:
         from sqlalchemy.orm import selectinload
-        result = await db.execute(
-            select(Ticket)
-            .filter(Ticket.id == id, Ticket.deleted_at == None)
-            .options(
+        
+        query = select(Ticket).filter(Ticket.id == id, Ticket.deleted_at == None)
+
+        if not current_user.is_superuser:
+            allowed_ids = None
+            if ":group" in permission_key:
+                allowed_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
+                if not allowed_ids:
+                    return None # No se permite ver tickets si no hay grupos accesibles
+            
+            query = apply_scope_to_query(
+                query=query, 
+                user=current_user, 
+                permission_key=permission_key, 
+                entity_model=Ticket, 
+                allowed_group_ids=allowed_ids,
+                target_group_field_name="owner_group_id",
+                target_user_field_name="created_by_id"
+            )
+        
+        query = query.options(
                 selectinload(Ticket.ticket_type),
                 selectinload(Ticket.group),
-                selectinload(Ticket.assigned_to)
+                selectinload(Ticket.assigned_to),
+                selectinload(Ticket.watchers).selectinload(TicketWatcher.user)
             )
-        )
+        result = await db.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_multi(self, db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Ticket]:
+    async def get_multi(
+        self, 
+        db: AsyncSession, 
+        current_user: User, 
+        permission_key: str, 
+        skip: int = 0, 
+        limit: int = 100,
+        q: Optional[str] = None,
+        status: Optional[str] = None,
+        priority: Optional[str] = None,
+        group_id: Optional[UUID] = None,
+        asset_id: Optional[UUID] = None,
+    ) -> List[Ticket]:
+        from sqlalchemy.orm import selectinload
+        from sqlalchemy import or_
+        
+        query = select(Ticket).filter(Ticket.deleted_at == None)
+
+        if q:
+            query = query.filter(
+                or_(
+                    Ticket.title.ilike(f"%{q}%"),
+                    Ticket.description.ilike(f"%{q}%")
+                )
+            )
+        
+        if status:
+            query = query.filter(Ticket.status == status)
+        if priority:
+            query = query.filter(Ticket.priority == priority)
+        if group_id:
+            query = query.filter(Ticket.group_id == group_id)
+        if asset_id:
+            query = query.filter(Ticket.asset_id == asset_id)
+            
+        if not current_user.is_superuser:
+            allowed_ids = None
+            if ":group" in permission_key:
+                allowed_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
+                if not allowed_ids:
+                    return [] # No se permite ver tickets si no hay grupos accesibles
+            
+            query = apply_scope_to_query(
+                query=query, 
+                user=current_user, 
+                permission_key=permission_key, 
+                entity_model=Ticket, 
+                allowed_group_ids=allowed_ids,
+                target_group_field_name="owner_group_id",
+                target_user_field_name="created_by_id"
+            )
+
         result = await db.execute(
-            select(Ticket)
-            .filter(Ticket.deleted_at == None)
+            query
             .order_by(Ticket.created_at.desc())
             .offset(skip)
             .limit(limit)
         )
         return result.scalars().all()
 
-    async def create(self, db: AsyncSession, obj_in: TicketCreate, created_by_id: UUID) -> Ticket:
-        db_obj = Ticket(**obj_in.model_dump(), created_by_id=created_by_id)
+    async def create(self, db: AsyncSession, obj_in: TicketCreate, created_by_id: UUID, owner_group_id: UUID) -> Ticket:
+        data = obj_in.model_dump()
+        attachment_ids = data.pop("attachment_ids", [])
+        
+        db_obj = Ticket(**data, created_by_id=created_by_id, owner_group_id=owner_group_id)
         if not db_obj.sla_deadline:
             db_obj.sla_deadline = await sla_service.calculate_deadline(db, db_obj.priority)
         db.add(db_obj)
+        await db.flush()
+        
+        # Auditoría inicial
+        await audit_log.create_log(db, user_id=created_by_id, event_type="ticket_created", target_type="ticket", target_id=db_obj.id, details={"title": db_obj.title})
+
+        if attachment_ids:
+            from app.db.models.notifications import Attachment
+            from sqlalchemy import update as sa_update
+            await db.execute(sa_update(Attachment).where(Attachment.id.in_(attachment_ids)).values(ticket_id=db_obj.id))
+            
         await db.commit()
-        # Refrescar todos los campos escalares para evitar MissingGreenlet al serializar
-        await db.refresh(db_obj, attribute_names=[
-            "id", "title", "description", "status", "priority", 
-            "ticket_type_id", "group_id", "asset_id", "created_by_id",
-            "assigned_to_id", "parent_ticket_id", "sla_deadline", 
-            "extra_data", "created_at", "updated_at"
-        ])
+        await db.refresh(db_obj)
         return db_obj
 
-    async def update(self, db: AsyncSession, db_obj: Ticket, obj_in: TicketUpdate) -> Ticket:
-        old_priority = db_obj.priority
+    async def update(self, db: AsyncSession, db_obj: Ticket, obj_in: TicketUpdate, current_user_id: Optional[UUID] = None) -> Ticket:
         old_status = db_obj.status
+        old_assignee = db_obj.assigned_to_id
         
         update_data = obj_in.model_dump(exclude_unset=True)
         for var, value in update_data.items():
             setattr(db_obj, var, value)
         
-        # Unificación de Criterio: Cerrar SLA al resolver
-        if "status" in update_data:
-            new_status = update_data["status"]
-            if new_status in ["resolved", "closed"] and old_status not in ["resolved", "closed"]:
+        # Registrar cambios en auditoría
+        audit_details = {}
+        if "status" in update_data and update_data["status"] != old_status:
+            audit_details["old_status"] = old_status
+            audit_details["new_status"] = update_data["status"]
+            if update_data["status"] in ["resolved", "closed"]:
                 db_obj.closed_at = datetime.utcnow()
-            elif new_status not in ["resolved", "closed"] and old_status in ["resolved", "closed"]:
-                db_obj.closed_at = None # Reabierto
+            else:
+                db_obj.closed_at = None
         
-        if obj_in.priority and obj_in.priority != old_priority:
-            db_obj.sla_deadline = await sla_service.calculate_deadline(db, db_obj.priority, db_obj.created_at)
-        
+        if "assigned_to_id" in update_data and update_data["assigned_to_id"] != old_assignee:
+            audit_details["old_assignee"] = str(old_assignee) if old_assignee else None
+            audit_details["new_assignee"] = str(update_data["assigned_to_id"]) if update_data["assigned_to_id"] else None
+
+        if audit_details and current_user_id:
+            await audit_log.create_log(db, user_id=current_user_id, event_type="ticket_updated", target_type="ticket", target_id=db_obj.id, details=audit_details)
+
         db.add(db_obj)
         await db.commit()
-        await db.refresh(db_obj, attribute_names=[
-            "id", "title", "description", "status", "priority", 
-            "ticket_type_id", "group_id", "asset_id", "created_by_id",
-            "assigned_to_id", "parent_ticket_id", "sla_deadline", 
-            "extra_data", "created_at", "updated_at"
-        ])
+        await db.refresh(db_obj)
         return db_obj
-
-    async def bulk_update(self, db: AsyncSession, ticket_ids: List[UUID], status: Optional[str] = None, priority: Optional[str] = None, assigned_to_id: Optional[UUID] = None) -> int:
-        from sqlalchemy import update as sqlalchemy_update
-        query = sqlalchemy_update(Ticket).where(Ticket.id.in_(ticket_ids))
-        values = {}
-        if status: 
-            values["status"] = status
-            if status in ["resolved", "closed"]:
-                values["closed_at"] = datetime.utcnow()
-        if priority: values["priority"] = priority
-        if assigned_to_id: values["assigned_to_id"] = assigned_to_id
-        
-        if not values: return 0
-        
-        result = await db.execute(query.values(**values))
-        await db.commit()
-        return result.rowcount
 
     async def create_comment(self, db: AsyncSession, ticket_id: UUID, user_id: UUID, obj_in: TicketCommentCreate) -> TicketComment:
         db_obj = TicketComment(**obj_in.model_dump(), ticket_id=ticket_id, user_id=user_id)
         db.add(db_obj)
-        await db.commit()
         
-        # Load user for response
+        # Auditoría de comentario
+        await audit_log.create_log(db, user_id=user_id, event_type="comment_added", target_type="ticket", target_id=ticket_id, details={"is_internal": db_obj.is_internal})
+        
+        await db.commit()
         from sqlalchemy.orm import selectinload
-        result = await db.execute(
-            select(TicketComment).where(TicketComment.id == db_obj.id).options(selectinload(TicketComment.user))
-        )
+        result = await db.execute(select(TicketComment).where(TicketComment.id == db_obj.id).options(selectinload(TicketComment.user)))
         return result.scalar_one()
 
     async def get_comments(self, db: AsyncSession, ticket_id: UUID, include_internal: bool = False) -> List[TicketComment]:
@@ -112,41 +181,108 @@ class CRUDTicket:
             query = query.filter(TicketComment.is_internal == False)
         result = await db.execute(query.order_by(TicketComment.created_at.asc()))
         comments = result.scalars().all()
-        for comment in comments:
-            if comment.user:
-                comment.user_name = f"{comment.user.first_name} {comment.user.last_name}"
-            else:
-                comment.user_name = "User"
+        for c in comments:
+            c.user_name = f"{c.user.username}" if c.user else "System"
         return comments
 
-    async def get_subtasks(self, db: AsyncSession, ticket_id: UUID) -> List[TicketSubtask]:
-        result = await db.execute(select(TicketSubtask).filter(TicketSubtask.ticket_id == ticket_id).order_by(TicketSubtask.created_at.asc()))
+    async def get_watchers(self, db: AsyncSession, ticket_id: UUID) -> List[dict]:
+        from app.db.models.user import User
+        result = await db.execute(
+            select(TicketWatcher, User.username)
+            .join(User, TicketWatcher.user_id == User.id)
+            .filter(TicketWatcher.ticket_id == ticket_id)
+        )
+        return [{"id": row[0].id, "user_id": row[0].user_id, "username": row[1]} for row in result.all()]
+
+    async def add_watcher(self, db: AsyncSession, ticket_id: UUID, user_id: UUID) -> bool:
+        query = select(TicketWatcher).filter(TicketWatcher.ticket_id == ticket_id, TicketWatcher.user_id == user_id)
+        res = await db.execute(query)
+        if res.scalar_one_or_none():
+            return False
+        
+        db.add(TicketWatcher(ticket_id=ticket_id, user_id=user_id))
+        await db.commit()
+        return True
+
+    async def remove_watcher(self, db: AsyncSession, ticket_id: UUID, user_id: UUID) -> None:
+        from sqlalchemy import delete
+        await db.execute(delete(TicketWatcher).where(TicketWatcher.ticket_id == ticket_id, TicketWatcher.user_id == user_id))
+        await db.commit()
+
+    async def get_relations(self, db: AsyncSession, ticket_id: UUID) -> List["TicketRelation"]:
+        from app.db.models.ticket import TicketRelation as TicketRelationModel
+        result = await db.execute(
+            select(TicketRelationModel).filter(
+                (TicketRelationModel.source_ticket_id == ticket_id) | 
+                (TicketRelationModel.target_ticket_id == ticket_id)
+            )
+        )
         return result.scalars().all()
 
-    async def create_subtask(self, db: AsyncSession, ticket_id: UUID, obj_in: TicketSubtaskCreate) -> TicketSubtask:
-        db_obj = TicketSubtask(**obj_in.model_dump(), ticket_id=ticket_id)
+    async def create_relation(self, db: AsyncSession, source_ticket_id: UUID, obj_in: "TicketRelationCreate") -> "TicketRelation":
+        from app.db.models.ticket import TicketRelation as TicketRelationModel
+        db_obj = TicketRelationModel(
+            source_ticket_id=source_ticket_id,
+            target_ticket_id=obj_in.target_ticket_id,
+            relation_type=obj_in.relation_type
+        )
         db.add(db_obj)
         await db.commit()
         await db.refresh(db_obj)
         return db_obj
 
-    async def update_subtask(self, db: AsyncSession, subtask_id: UUID, obj_in: TicketSubtaskUpdate) -> Optional[TicketSubtask]:
-        result = await db.execute(select(TicketSubtask).filter(TicketSubtask.id == subtask_id))
+    async def get_subtasks(self, db: AsyncSession, ticket_id: UUID) -> List["TicketSubtask"]:
+        from app.db.models.ticket import TicketSubtask as TicketSubtaskModel
+        result = await db.execute(
+            select(TicketSubtaskModel)
+            .filter(TicketSubtaskModel.ticket_id == ticket_id)
+            .order_by(TicketSubtaskModel.created_at.asc())
+        )
+        return result.scalars().all()
+
+    async def create_subtask(self, db: AsyncSession, ticket_id: UUID, obj_in: "TicketSubtaskCreate") -> "TicketSubtask":
+        from app.db.models.ticket import TicketSubtask as TicketSubtaskModel
+        db_obj = TicketSubtaskModel(**obj_in.model_dump(), ticket_id=ticket_id)
+        db.add(db_obj)
+        await db.commit()
+        await db.refresh(db_obj)
+        return db_obj
+
+    async def update_subtask(self, db: AsyncSession, subtask_id: UUID, obj_in: "TicketSubtaskUpdate") -> Optional["TicketSubtask"]:
+        from app.db.models.ticket import TicketSubtask as TicketSubtaskModel
+        result = await db.execute(select(TicketSubtaskModel).filter(TicketSubtaskModel.id == subtask_id))
         db_obj = result.scalar_one_or_none()
-        if not db_obj: return None
-        for var, value in obj_in.model_dump(exclude_unset=True).items():
+        if not db_obj:
+            return None
+        
+        update_data = obj_in.model_dump(exclude_unset=True)
+        for var, value in update_data.items():
             setattr(db_obj, var, value)
+        
         db.add(db_obj)
         await db.commit()
         await db.refresh(db_obj)
         return db_obj
 
     async def delete_subtask(self, db: AsyncSession, subtask_id: UUID) -> bool:
-        result = await db.execute(select(TicketSubtask).filter(TicketSubtask.id == subtask_id))
-        db_obj = result.scalar_one_or_none()
-        if not db_obj: return False
-        await db.delete(db_obj)
+        from app.db.models.ticket import TicketSubtask as TicketSubtaskModel
+        from sqlalchemy import delete
+        result = await db.execute(delete(TicketSubtaskModel).where(TicketSubtaskModel.id == subtask_id))
         await db.commit()
-        return True
+        return result.rowcount > 0
+
+    async def bulk_update(self, db: AsyncSession, ticket_ids: List[UUID], **kwargs) -> int:
+        from sqlalchemy import update as sa_update
+        update_data = {k: v for k, v in kwargs.items() if v is not None}
+        if not update_data:
+            return 0
+        
+        result = await db.execute(
+            sa_update(Ticket)
+            .where(Ticket.id.in_(ticket_ids))
+            .values(**update_data)
+        )
+        await db.commit()
+        return result.rowcount
 
 ticket = CRUDTicket()

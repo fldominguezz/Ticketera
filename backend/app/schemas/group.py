@@ -7,15 +7,16 @@ class GroupBase(BaseModel):
     name: str
     parent_id: Optional[UUID] = None
     description: Optional[str] = None
-    hidden_nav_items: List[str] = []
+    dashboard_layout: Optional[List[dict]] = []
 
 class GroupCreate(GroupBase):
     pass
 
-class GroupUpdate(GroupBase):
+class GroupUpdate(BaseModel):
     name: Optional[str] = None
+    parent_id: Optional[UUID] = None
     description: Optional[str] = None
-    hidden_nav_items: Optional[List[str]] = None
+    dashboard_layout: Optional[List[dict]] = None
 
 class GroupInDBBase(GroupBase):
     id: UUID

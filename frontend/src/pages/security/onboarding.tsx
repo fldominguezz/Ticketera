@@ -29,7 +29,7 @@ export default function SecurityOnboardingPage() {
     const needs2FAEnrollment = !!((user.enroll_2fa_mandatory || user.reset_2fa_next_login) && !user.is_2fa_enabled);
 
     if (!needsPasswordChange && !needs2FAEnrollment) {
-      router.push('/');
+      router.replace('/');
     } else if (!needsPasswordChange) {
       setStep(2);
     }

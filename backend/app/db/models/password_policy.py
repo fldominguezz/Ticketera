@@ -20,6 +20,7 @@ class PasswordPolicy(Base):
     requires_special_char = Column(Boolean, default=True, nullable=False)
     # Expiration in days. If null, passwords do not expire.
     expire_days = Column(Integer, nullable=True)
+    enforce_2fa_all = Column(Boolean, default=True, nullable=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

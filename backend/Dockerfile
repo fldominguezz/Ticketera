@@ -1,30 +1,51 @@
-# Usa una imagen base de Python
-FROM python:3.9-slim-buster
+# Etapa 1: Builder (Compilación)
+FROM python:3.11-slim as builder
 
-# Establece el directorio de trabajo dentro del contenedor
 WORKDIR /app
 
-# Establece el PYTHONPATH para que Python pueda encontrar el módulo 'app'
-ENV PYTHONPATH /app
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
+    python3-dev \
+    libldap2-dev \
+    libsasl2-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copia el archivo de requisitos e instala las dependencias
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
 COPY requirements.txt .
-RUN pip install --no-cache-dir --force-reinstall -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Copia los archivos de Alembic explícitamente
+# Etapa 2: Runner
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Instalamos libldap-common y libsasl2-2 que son más estables entre versiones de Debian
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    libldap-common \
+    libsasl2-2 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+ENV PYTHONPATH=/app
+
 COPY alembic.ini .
 COPY alembic alembic
-
-# Copia el resto del código de la aplicación
+COPY scripts/ /app/scripts/
 COPY . .
 
-# Copia el entrypoint y lo hace ejecutable
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-# Expone el puerto en el que la aplicación FastAPI se ejecutará
+RUN addgroup --system appgroup && adduser --system --group appuser
+USER appuser
+
 EXPOSE 8000
 
-# Establece el entrypoint y el comando por defecto
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["gunicorn", "app.main:app", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]

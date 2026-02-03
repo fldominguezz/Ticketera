@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 
-import { Container, Breadcrumb, Button, Alert, Spinner } from 'react-bootstrap';
+import { Container, Breadcrumb, Button, Alert, Spinner, Modal } from 'react-bootstrap';
 import TicketDetail from '../../components/tickets/TicketDetail';
 import Layout from '../../components/Layout';
 import { ChevronLeft } from 'lucide-react';
@@ -266,10 +266,10 @@ export default function TicketPage() {
     <Layout title={ticket?.title ? `Ticket: ${ticket.title}` : 'Ticket'}>
       <Container fluid className="px-0">
         <div className="mb-4 d-flex align-items-center">
-          <Button variant="link" className="text-dark p-0 me-3" onClick={() => router.push('/tickets')}>
+          <Button variant="link" className="p-0 me-3 text-main" onClick={() => router.push('/tickets')}>
             <ChevronLeft size={24} />
           </Button>
-          <Breadcrumb className="mb-0">
+          <Breadcrumb className="mb-0 custom-breadcrumb">
             <Breadcrumb.Item href="/tickets">Tickets</Breadcrumb.Item>
             <Breadcrumb.Item active>#{ticket.id?.substring(0,8)}</Breadcrumb.Item>
           </Breadcrumb>
@@ -296,6 +296,11 @@ export default function TicketPage() {
           onDeleteTicket={handleDeleteTicket}
         />
       </Container>
+      <style jsx global>{`
+        .text-main { color: var(--text-main) !important; }
+        .custom-breadcrumb .breadcrumb-item a { color: var(--primary) !important; text-decoration: none; }
+        .custom-breadcrumb .breadcrumb-item.active { color: var(--text-muted) !important; }
+      `}</style>
     </Layout>
   );
 }

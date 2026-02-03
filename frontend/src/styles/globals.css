@@ -1,95 +1,160 @@
-/* TICKETRA SOC - GLOBAL THEME SYSTEM */
-
 :root {
-  --transition-speed: 0.25s;
-}
-
-/* VARIABLES POR TEMA */
-[data-bs-theme='dark'] {
-  --body-bg: #05070a;
-  --card-bg: #0c1016;
-  --sidebar-bg: #0a0d12;
-  --topbar-bg: #0c1016;
-  --text-main: #ffffff;
-  --text-muted: #8a8f98;
-  --border-color: rgba(255, 255, 255, 0.08);
-  --table-hover: rgba(255, 255, 255, 0.02);
-  --input-bg: #0a0d12;
-}
-
-[data-bs-theme='light'] {
-  --body-bg: #f0f2f5;
-  --card-bg: #ffffff;
-  --sidebar-bg: #ffffff;
-  --topbar-bg: #ffffff;
-  --text-main: #1a1f26;
+  /* LIGHT MODE - ELEGANT & CLEAN */
+  --bg-app: #f1f5f9;
+  --bg-surface: #f8fafc;
+  --bg-surface-muted: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-input: #ffffff;
+  --bg-popover: #ffffff;
+  
+  --text-main: #0f172a;
   --text-muted: #64748b;
-  --border-color: rgba(0, 0, 0, 0.08);
-  --table-hover: rgba(0, 0, 0, 0.02);
-  --input-bg: #ffffff;
+  --text-inverse: #ffffff;
+  
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+  
+  --primary: #2563eb;
+  --primary-rgb: 37, 99, 235;
+  --primary-hover: #1d4ed8;
+  --primary-muted: rgba(37, 99, 235, 0.1);
+  
+  --ring: rgba(37, 99, 235, 0.2);
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+
+  /* Mapping Bootstrap Tokens to Theme */
+  --bs-body-bg: var(--bg-app);
+  --bs-body-color: var(--text-main);
+  --bs-primary: var(--primary);
+  --bs-primary-rgb: var(--primary-rgb);
+  --bs-emphasis-color: var(--text-main);
+  --bs-secondary-color: var(--text-muted);
+  --bs-tertiary-bg: var(--bg-surface);
+  --bs-border-color: var(--border-subtle);
 }
 
-/* REGLAS GLOBALES OBLIGATORIAS */
+[data-theme='dark'] {
+  /* DARK MODE - DEEP & CONTRASTED */
+  --bg-app: #020617;
+  --bg-surface: #0f172a;
+  --bg-surface-muted: #1e293b;
+  --bg-card: #1e293b;
+  --bg-input: #0f172a;
+  --bg-popover: #1e293b;
+  
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --text-inverse: #0f172a;
+  
+  --border-subtle: #334155;
+  --border-strong: #475569;
+  
+  --primary: #3b82f6;
+  --primary-rgb: 59, 130, 246;
+  --primary-hover: #60a5fa;
+  --primary-muted: rgba(59, 130, 246, 0.15);
+  
+  --ring: rgba(59, 130, 246, 0.3);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='soc'] {
+  /* SOC SPECIAL MODE - CYBER TECH */
+  --bg-app: #020617;
+  --bg-surface: #0f172a;
+  --bg-surface-muted: rgba(56, 189, 248, 0.05);
+  --bg-card: #0f172a;
+  --bg-input: #020617;
+  --bg-popover: #1e293b;
+  
+  --text-main: #38bdf8;
+  --text-muted: #7dd3fc;
+  --text-inverse: #020617;
+  
+  --border-subtle: rgba(56, 189, 248, 0.2);
+  --border-strong: #38bdf8;
+  
+  --primary: #38bdf8;
+  --primary-rgb: 56, 189, 248;
+  --primary-hover: #7dd3fc;
+  --primary-muted: rgba(56, 189, 248, 0.1);
+  
+  --ring: rgba(56, 189, 248, 0.4);
+  --shadow: 0 0 15px rgba(56, 189, 248, 0.1);
+}
+
+/* GLOBAL RESET & FORCE THEME */
 html, body {
-  background-color: var(--body-bg) !important;
+  background-color: var(--bg-app) !important;
   color: var(--text-main) !important;
-  transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
+  transition: all 0.2s ease;
   min-height: 100vh;
 }
 
-/* FORZAR CARDS Y SUS CABECERAS */
-.card {
-  background-color: var(--card-bg) !important;
-  color: var(--text-main) !important;
-  border: 1px solid var(--border-color) !important;
+/* Force text color on all nested elements */
+h1, h2, h3, h4, h5, h6, p, span, div, label, li, td, th, b, strong, small {
+  color: inherit;
 }
 
-.card-header {
-  background-color: transparent !important;
-  border-bottom: 1px solid var(--border-color) !important;
-  color: var(--text-main) !important;
-}
+/* BOOTSTRAP OVERRIDES */
+.text-muted { color: var(--text-muted) !important; }
+.text-dark { color: var(--text-main) !important; }
+.text-black { color: var(--text-main) !important; }
+.bg-white { background-color: var(--bg-card) !important; }
+.bg-light { background-color: var(--bg-surface) !important; }
 
-/* FORZAR MODALES */
-.modal-content, .modal-header, .modal-footer {
-  background-color: var(--card-bg) !important;
-  color: var(--text-main) !important;
-  border-color: var(--border-color) !important;
-}
-
-/* FORZAR TABLAS */
+/* Table Reset */
 .table {
-  --bs-table-color: var(--text-main) !important;
   --bs-table-bg: transparent !important;
-  --bs-table-border-color: var(--border-color) !important;
+  --bs-table-color: var(--text-main) !important;
+  --bs-table-border-color: var(--border-subtle) !important;
+  --bs-table-hover-bg: var(--bg-surface-muted) !important;
+  --bs-table-hover-color: var(--primary) !important;
   color: var(--text-main) !important;
 }
 
-.table thead, .table thead tr, .table thead th {
-  background-color: rgba(128, 128, 128, 0.05) !important;
+.table thead th {
+  background-color: var(--bg-surface) !important;
   color: var(--text-muted) !important;
-  border-color: var(--border-color) !important;
+  border-bottom: 2px solid var(--border-subtle) !important;
 }
 
-/* FORZAR FORMULARIOS */
+/* Card Reset */
+.card {
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+/* Input & Select Reset */
 .form-control, .form-select {
-  background-color: var(--input-bg) !important;
+  background-color: var(--bg-input) !important;
   color: var(--text-main) !important;
-  border-color: var(--border-color) !important;
+  border: 1px solid var(--border-subtle) !important;
 }
 
 .form-control:focus, .form-select:focus {
-  background-color: var(--input-bg) !important;
+  background-color: var(--bg-input) !important;
   color: var(--text-main) !important;
-  border-color: #0d6efd !important;
-  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15) !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 0.25rem var(--ring) !important;
 }
 
-/* FORZAR DROPDOWNS */
+/* Modal Reset */
+.modal-content {
+  background-color: var(--bg-card) !important;
+  color: var(--text-main) !important;
+  border: 1px solid var(--border-strong) !important;
+}
+
+.modal-header, .modal-footer {
+  border-color: var(--border-subtle) !important;
+}
+
+/* Dropdowns */
 .dropdown-menu {
-  background-color: var(--card-bg) !important;
-  border: 1px solid var(--border-color) !important;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+  background-color: var(--bg-popover) !important;
+  border: 1px solid var(--border-subtle) !important;
+  box-shadow: var(--shadow) !important;
 }
 
 .dropdown-item {
@@ -97,16 +162,66 @@ html, body {
 }
 
 .dropdown-item:hover {
-  background-color: rgba(13, 110, 253, 0.1) !important;
+  background-color: var(--bg-surface-muted) !important;
+  color: var(--primary) !important;
 }
 
-/* ELIMINAR CLASES FIJAS DE BOOTSTRAP */
-.bg-white, .bg-light { background-color: var(--card-bg) !important; }
-.text-dark { color: var(--text-main) !important; }
-.text-muted { color: var(--text-muted) !important; }
+/* Badges */
+.badge {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
 
-/* SCROLLBAR THEME */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--body-bg); }
-::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(128,128,128,0.5); }
+/* RichTextEditor Theme Support */
+.rich-text-system .ql-container {
+  background-color: var(--bg-input) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-subtle) !important;
+}
+
+.rich-text-system .ql-toolbar {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-subtle) !important;
+}
+
+.rich-text-system .ql-toolbar .ql-stroke {
+  stroke: var(--text-main) !important;
+}
+
+.rich-text-system .ql-toolbar .ql-fill {
+  fill: var(--text-main) !important;
+}
+
+.rich-text-system .ql-toolbar .ql-picker {
+  color: var(--text-main) !important;
+}
+
+.rich-text-system .ql-editor.ql-blank::before {
+  color: var(--text-muted) !important;
+}
+
+/* Admin Panel Specific Fixes */
+.admin-sidebar {
+  background-color: var(--bg-surface) !important;
+  border-right: 1px solid var(--border-subtle) !important;
+}
+
+.admin-nav-item:hover, .admin-nav-item.active {
+  background-color: var(--primary-muted) !important;
+  color: var(--primary) !important;
+}
+
+/* Scrollbar styling for Dark/SOC */
+[data-theme='dark'] ::-webkit-scrollbar, [data-theme='soc'] ::-webkit-scrollbar {
+  width: 10px;
+}
+[data-theme='dark'] ::-webkit-scrollbar-track, [data-theme='soc'] ::-webkit-scrollbar-track {
+  background: var(--bg-app);
+}
+[data-theme='dark'] ::-webkit-scrollbar-thumb, [data-theme='soc'] ::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 5px;
+}
+[data-theme='dark'] ::-webkit-scrollbar-thumb:hover, [data-theme='soc'] ::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}

@@ -4,11 +4,13 @@ import { useRouter } from 'next/router';
 import { Container, Button, Dropdown } from 'react-bootstrap';
 import { 
   LayoutDashboard, Ticket, ShieldAlert, Database, 
-  BarChart3, Settings, LogOut, User, Menu, X, Sun, Moon, FileSearch, FileText
+  BarChart3, Settings, LogOut, User, Menu, X, Sun, Moon, FileSearch, FileText,
+  Shield, Activity
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import NotificationBell from './NotificationBell';
+import Footer from './layout/Footer';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -20,43 +22,97 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
   const router = useRouter();
   const { user, logout, isSuperuser, loading } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) {
-      const isSecurityOnboarding = router.pathname === '/security/onboarding';
-      const needsPasswordChange = user.force_password_change;
-      const needs2FAEnrollment = (user.enroll_2fa_mandatory || user.reset_2fa_next_login) && !user.is_2fa_enabled;
+    setMounted(true);
+    // Aplicar tema inmediatamente desde localStorage para evitar parpadeos
+    const savedTheme = localStorage.getItem('app-theme') || 'soc';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  }, []);
 
-      if ((needsPasswordChange || needs2FAEnrollment) && !isSecurityOnboarding) {
-        router.push('/security/onboarding');
-      }
-    }
-  }, [user, loading, router.pathname]);
+  if (!mounted) return null;
+  
+  // Safe extraction of roles and permissions
+  const roles = user?.roles || [];
+  const hiddenNavItems = roles.reduce((acc: string[], r: any) => {
+    const roleItems = r.role?.hidden_nav_items || r.hidden_nav_items || [];
+    return [...acc, ...roleItems];
+  }, []) || [];
 
-  if (loading) return null; // Or a full screen spinner
-  const hiddenNavItems = user?.group?.hidden_nav_items || [];
+  // Map of nav IDs to required permissions (CAPABILITIES)
+  // Supports single string or array of strings (OR logic)
+  const permissionMap: Record<string, string | string[]> = {
+    'tickets': ['ticket:read:own', 'ticket:read:group', 'ticket:read:global'],
+    'siem-alerts': ['siem:view', 'siem:manage'],
+    'inventory': ['assets:read:group', 'assets:read:global', 'assets:read:all'],
+    'daily-report': ['partes:read:group', 'partes:read:global'],
+    'forensics': ['forensics:eml:scan', 'forensics:eml'],
+    'audit': 'audit:read',
+    'settings': 'admin:access',
+    'monitoring': 'admin:access'
+  };
+
+  const userPermissions = new Set(
+    roles.flatMap((r: any) => {
+        const perms = r.role?.permissions || r.permissions || [];
+        return perms.map((p: any) => p.key || p.name);
+    }) || []
+  );
 
   const navItems = [
     { id: 'dashboard', name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { id: 'tickets', name: 'Incident Cases', path: '/tickets', icon: Ticket },
     { id: 'siem-alerts', name: 'SIEM Events', path: '/soc/events', icon: ShieldAlert },
     { id: 'inventory', name: 'Asset Inventory', path: '/inventory', icon: Database },
-    { id: 'daily-report', name: 'Parte Informativo', path: '/reports/daily', icon: FileText },
     { id: 'forensics', name: 'EML Analytics', path: '/forensics/eml', icon: FileSearch },
-    { id: 'compliance', name: 'Compliance', path: '/reports', icon: BarChart3 },
+    { id: 'daily-report', name: 'Parte Informativo', path: '/reports/daily', icon: FileText },
+    { id: 'audit', name: 'Auditoría Global', path: '/audit', icon: Shield },
   ];
 
   const adminItems = [
     { id: 'settings', name: 'Configuración', path: '/admin', icon: Settings },
+    { id: 'monitoring', name: 'Monitoreo Grafana', path: 'external:grafana', icon: Activity },
   ];
 
   // Helper function to filter navigation items
   const filterNavItems = (items: typeof navItems) => {
-    return items.filter(item => !hiddenNavItems.includes(item.id));
+    return items.filter(item => {
+        // 1. Check manual hide (from roles)
+        if (hiddenNavItems.includes(item.id)) return false;
+        
+        // 2. Check permission requirement
+        const requiredPerm = permissionMap[item.id];
+        
+        if (requiredPerm) {
+            // Superuser bypass
+            if (user?.is_superuser) return true;
+
+            // Logic: OR (if user has ANY of the required perms)
+            if (Array.isArray(requiredPerm)) {
+                const hasAny = requiredPerm.some(p => userPermissions.has(p));
+                if (!hasAny) return false;
+            } else {
+                if (!userPermissions.has(requiredPerm)) return false;
+            }
+        }
+        
+        return true;
+    });
   };
 
   const visibleNavItems = filterNavItems(navItems);
   const visibleAdminItems = filterNavItems(adminItems);
+  const hasAdminAccess = user?.is_superuser || userPermissions.has('admin:access');
+
+  const handleNavClick = (path: string) => {
+    if (path === 'external:grafana') {
+      const host = window.location.hostname;
+      window.open(`http://${host}:3002`, '_blank');
+    } else {
+      router.push(path);
+    }
+  };
 
   const NavItem = ({ item, isActive }: { item: typeof navItems[0], isActive: boolean }) => (
     <div 
@@ -65,8 +121,8 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
       tabIndex={0}
       aria-current={isActive ? 'page' : undefined}
       className={`nav-item-container px-3 py-2 d-flex align-items-center gap-3 transition-all ${isActive ? 'active-nav' : ''}`} 
-      onClick={() => router.push(item.path)}
-      onKeyDown={(e) => e.key === 'Enter' && router.push(item.path)}
+      onClick={() => handleNavClick(item.path)}
+      onKeyDown={(e) => e.key === 'Enter' && handleNavClick(item.path)}
     >
       <div className={`nav-icon-wrapper d-flex align-items-center justify-content-center ${isActive ? 'text-primary' : 'text-muted'}`}>
         <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
@@ -95,7 +151,7 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
             ))}
           </div>
 
-          {isSuperuser && (
+          {hasAdminAccess && (
             <div className="nav-group">
               {sidebarOpen && <div className="nav-label px-4 x-small fw-bold text-muted mb-2 text-uppercase opacity-50 letter-spacing-1">Administración</div>}
               {visibleAdminItems.map((item) => (
@@ -140,7 +196,8 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
             </Dropdown>
           </div>
         </header>
-        <div className="p-4">{children}</div>
+        <div className="p-4 flex-grow-1">{children}</div>
+        <Footer />
       </main>
 
       <style jsx>{`
@@ -148,7 +205,7 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
           position: fixed; left: 0; top: 0; bottom: 0;
           z-index: 1000; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           display: flex; flex-direction: column;
-          background-color: var(--sidebar-bg);
+          background-color: var(--bg-surface);
           border-right: 1px solid var(--border-color);
         }
         .sidebar.open { width: 260px; }
@@ -156,7 +213,7 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
 
         .topbar {
           height: 64px; position: sticky; top: 0; z-index: 900;
-          background-color: var(--topbar-bg);
+          background-color: var(--bg-surface);
           border-bottom: 1px solid var(--border-color);
           backdrop-filter: blur(8px);
         }
@@ -164,7 +221,8 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
         .main-content {
           transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           min-height: 100vh;
-          background-color: var(--body-bg);
+          background-color: var(--bg-app) !important;
+          color: var(--text-main) !important;
         }
         .main-content.shifted { margin-left: 260px; }
         .main-content.collapsed { margin-left: 70px; }
@@ -176,19 +234,17 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
           transition: all 0.2s ease;
           margin: 0 8px;
           border-radius: 8px;
+          color: var(--text-muted);
         }
 
         .nav-item-container:hover {
-          background-color: rgba(13, 110, 253, 0.08);
-        }
-
-        .nav-item-container:hover .nav-icon-wrapper,
-        .nav-item-container:hover .nav-text {
-          color: #0d6efd !important;
+          background-color: var(--bg-surface-muted);
+          color: var(--primary);
         }
 
         .active-nav {
-          background-color: rgba(13, 110, 253, 0.12) !important;
+          background-color: rgba(var(--primary-rgb), 0.1) !important;
+          color: var(--primary) !important;
         }
 
         .active-nav::before {
@@ -198,18 +254,16 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
           top: 20%;
           height: 60%;
           width: 4px;
-          background-color: #0d6efd;
+          background-color: var(--primary);
           border-radius: 0 4px 4px 0;
         }
 
-        .nav-item-container:focus-visible {
-          outline: 2px solid #0d6efd;
-          outline-offset: -2px;
+        .nav-text {
+           color: inherit;
         }
 
         .letter-spacing-1 { letter-spacing: 1px; }
         .x-small { font-size: 10px; }
-        .hover-opacity-100:hover { opacity: 1 !important; }
         
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }

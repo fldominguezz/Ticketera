@@ -1,62 +1,80 @@
-import logging
-from typing import AsyncGenerator, Annotated, Optional, List
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-from fastapi import Depends, HTTPException, status, Request # Removed Security, OAuth2PasswordBearer, SecurityScopes
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials # Import for custom bearer scheme
-
-from sqlalchemy.future import select
-from app.db.models.iam import UserRole, Role, RolePermission, Permission
-from jose import jwt, JWTError
+from typing import AsyncGenerator, Annotated, Optional, List, Set, Literal
 from uuid import UUID
+from fastapi import Depends, HTTPException, status, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
+from jose import jwt, JWTError
+import logging
 
 from app.db.session import AsyncSessionLocal
 from app.core.config import settings
 from app.db.models import User
-from app.crud import crud_user, crud_session
-from app.crud.crud_user import user as crud_user_instance # Import the instance directly
+from app.db.models.iam import UserRole, Role, RolePermission, Permission
+from app.db.models.ticket import Ticket as TicketModel
+from app.db.models.endpoint import Endpoint as EndpointModel
+from app.db.models.notifications import Attachment as AttachmentModel
+from app.services.group_service import group_service
+
+# Custom Bearer scheme
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 logger = logging.getLogger(__name__)
 
-# Custom Bearer scheme to avoid OAuth2PasswordBearer's redirect behavior
-reusable_oauth2 = HTTPBearer(scheme_name="JWT")
+reusable_oauth2 = HTTPBearer(scheme_name="JWT", auto_error=False)
 
-async def get_crud_user() -> crud_user_instance.__class__:
+AccessLevel = Literal["read", "comment", "update", "delete", "watch", "relation", "subtask"]
+
+async def get_crud_user():
+    from app.crud.crud_user import user as crud_user_instance
     return crud_user_instance
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         yield session
 
+def get_current_user_with_scope(scope: str):
+    async def _scope_checker(
+        db: Annotated[AsyncSession, Depends(get_db)],
+        token: HTTPAuthorizationCredentials = Depends(reusable_oauth2),
+    ) -> User:
+        return await get_current_user(db, token, required_scopes=[scope])
+    return _scope_checker
+
+async def get_current_2fa_user_dep(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    token: HTTPAuthorizationCredentials = Depends(reusable_oauth2),
+) -> User:
+    return await get_current_user(db, token, required_scopes=["2fa:verify"])
+
 async def get_current_user(
     db: Annotated[AsyncSession, Depends(get_db)],
-    token: HTTPAuthorizationCredentials = Depends(reusable_oauth2), # Get token via custom scheme
-    required_scopes: List[str] = None # New argument for required scopes
+    token: Optional[HTTPAuthorizationCredentials] = Depends(reusable_oauth2),
+    required_scopes: List[str] = None
 ) -> User:
+    from app.crud import crud_session # LOCAL IMPORT
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     
-    if not token: # HTTPBearer will automatically raise HTTPException if token is missing
-        raise credentials_exception # Should not be hit if HTTPBearer works correctly
+    if not token or not token.credentials:
+        logger.warning("Missing or empty token credentials")
+        raise credentials_exception
 
     try:
         payload = jwt.decode(
             token.credentials, settings.SECRET_KEY, algorithms=[settings.ALGORITHM], options={"verify_aud": False}
         )
         user_id: str = payload.get("sub")
-        session_id: str = payload.get("sid") # Will be None for interim_token
+        session_id: str = payload.get("sid")
         token_scope_str: str = payload.get("scope", "")
         token_scopes = token_scope_str.split()
 
-        if user_id is None:
-            raise credentials_exception
+        if user_id is None: raise credentials_exception
         
-        # Manual Scope validation
         if required_scopes:
-            # Check if at least one of the required scopes is present in the token
             if not any(scope in token_scopes for scope in required_scopes):
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -64,18 +82,14 @@ async def get_current_user(
                     headers={"WWW-Authenticate": f'Bearer scope="{",".join(required_scopes)}"'},
                 )
 
-        # Handle different token types based on payload scope
         is_session_token = "session" in token_scopes
         is_security_token = any(s in token_scopes for s in ["password:change", "2fa:reset", "2fa:verify"])
 
         if is_session_token:
-            if session_id is None:
-                raise credentials_exception
+            if session_id is None: raise credentials_exception
             session = await crud_session.session.get_session_by_id(db, session_id=UUID(session_id))
-            if not session or not session.is_active:
-                raise credentials_exception
+            if not session or not session.is_active: raise credentials_exception
             
-            # Carga completa para sesión normal
             query = (
                 select(User).where(User.id == UUID(user_id))
                 .options(
@@ -85,13 +99,10 @@ async def get_current_user(
             )
             result = await db.execute(query)
             user = result.scalar_one_or_none()
-            if user is None or user.id != session.user_id:
-                raise credentials_exception
+            if user is None or user.id != session.user_id: raise credentials_exception
             return user
 
         elif is_security_token:
-            # Para tokens de seguridad, identificación para permitir onboarding
-            # Cargamos relaciones para que el esquema Pydantic no falle
             query = (
                 select(User).where(User.id == UUID(user_id))
                 .options(
@@ -101,82 +112,150 @@ async def get_current_user(
             )
             result = await db.execute(query)
             user = result.scalar_one_or_none()
-            if user is None or not user.is_active:
-                raise credentials_exception
+            if user is None or not user.is_active: raise credentials_exception
             return user
         
         raise credentials_exception
 
-    except JWTError as e:
-        logger.warning(f"JWT Decode error: {e}")
-        raise credentials_exception
-    except ValueError as e:
-        logger.warning(f"Value error during auth: {e}")
-        raise credentials_exception
     except Exception as e:
-        logger.error(f"Unexpected auth error: {e}")
+        logger.error(f"Auth error: {e}")
         raise credentials_exception
-
-# --- Helper functions to create specific user dependencies ---
-async def get_current_active_user_dep(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    token_auth: HTTPAuthorizationCredentials = Depends(reusable_oauth2)
-) -> User:
-    return await get_current_user(db, token_auth, required_scopes=["session"])
-
-async def get_current_superuser_dep(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    token_auth: HTTPAuthorizationCredentials = Depends(reusable_oauth2)
-) -> User:
-    return await get_current_user(db, token_auth, required_scopes=["session", "superuser"])
-
-def get_current_user_with_scope(scope: str):
-    async def _dep(
-        db: Annotated[AsyncSession, Depends(get_db)],
-        token_auth: HTTPAuthorizationCredentials = Depends(reusable_oauth2)
-    ) -> User:
-        return await get_current_user(db, token_auth, required_scopes=[scope])
-    return _dep
-
-async def get_current_2fa_user_dep(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    token_auth: HTTPAuthorizationCredentials = Depends(reusable_oauth2)
-) -> User:
-    return await get_current_user(db, token_auth, required_scopes=["2fa:verify"])
 
 async def get_current_active_user(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     token_auth: HTTPAuthorizationCredentials = Depends(reusable_oauth2)
 ) -> User:
-    current_user = await get_current_user(db, token_auth)
-    
-    if not current_user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
+    current_user = await get_current_user(db, token_auth, required_scopes=["session"])
+    if not current_user.is_active: raise HTTPException(status_code=400, detail="Inactive user")
     
     path = request.url.path
     exempt_paths = ["/api/v1/auth/", "/api/v1/users/me"]
-    is_exempt = any(p in path for p in exempt_paths)
-    
-    if not is_exempt:
+    if not any(p in path for p in exempt_paths):
         if current_user.force_password_change:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="SECURITY_CHANGE_PASSWORD_REQUIRED"
-            )
+            raise HTTPException(status_code=403, detail="SECURITY_CHANGE_PASSWORD_REQUIRED")
         if (current_user.enroll_2fa_mandatory or current_user.reset_2fa_next_login) and not current_user.is_2fa_enabled:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="SECURITY_2FA_SETUP_REQUIRED"
-            )
-            
+            raise HTTPException(status_code=403, detail="SECURITY_2FA_SETUP_REQUIRED")
     return current_user
 
+def require_permission(permission_key: str):
+    async def _permission_checker(
+        current_user: Annotated[User, Depends(get_current_active_user)]
+    ) -> User:
+        if current_user.is_superuser: return current_user
+        if not current_user.has_permission(permission_key):
+             raise HTTPException(status_code=403, detail=f"No tienes permiso suficiente ({permission_key})")
+        return current_user
+    return _permission_checker
+
+def require_role(allowed_roles: List[str]):
+    async def _role_checker(
+        current_user: Annotated[User, Depends(get_current_active_user)]
+    ) -> User:
+        if current_user.is_superuser: return current_user
+        user_roles: Set[str] = {user_role.role.name for user_role in current_user.roles}
+        if not any(role in allowed_roles for role in user_roles):
+            raise HTTPException(status_code=403, detail="No tienes el rol requerido")
+        return current_user
+    return _role_checker
+
 async def get_current_superuser(
-    current_user: Annotated[User, Depends(get_current_superuser_dep)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> User:
-    if not current_user.is_superuser:
-        raise HTTPException(
-            status_code=400, detail="The user doesn't have enough privileges"
-        )
+    if not current_user.is_superuser: raise HTTPException(status_code=403, detail="Solo superusuarios")
     return current_user
+
+# --- Object Level Dependencies (Ticket, Endpoint, Attachment) ---
+
+def require_ticket_permission(action: str):
+    """
+    Validates granular permissions for a specific ticket.
+    action: 'read', 'update', 'delete', 'comment', 'assign'
+    """
+    async def _ticket_permission_checker(
+        ticket_id: UUID,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        current_user: Annotated[User, Depends(get_current_active_user)],
+    ) -> TicketModel:
+        from app.crud import crud_ticket # LOCAL IMPORT
+        
+        # 1. Cargar ticket con relaciones necesarias
+        query = (
+            select(TicketModel)
+            .where(TicketModel.id == ticket_id)
+            .options(selectinload(TicketModel.group))
+        )
+        result = await db.execute(query)
+        ticket = result.scalar_one_or_none()
+        
+        if not ticket: raise HTTPException(status_code=404, detail="No encontrado")
+        
+        if current_user.is_superuser: return ticket
+
+        # Capability Mapping
+        # We assume keys like: ticket:read:global, ticket:read:group, ticket:read:own
+        
+        # 1. Check GLOBAL capability
+        if current_user.has_permission(f"ticket:{action}:global"):
+            return ticket
+            
+        # 2. Check GROUP capability
+        if current_user.has_permission(f"ticket:{action}:group"):
+            # Check if ticket is in user's group hierarchy
+            if ticket.group_id == current_user.group_id or ticket.owner_group_id == current_user.group_id:
+                return ticket
+            # Check subgroups
+            child_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
+            if ticket.group_id in child_ids or ticket.owner_group_id in child_ids:
+                return ticket
+                
+        # 3. Check ASSIGNED capability (Specific for Update/Read)
+        if current_user.has_permission(f"ticket:{action}:assigned"):
+            if ticket.assigned_to_id == current_user.id:
+                return ticket
+
+        # 4. Check OWN capability (Specific for Read/Update)
+        if current_user.has_permission(f"ticket:{action}:own"):
+            # 'own' usually means 'created by me' or 'assigned to me' for reading
+            if ticket.created_by_id == current_user.id:
+                return ticket
+            if action == 'read' and ticket.assigned_to_id == current_user.id:
+                return ticket
+
+        raise HTTPException(status_code=403, detail="No tienes acceso a este ticket (Scope Restriction)")
+    return _ticket_permission_checker
+
+def require_endpoint_permission(level: str):
+    async def _checker(
+        endpoint_id: UUID,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        current_user: Annotated[User, Depends(get_current_active_user)],
+    ) -> EndpointModel:
+        from app.crud import crud_endpoint # LOCAL IMPORT
+        if level != "create":
+            endpoint = await crud_endpoint.endpoint.get(db, id=endpoint_id)
+            if not endpoint: raise HTTPException(status_code=404, detail="No encontrado")
+            if current_user.is_superuser: return endpoint
+            user_groups = await group_service.get_all_child_group_ids(db, current_user.group_id)
+            if endpoint.group_id not in user_groups: raise HTTPException(status_code=403, detail="Fuera de jerarquía")
+            return endpoint
+        return EndpointModel(id=UUID("00000000-0000-0000-0000-000000000000"))
+    return _checker
+
+def require_attachment_permission(level: str):
+    async def _checker(
+        attachment_id: UUID,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        current_user: Annotated[User, Depends(get_current_active_user)],
+    ) -> AttachmentModel:
+        from app.crud import crud_attachment, crud_ticket # LOCAL IMPORT
+        att = await crud_attachment.attachment.get(db, id=attachment_id)
+        if not att: raise HTTPException(status_code=404, detail="No encontrado")
+        if current_user.is_superuser: return att
+        ticket = await crud_ticket.ticket.get(db, id=att.ticket_id)
+        # Re-use ticket permission logic implicitly or check here
+        # For now, simplistic hierarchy check
+        user_groups = await group_service.get_all_child_group_ids(db, current_user.group_id)
+        if ticket.group_id not in user_groups: raise HTTPException(status_code=403, detail="Fuera de jerarquía")
+        return att
+    return _checker

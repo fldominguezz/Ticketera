@@ -43,4 +43,11 @@ class CRUDDailyReport:
         await db.refresh(obj_in)
         return obj_in
 
+    async def remove(self, db: AsyncSession, *, id: UUID) -> Optional[DailyReport]:
+        obj = await self.get(db, id)
+        if obj:
+            await db.delete(obj)
+            await db.commit()
+        return obj
+
 daily_report = CRUDDailyReport()

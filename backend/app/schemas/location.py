@@ -5,10 +5,11 @@ from datetime import datetime
 
 class LocationNodeBase(BaseModel):
     name: str
-    path: str
+    path: Optional[str] = None
     owner_group_id: Optional[UUID] = None
     permissions: Optional[str] = None
     parent_id: Optional[UUID] = None
+    dependency_code: Optional[str] = None
 
 class LocationNodeCreate(LocationNodeBase):
     pass

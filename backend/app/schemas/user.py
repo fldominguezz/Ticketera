@@ -4,6 +4,15 @@ from typing import Optional, List, Any
 from .iam import Role
 from .group import Group as GroupSchema # Import GroupSchema
 
+import enum
+
+class UserRole(str, enum.Enum):
+    ADMIN = "admin"
+    USER = "user"
+    GUEST = "guest"
+    ANALYST = "analyst"
+    MANAGER = "manager"
+
 class UserBase(BaseModel):
     username: str
     email: EmailStr
@@ -18,6 +27,7 @@ class UserBase(BaseModel):
     group_id: Optional[UUID] = None 
     group_name: Optional[str] = None
     preferred_language: Optional[str] = "es"
+    dashboard_layout: Optional[List[dict]] = []
 
 class UserCreate(UserBase):
     password: str
@@ -35,6 +45,7 @@ class UserUpdate(BaseModel):
     reset_2fa_next_login: Optional[bool] = None
     group_id: Optional[UUID] = None
     role_ids: Optional[List[UUID]] = None
+    dashboard_layout: Optional[List[dict]] = None
 
 class UserInDBBase(UserBase):
     id: UUID
@@ -72,6 +83,7 @@ class User(UserInDBBase):
                 "force_password_change": getattr(data, "force_password_change", False),
                 "reset_2fa_next_login": getattr(data, "reset_2fa_next_login", False),
                 "enroll_2fa_mandatory": getattr(data, "enroll_2fa_mandatory", False),
+                "dashboard_layout": getattr(data, "dashboard_layout", []) or [],
                 "group_id": data.group_id,
                 "group_name": data.group.name if hasattr(data, "group") and data.group else None,
                 "preferred_language": data.preferred_language,

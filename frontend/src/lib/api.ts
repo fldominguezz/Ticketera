@@ -17,4 +17,34 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+api.interceptors.response.use(
+
+  (response) => response,
+
+  (error) => {
+
+    if (error.response && error.response.status === 401) {
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        localStorage.removeItem('access_token');
+        window.location.href = '/login?expired=true';
+      }
+    }
+
+    if (error.response && error.response.status === 403) {
+      const detail = error.response.data?.detail;
+      if (detail === 'SECURITY_CHANGE_PASSWORD_REQUIRED' || detail === 'SECURITY_2FA_SETUP_REQUIRED') {
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/security/onboarding')) {
+          window.location.href = '/security/onboarding';
+        }
+      }
+    }
+
+    return Promise.reject(error);
+
+  }
+
+);
+
+
+
 export default api;

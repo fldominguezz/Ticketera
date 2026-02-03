@@ -16,7 +16,7 @@ class Group(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     deleted_at = Column(DateTime(timezone=True), nullable=True)
-    hidden_nav_items = Column(JSONB, default=list, nullable=False)
+    dashboard_layout = Column(JSONB, default=list, nullable=False)
 
     # Relaciones
     parent_group = relationship("Group", remote_side=[id], back_populates="child_groups")
@@ -29,7 +29,8 @@ class Group(Base):
     locations = relationship("LocationNode", back_populates="owner_group")
     # forms = relationship("Form", back_populates="group")
     # form_submissions = relationship("FormSubmission", back_populates="group")
-    tickets = relationship("Ticket", back_populates="group")
+    tickets = relationship("Ticket", foreign_keys="[Ticket.group_id]", back_populates="group")
+    owned_tickets = relationship("Ticket", foreign_keys="[Ticket.owner_group_id]", back_populates="owner_group")
 
     def __repr__(self):
         return f"<Group(name='{self.name}')>"

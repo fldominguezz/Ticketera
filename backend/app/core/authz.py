@@ -10,10 +10,7 @@ class Authorize:
 
     def __call__(self, user: Annotated[User, Depends(get_current_active_user)]):
         
-        user_permissions = set()
-        for user_role in user.roles:
-            for role_permission in user_role.role.permissions:
-                user_permissions.add(role_permission.permission.name)
+        user_permissions = user.get_permissions()
 
         if not self.required_permissions.issubset(user_permissions):
             raise HTTPException(

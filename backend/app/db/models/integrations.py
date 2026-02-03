@@ -37,3 +37,24 @@ class SIEMEvent(Base):
 
     def __repr__(self):
         return f"<SIEMEvent(id='{self.id}', type='{self.event_type}')>"
+
+class SIEMConfiguration(Base):
+    __tablename__ = "siem_configuration"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    siem_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    default_group_id = Column(UUID(as_uuid=True), ForeignKey("groups.id"), nullable=True)
+    ticket_type_id = Column(UUID(as_uuid=True), ForeignKey("ticket_types.id"), nullable=True)
+    
+    api_username = Column(String(255), nullable=False)
+    api_password = Column(String(255), nullable=True)
+    
+    allowed_ips = Column(String(255), default="10.1.78.10,127.0.0.1")
+    is_active = Column(Boolean, default=True)
+    
+    last_test_status = Column(String(50), nullable=True)
+    last_error_message = Column(String(500), nullable=True)
+    last_test_at = Column(DateTime(timezone=True), nullable=True)
+
+    siem_user = relationship("User", foreign_keys=[siem_user_id])
+    default_group = relationship("Group", foreign_keys=[default_group_id])
