@@ -29,7 +29,17 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
     // Aplicar tema inmediatamente desde localStorage para evitar parpadeos
     const savedTheme = localStorage.getItem('app-theme') || 'soc';
     document.documentElement.setAttribute('data-theme', savedTheme);
-  }, []);
+
+    // Verificación de Seguridad Obligatoria (Onboarding)
+    if (user && !loading) {
+        const needsPasswordChange = !!user.force_password_change;
+        const needs2FAEnrollment = !!((user.enroll_2fa_mandatory || user.reset_2fa_next_login) && !user.is_2fa_enabled);
+        
+        if ((needsPasswordChange || needs2FAEnrollment) && router.pathname !== '/security/onboarding') {
+            router.replace('/security/onboarding');
+        }
+    }
+  }, [user, loading, router.pathname]);
 
   if (!mounted) return null;
   
@@ -105,6 +115,9 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
   const visibleAdminItems = filterNavItems(adminItems);
   const hasAdminAccess = user?.is_superuser || userPermissions.has('admin:access');
 
+  // Determinar si estamos en modo "Bloqueo de Seguridad"
+  const isSecurityOnboarding = !!(user && (user.force_password_change || user.reset_2fa_next_login) && !user.is_2fa_enabled);
+
   const handleNavClick = (path: string) => {
     if (path === 'external:grafana') {
       const host = window.location.hostname;
@@ -144,20 +157,24 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
         </div>
         
         <div className="py-3 flex-grow-1 overflow-auto custom-scrollbar">
-          <div className="nav-group mb-4">
-            {sidebarOpen && <div className="nav-label px-4 x-small fw-bold text-muted mb-2 text-uppercase opacity-50 letter-spacing-1">Operaciones</div>}
-            {visibleNavItems.map((item) => (
-              <NavItem key={item.path} item={item} isActive={router.pathname === item.path} />
-            ))}
-          </div>
+          {!isSecurityOnboarding && (
+            <>
+              <div className="nav-group mb-4">
+                {sidebarOpen && <div className="nav-label px-4 x-small fw-bold text-muted mb-2 text-uppercase opacity-50 letter-spacing-1">Operaciones</div>}
+                {visibleNavItems.map((item) => (
+                  <NavItem key={item.path} item={item} isActive={router.pathname === item.path} />
+                ))}
+              </div>
 
-          {hasAdminAccess && (
-            <div className="nav-group">
-              {sidebarOpen && <div className="nav-label px-4 x-small fw-bold text-muted mb-2 text-uppercase opacity-50 letter-spacing-1">Administración</div>}
-              {visibleAdminItems.map((item) => (
-                <NavItem key={item.path} item={item} isActive={router.pathname.startsWith(item.path)} />
-              ))}
-            </div>
+              {hasAdminAccess && (
+                <div className="nav-group">
+                  {sidebarOpen && <div className="nav-label px-4 x-small fw-bold text-muted mb-2 text-uppercase opacity-50 letter-spacing-1">Administración</div>}
+                  {visibleAdminItems.map((item) => (
+                    <NavItem key={item.path} item={item} isActive={router.pathname.startsWith(item.path)} />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -181,7 +198,7 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
             <Button variant="link" className="text-muted p-1" onClick={toggleTheme}>
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </Button>
-            <NotificationBell />
+            {!isSecurityOnboarding && <NotificationBell />}
             <Dropdown align="end">
               <Dropdown.Toggle as="div" className="d-flex align-items-center gap-2 cursor-pointer">
                 <div className="avatar bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center" style={{width: 32, height: 32}}>

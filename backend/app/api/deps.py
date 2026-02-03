@@ -126,16 +126,35 @@ async def get_current_active_user(
     db: Annotated[AsyncSession, Depends(get_db)],
     token_auth: HTTPAuthorizationCredentials = Depends(reusable_oauth2)
 ) -> User:
-    current_user = await get_current_user(db, token_auth, required_scopes=["session"])
+    # Permitir tanto 'session' como tokens de seguridad en esta etapa inicial
+    allowed_scopes = ["session", "password:change", "2fa:reset", "2fa:verify"]
+    current_user = await get_current_user(db, token_auth, required_scopes=allowed_scopes)
+    
     if not current_user.is_active: raise HTTPException(status_code=400, detail="Inactive user")
     
     path = request.url.path
     exempt_paths = ["/api/v1/auth/", "/api/v1/users/me"]
+    
+    # Si no es una ruta exenta, verificar que el usuario tenga sesión real
+    # para evitar que usen un token de cambio de clave para ver tickets
     if not any(p in path for p in exempt_paths):
+        # Extraer scopes reales del token para validación estricta
+        from jose import jwt
+        payload = jwt.decode(token_auth.credentials, settings.SECRET_KEY, algorithms=[settings.ALGORITHM], options={"verify_aud": False})
+        token_scopes = payload.get("scope", "").split()
+        
+        if "session" not in token_scopes:
+            raise HTTPException(status_code=403, detail="Se requiere una sesión completa para acceder a este recurso (Token Interino detectado).")
+
+        # EXENCIÓN PARA ADMIN Y CUENTAS DE SERVICIO
+        if current_user.username in ['admin', 'fortisiem'] or current_user.policy_exempt:
+            return current_user
+
         if current_user.force_password_change:
             raise HTTPException(status_code=403, detail="SECURITY_CHANGE_PASSWORD_REQUIRED")
         if (current_user.enroll_2fa_mandatory or current_user.reset_2fa_next_login) and not current_user.is_2fa_enabled:
             raise HTTPException(status_code=403, detail="SECURITY_2FA_SETUP_REQUIRED")
+            
     return current_user
 
 def require_permission(permission_key: str):

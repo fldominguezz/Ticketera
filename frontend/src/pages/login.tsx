@@ -33,11 +33,13 @@ export default function Login() {
     try {
       const result = await login(username, password);
       if (typeof result === 'object') {
-        if (result.needs_2fa) {
+        if (result.needs_2fa && !result.force_password_change && !result.reset_2fa) {
           setNeeds2FA(true);
           setInterimToken(result.interim_token);
+        } else if (result.force_password_change || result.reset_2fa) {
+          // REDIRECCIÓN INMEDIATA para evitar que otros componentes carguen y lancen 401
+          router.replace('/security/onboarding');
         }
-        // No redirect here, AuthGuard will handle it if force_password_change is true
       }
       // If result === true, AuthGuard will handle redirect to '/'
       if (result === false) {

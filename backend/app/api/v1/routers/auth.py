@@ -164,12 +164,15 @@ async def login(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
         )
 
-    # Check for mandatory changes
+    # Check for mandatory changes (Exempting admin and fortisiem)
     pending_scopes = []
-    if user.reset_2fa_next_login or user.enroll_2fa_mandatory:
-        pending_scopes.append("2fa:reset")
-    if user.force_password_change:
-        pending_scopes.append("password:change")
+    is_exempt = user.username in ['admin', 'fortisiem'] or getattr(user, 'policy_exempt', False)
+    
+    if not is_exempt:
+        if user.reset_2fa_next_login or user.enroll_2fa_mandatory:
+            pending_scopes.append("2fa:reset")
+        if user.force_password_change:
+            pending_scopes.append("password:change")
 
     if pending_scopes:
         interim_token = create_access_token(
