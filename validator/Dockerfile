@@ -10,16 +10,15 @@ RUN apt-get update && apt-get install -y \
     gcc \
     python3-dev \
     postgresql-client \
-    redis-tools \
-    # npm is installed via Node.js installation below \
-    && rm -rf /var/lib/apt/lists/*
+    redis-tools && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 20 from NodeSource APT repository
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs
+    && apt-get install -y nodejs \
+    && npm --version
 
 # Install Python dependencies for security and API tests
-# Install pip-audit and bandit
 RUN pip install pip-audit bandit requests psycopg2-binary redis
 
 # Set working directory
@@ -29,8 +28,6 @@ WORKDIR /app
 COPY . .
 
 # Install Playwright's local dependencies in the e2e directory
-RUN cd validator/e2e && npm install
-# Assuming validator/e2e/package.json exists and lists @playwright/test
 RUN cd validator/e2e && npm install
 
 # Add Playwright's local bin directory to PATH for subsequent commands
