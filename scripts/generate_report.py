@@ -92,15 +92,27 @@ def generate_report():
 
     # B) E2E Functional Validation (Playwright)
     print("Running E2E Functional Validation (Playwright)...")
-    # Changed to explicitly call playwright executable from node_modules/.bin
-    playwright_command = "cd /app/validator/e2e && /app/validator/e2e/node_modules/.bin/playwright test --config=/app/validator/e2e/playwright.config.ts --project=chromium --reporter=json"
+    # Removed --reporter=json to use config file reporters
+    playwright_command = "cd /app/validator/e2e && /app/validator/e2e/node_modules/.bin/playwright test --config=/app/validator/e2e/playwright.config.ts --project=chromium"
     playwright_output_file = os.path.join(REPORT_DIR, "playwright-report.json")
     
     # Run Playwright tests and capture JSON output to a file
     # Adding debug prints to see Playwright's output
     print(f"Executing Playwright command: {playwright_command}")
-    playwright_process = subprocess.run(playwright_command + f" > {playwright_output_file} 2>&1", shell=True, capture_output=False, text=True)
+    # Use pipe to capture output so we can print it if it fails
+    playwright_process = subprocess.run(playwright_command, shell=True, capture_output=True, text=True)
     print(f"Playwright Exit Code: {playwright_process.returncode}")
+    
+    # Save output to file for consistency
+    with open(playwright_output_file, "w") as f:
+        f.write(playwright_process.stdout)
+        f.write(playwright_process.stderr)
+
+    if playwright_process.returncode != 0:
+        print("❌ Playwright failed! STDOUT:")
+        print(playwright_process.stdout)
+        print("❌ Playwright failed! STDERR:")
+        print(playwright_process.stderr)
 
     e2e_status = "FAIL" if playwright_process.returncode != 0 else "PASS"
     e2e_details = []

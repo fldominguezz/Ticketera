@@ -13,12 +13,12 @@ export default defineConfig({
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ['list'],
-    ['html', { outputFolder: 'playwright-report', open: 'never' }],
-    ['json', { outputFile: 'test-results.json' }]
+    ['html', { outputFolder: '../../validation_artifacts/playwright-report', open: 'never' }],
+    ['json', { outputFile: '../../validation_artifacts/playwright-report.json' }]
   ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
-    baseURL: process.env.BASE_URL || 'https://10.1.9.240',
+    baseURL: process.env.BASE_URL || 'https://nginx',
     ignoreHTTPSErrors: true, // Needed for self-signed certs in CI
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',

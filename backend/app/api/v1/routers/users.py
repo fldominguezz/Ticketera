@@ -82,7 +82,7 @@ async def read_users(
             .selectinload(RolePermission.permission), 
             selectinload(User.group)
         )
-        .filter(User.username.notin_(['admin', 'fortisiem']))
+        .filter(User.username.notin_(['admin']))
         .offset(skip).limit(limit)
     )
     result = await db.execute(query)

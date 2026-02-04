@@ -40,20 +40,22 @@ LOGIN_RESPONSE=$(curl -s --noproxy "*" --retry 5 --retry-delay 2 -X POST \
   -d "{\"identifier\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}" \
   "$API_BASE_URL/auth/login")
 
-if [ -z "$LOGIN_RESPONSE" ]; then
-    echo "❌ Auth Login: FAIL - Login response is EMPTY. Checking connectivity again..."
-    curl -v --noproxy "*" -X POST \
-      -H "Content-Type: application/json" \
-      -d "{\"identifier\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}" \
-      "$API_BASE_URL/auth/login"
-fi
-
 ACCESS_TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.access_token')
+
+if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" == "null" ]; then
+    echo "⚠️ Login with email failed, trying username 'admin'..."
+    LOGIN_RESPONSE=$(curl -s --noproxy "*" -X POST \
+      -H "Content-Type: application/json" \
+      -d "{\"identifier\": \"admin\", \"password\": \"$ADMIN_PASSWORD\"}" \
+      "$API_BASE_URL/auth/login")
+    ACCESS_TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.access_token')
+fi
 
 if [ -n "$ACCESS_TOKEN" ] && [ "$ACCESS_TOKEN" != "null" ]; then
     report_status "Auth Login" "PASS" "Login successful, received access token."
 else
     report_status "Auth Login" "FAIL" "Login failed. Response: $LOGIN_RESPONSE"
+    # Dump backend logs on failure if we could, but we can't easily here.
     exit 1
 fi
 

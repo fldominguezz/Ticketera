@@ -172,10 +172,14 @@ services:
       - ./monitoring/grafana/dashboards:/etc/grafana/dashboards
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin # CAMBIAR EN PRIMER LOGIN
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
       - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_NAME=Main Org.
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
     ports:
-      - "3002:3000" # Grafana en puerto 3002 para no chocar con Frontend o servicios locales
+      - "3002:3000"
     depends_on:
       - prometheus
     networks:
