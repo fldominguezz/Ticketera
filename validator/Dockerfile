@@ -8,6 +8,7 @@ RUN sed -i 's|http://archive.ubuntu.com/ubuntu/|http://azure.archive.ubuntu.com/
     curl \
     jq \
     git \
+    iputils-ping \
     postgresql-client \
     redis-tools && \
     rm -rf /var/lib/apt/lists/*

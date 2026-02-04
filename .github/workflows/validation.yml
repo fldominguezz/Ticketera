@@ -31,7 +31,6 @@ jobs:
 
       - name: Build and Start Services
         run: |
-          # Create .env with necessary variables for healthchecks
           echo "POSTGRES_USER=postgres" > .env
           echo "POSTGRES_PASSWORD=postgres" >> .env
           echo "POSTGRES_DB=ticketera_db" >> .env
@@ -39,21 +38,33 @@ jobs:
           echo "SECRET_KEY=supersecret" >> .env
           echo "FIRST_SUPERUSER=admin@example.com" >> .env
           echo "FIRST_SUPERUSER_PASSWORD=admin123" >> .env
+          echo "MEILI_MASTER_KEY=masterKeyTicketeraSOC" >> .env
           
+          # Build all services first
           docker compose build
-          docker compose up -d db redis meilisearch
           
-          # Esperar un poco a que la DB levante antes del resto
-          sleep 10
+          # Start all background services
+          docker compose up -d db redis meilisearch backend frontend nginx soc-module
           
-          docker compose up -d backend frontend nginx soc-module
-          
-          # Wait for services to be healthy (validator waits for dependencies)
-          # But we want to explicitly run the validator and see its exit code
-      
+          # Wait for backend to be healthy before starting validator
+          echo "Waiting for backend healthcheck..."
+          MAX_RETRIES=20
+          COUNT=0
+          until [ "$(docker inspect -f '{{.State.Health.Status}}' ticketera-backend-1)" == "healthy" ]; do
+              COUNT=$((COUNT+1))
+              if [ $COUNT -ge $MAX_RETRIES ]; then
+                  echo "Backend healthcheck timeout"
+                  docker compose logs backend
+                  exit 1
+              fi
+              echo "Backend is $(docker inspect -f '{{.State.Health.Status}}' ticketera-backend-1)... ($COUNT/$MAX_RETRIES)"
+              sleep 10
+          done
+
       - name: Run Total Validation Agent
         run: |
-          docker compose up --abort-on-container-exit --exit-code-from validator validator
+          # Run the validator container in the same network
+          docker compose run --name validator validator
 
       - name: Extract Validation Report
         if: always()
