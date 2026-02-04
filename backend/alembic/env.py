@@ -27,12 +27,18 @@ if config.config_file_name is not None:
 # target_metadata = Base.metadata
 from app.db.base import Base
 from app.db import models # Importar para que Alembic descubra los modelos
+from app.core.config import settings
+
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired a number of ways:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
+# Set the sqlalchemy.url from settings
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
