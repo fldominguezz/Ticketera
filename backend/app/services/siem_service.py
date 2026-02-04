@@ -9,7 +9,7 @@ from app.crud.crud_ticket import ticket as crud_ticket
 from typing import Dict, Any, Optional, List
 import uuid
 import logging
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 import re
 from datetime import datetime, timezone
 

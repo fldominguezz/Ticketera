@@ -82,14 +82,22 @@ services:
       - uploads_data:/app/uploads
     networks:
       - app-network
-    command: gunicorn app.main:app --workers 1 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 300
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    command: gunicorn app.main:app --workers 1 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 300 --access-logfile -
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/admin/system/ping"]
       interval: 10s
-      timeout: 10s
-      retries: 5
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 
   frontend:
     build:
@@ -136,23 +144,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  ollama:
-    image: ollama/ollama:latest
-    restart: always
-    container_name: ticketera-ollama
-    volumes:
-      - ollama_data:/root/.ollama
-    networks:
-      - app-network
-    # Si tienes GPU NVIDIA, descomenta esto:
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
 
   # --- FASE 5: OBSERVABILIDAD ---
   prometheus:
@@ -214,6 +205,7 @@ services:
       - .env
     environment:
       - BASE_URL=https://nginx
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     depends_on:
       db:
         condition: service_healthy
@@ -236,7 +228,6 @@ volumes:
   meili_data:
   prometheus_data:
   grafana_data:
-  ollama_data:
 
 networks:
   app-network:

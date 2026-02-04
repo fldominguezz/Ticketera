@@ -55,8 +55,7 @@ def parse_eml_content(content: bytes) -> Tuple[Dict, str, List[str], List[Dict]]
                         "filename": filename,
                         "content_type": content_type,
                         "size": len(file_data),
-                        "sha256": sha256,
-                        "md5": hashlib.md5(file_data).hexdigest()
+                        "sha256": sha256
                     })
             elif content_type == 'text/plain':
                 payload = part.get_payload(decode=True)

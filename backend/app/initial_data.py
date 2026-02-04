@@ -11,6 +11,8 @@ from app.db.models import Group, User, SLAPolicy, WorkflowTransition, Workflow, 
 from app.db.models.iam import Role, Permission, UserRole, RolePermission
 from app.core.config import settings
 
+from app.db.models.ticket import Ticket as TicketModel, TicketType
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -181,8 +183,22 @@ async def init_db() -> None:
                     name=f"{from_state.name} to {to_state.name}"
                 ))
                 logger.info(f"Transition {f_key} -> {t_key} created")
+
+        # 8. Create Default Ticket Types
+        ticket_types_data = [
+            {"name": "Soporte", "description": "Tareas de soporte general", "icon": "help-circle", "color": "primary"},
+            {"name": "Incidente", "description": "Fallo en servicio o activo", "icon": "alert-triangle", "color": "danger"},
+            {"name": "ALERTA SIEM", "description": "Alerta automática de seguridad", "icon": "shield", "color": "warning"},
+        ]
+
+        for tt_data in ticket_types_data:
+            result = await session.execute(select(TicketType).filter(TicketType.name == tt_data["name"]))
+            if not result.scalar_one_or_none():
+                session.add(TicketType(workflow_id=default_workflow.id, **tt_data))
+                logger.info(f"Created TicketType: {tt_data['name']}")
         
         await session.commit()
+
 
 if __name__ == "__main__":
     asyncio.run(init_db())

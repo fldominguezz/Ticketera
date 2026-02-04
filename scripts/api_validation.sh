@@ -21,8 +21,8 @@ report_status() {
 echo "--- C) Running API Validation (contract tests) ---"
 
 API_BASE_URL="http://backend:8000/api/v1"
-ADMIN_USERNAME="test_admin"
-ADMIN_PASSWORD="testpassword123"
+ADMIN_USERNAME="${FIRST_SUPERUSER:-admin@example.com}"
+ADMIN_PASSWORD="${FIRST_SUPERUSER_PASSWORD:-admin123}"
 GLOBAL_FAIL=0
 
 # 1. Test Auth Login
@@ -48,10 +48,37 @@ BEARER_TOKEN="Bearer $ACCESS_TOKEN"
 # 2. Tickets CRUD
 echo "Testing Tickets CRUD..."
 
+# Get a valid ticket_type_id
+TICKET_TYPE_ID=$(curl -s -X GET \
+  -H "Authorization: $BEARER_TOKEN" \
+  "$API_BASE_URL/ticket-types" | jq -r '.[0].id')
+
+if [ -n "$TICKET_TYPE_ID" ] && [ "$TICKET_TYPE_ID" != "null" ]; then
+    echo "Using Ticket Type ID: $TICKET_TYPE_ID"
+else
+    report_status "Ticket Type Discovery" "FAIL" "Could not find a valid ticket type."
+    exit 1
+fi
+
+# Get a valid group_id (Area SOC or Admin)
+GROUPS_JSON=$(curl -s -X GET -H "Authorization: $BEARER_TOKEN" "$API_BASE_URL/groups")
+GROUP_ID="e905cf4d-b282-4fbe-a158-bffc2b04e430"
+
+if [ "$GROUP_ID" == "null" ] || [ -z "$GROUP_ID" ]; then
+    GROUP_ID="e905cf4d-b282-4fbe-a158-bffc2b04e430"
+fi
+
+if [ -n "$GROUP_ID" ] && [ "$GROUP_ID" != "null" ]; then
+    echo "Using Group ID: $GROUP_ID"
+else
+    report_status "Group Discovery" "FAIL" "Could not find a valid group."
+    exit 1
+fi
+
 # List Tickets
 TICKETS_LIST_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X GET \
   -H "Authorization: $BEARER_TOKEN" \
-  "$API_BASE_URL/tickets/")
+  "$API_BASE_URL/tickets")
 
 if [ "$TICKETS_LIST_STATUS" -eq 200 ]; then
     report_status "List Tickets" "PASS" "GET /tickets returned 200."
@@ -63,8 +90,8 @@ fi
 CREATE_TICKET_RESPONSE=$(curl -s -X POST \
   -H "Authorization: $BEARER_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"title": "API Test Ticket", "description": "Created by validator", "priority": "normal"}' \
-  "$API_BASE_URL/tickets/")
+  -d "{\"title\": \"API Test Ticket\", \"description\": \"Created by validator\", \"priority\": \"normal\", \"ticket_type_id\": \"$TICKET_TYPE_ID\", \"group_id\": \"$GROUP_ID\", \"is_private\": false}" \
+  "$API_BASE_URL/tickets")
 
 TICKET_ID=$(echo "$CREATE_TICKET_RESPONSE" | jq -r '.id')
 
@@ -80,7 +107,7 @@ echo "Testing Forms & Audit Endpoints..."
 # Audit Log (Admin only usually)
 AUDIT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X GET \
   -H "Authorization: $BEARER_TOKEN" \
-  "$API_BASE_URL/audit/")
+  "$API_BASE_URL/audit")
 
 # Assuming 200 if implemented, or 404 if not found, or 403 if forbidden
 if [ "$AUDIT_STATUS" -eq 200 ] || [ "$AUDIT_STATUS" -eq 403 ]; then
@@ -106,7 +133,7 @@ fi
 echo "Testing Auth Logout..."
 LOGOUT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
   -H "Authorization: $BEARER_TOKEN" \
-  "$API_BASE_URL/auth/logout")
+  "$API_BASE_URL/sessions/me/logout")
 
 if [ "$LOGOUT_STATUS" -eq 200 ]; then
     report_status "Auth Logout" "PASS" "Logout successful."

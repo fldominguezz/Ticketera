@@ -8,7 +8,7 @@ ADMIN_PASS = "admin123"
 
 def debug_auth():
     print("🔍 Depurando Autenticación...")
-    res = requests.post(f"{BASE_URL}/auth/login", json={"identifier": ADMIN_EMAIL, "password": ADMIN_PASS})
+    res = requests.post(f"{BASE_URL}/auth/login", json={"identifier": ADMIN_EMAIL, "password": ADMIN_PASS}, timeout=30)
     data = res.json()
     token = data.get("access_token")
     
@@ -24,7 +24,7 @@ def debug_auth():
     
     # Probar peticion
     headers = {"Authorization": f"Bearer {token}"}
-    res_me = requests.get(f"{BASE_URL}/users/me", headers=headers)
+    res_me = requests.get(f"{BASE_URL}/users/me", headers=headers, timeout=30)
     print(f"📡 Test /users/me: Status {res_me.status_code}")
     if res_me.status_code != 200:
         print("❌ Error details:", res_me.text)

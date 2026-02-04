@@ -63,10 +63,17 @@ async def create_backup(
     db_host = "db" # In docker-compose it's 'db'
     db_pass = os.getenv("POSTGRES_PASSWORD", "postgres")
     
-    command = f"PGPASSWORD='{db_pass}' pg_dump -h {db_host} -U {db_user} {db_name} > {filepath}"
-    
     try:
-        subprocess.run(command, shell=True, check=True)
+        env = os.environ.copy()
+        env["PGPASSWORD"] = db_pass
+        
+        with open(filepath, "w") as f:
+            subprocess.run(
+                ["pg_dump", "-h", db_host, "-U", db_user, db_name],
+                env=env,
+                stdout=f,
+                check=True
+            )
         return {"message": "Backup created successfully", "filename": filename}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Backup failed: {str(e)}")

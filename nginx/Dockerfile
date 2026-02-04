@@ -4,6 +4,7 @@ FROM nginx:alpine
 RUN apk add --no-cache openssl curl
 
 COPY nginx.conf /etc/nginx/nginx.conf
+COPY security_headers.conf /etc/nginx/security_headers.conf
 COPY conf.d/ /etc/nginx/conf.d/
 
 # Crear directorio ssl

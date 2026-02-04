@@ -246,13 +246,14 @@ async def create_ticket(
 
     # 2. Validar Grupo Padre: Solo se permiten grupos hoja (sin hijos)
     from app.db.models.group import Group
-    res_group = await db.execute(select(Group).where(Group.parent_id == ticket_in.group_id))
-    has_children = res_group.first() is not None
-    if has_children:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No se pueden enviar tickets a un grupo padre. Por favor, seleccione un área específica (SOC, Técnica, etc.)."
-        )
+    if not current_user.is_superuser:
+        res_group = await db.execute(select(Group).where(Group.parent_id == ticket_in.group_id))
+        has_children = res_group.first() is not None
+        if has_children:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No se pueden enviar tickets a un grupo padre. Por favor, seleccione un área específica (SOC, Técnica, etc.)."
+            )
 
     # 3. Validar Pertenencia de Grupo: Si el usuario tiene un grupo asignado, debe crear tickets para su grupo
     # Esto aplica incluso para superadmins con grupo asignado para mantener el orden funcional.
@@ -263,7 +264,7 @@ async def create_ticket(
                 detail="Los tickets públicos deben tener un Grupo Responsable asignado."
             )
         
-        if current_user.group_id and ticket_in.group_id != current_user.group_id:
+        if not current_user.is_superuser and current_user.group_id and ticket_in.group_id != current_user.group_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"No tiene permisos para crear tickets en este grupo. Su área responsable es: {current_user.group.name if current_user.group else 'Otra'}."

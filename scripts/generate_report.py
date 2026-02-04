@@ -21,6 +21,7 @@ def run_command(command, section_name, capture_output=True):
         error = e.stderr.strip() if capture_output else ""
         message = f"{section_name} failed: {e}"
         print(f"Error for {section_name}: {error}")
+        print(f"Output for {section_name}: {output}")
     except Exception as e:
         status = "FAIL"
         output = ""
@@ -186,7 +187,7 @@ def generate_report():
     with open(md_report_path, "w") as f:
         f.write(f"# Total Validation Report\n\n")
         f.write(f"**Timestamp:** {report_data['timestamp']}\n")
-        f.write(f"**Overall Status:** {{'✅ PASS' if report_data['overall_status'] == 'PASS' else '❌ FAIL'}}\n\n")
+        f.write(f"**Overall Status:** {'✅ PASS' if report_data['overall_status'] == 'PASS' else '❌ FAIL'}\n\n")
         
         for category in report_data["categories"]:
             f.write(f"## {category['name']} - {'✅ PASS' if category['status'] == 'PASS' else '❌ FAIL'}\n\n")
@@ -197,16 +198,16 @@ def generate_report():
                         for error_msg in test["errors"]:
                             f.write(f"  - Error: {error_msg}\n")
                 if "total_tests" in category:
-                    f.write(f"\n**Metrics:** {{category['total_tests']}} tests, {{category.get('failed_tests', 0)}} failed, {{category.get('duration_ms', 0) / 1000:.2f}}s duration.\n")
+                    f.write(f"\n**Metrics:** {category['total_tests']} tests, {category.get('failed_tests', 0)} failed, {category.get('duration_ms', 0) / 1000:.2f}s duration.\n")
                 if "artifacts_dir" in category:
-                    f.write(f"**Artifacts:** [Playwright HTML Report]({{category['artifacts_dir']}}/index.html)\n")
+                    f.write(f"**Artifacts:** [Playwright HTML Report]({category['artifacts_dir']}/index.html)\n")
             elif "raw_output" in category:
                 # For shell scripts, show parsed results if available, else raw output
                 if category.get("tests"):
                     for test in category["tests"]:
-                        f.write(f"- {{'✅' if test['status'] == 'PASS' else '❌'}} {{test['name']}}: {{test['message']}}\n")
+                        f.write(f"- {'✅' if test['status'] == 'PASS' else '❌'} {test['name']}: {test['message']}\n")
                 else:
-                    f.write(f"```\n{{category['raw_output']}}\n```\n")
+                    f.write(f"```\n{category['raw_output']}\n```\n")
             f.write("\n")
 
         if report_data["errors"]:
@@ -217,7 +218,7 @@ def generate_report():
                     f.write(f"**Test:** {error['test_name']}\n")
                 f.write(f"**Issue:** {error['message']}\n")
                 # Corrected f-string for JSON details, escaping triple backticks.
-                f.write(f"**Details:**\n```json\n{{json.dumps(error['details'], indent=2)}}\n```\n")
+                f.write(f"**Details:**\n```json\n{json.dumps(error['details'], indent=2)}\n```\n")
                 # Add generic recommendation for now, could be smarter later
                 f.write(f"**Recommended Fix:** Investigate logs for the failing service (e.g., `docker-compose logs <service_name>`) and ensure all dependencies are met and configurations are correct.\n\n")
 

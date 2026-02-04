@@ -11,7 +11,7 @@ def test_system():
     ts = int(time.time())
     
     # 1. Login
-    login_res = requests.post(f"{BASE_URL}/auth/login", json={"identifier": ADMIN_EMAIL, "password": ADMIN_PASS})
+    login_res = requests.post(f"{BASE_URL}/auth/login", json={"identifier": ADMIN_EMAIL, "password": ADMIN_PASS}, timeout=30)
     if login_res.status_code != 200:
         print(f"❌ FALLO: Autenticación Admin (Status {login_res.status_code})")
         return
@@ -20,7 +20,7 @@ def test_system():
     print("✅ OK: Autenticación Admin")
 
     # 2. Verificar Usuarios (admin y fortisiem ocultos)
-    users_res = requests.get(f"{BASE_URL}/users", headers=headers)
+    users_res = requests.get(f"{BASE_URL}/users", headers=headers, timeout=30)
     if users_res.status_code == 200:
         usernames = [u["username"] for u in users_res.json()]
         if "admin" in usernames or "fortisiem" in usernames:
@@ -33,14 +33,14 @@ def test_system():
     # 3. Crear Estructura Jerárquica
     gp_name = f"PADRE_{{ts}}"
     gh_name = f"HIJO_{{ts}}"
-    gp_res = requests.post(f"{BASE_URL}/groups", headers=headers, json={"name": gp_name, "description": "Grupo Padre"})
+    gp_res = requests.post(f"{BASE_URL}/groups", headers=headers, json={"name": gp_name, "description": "Grupo Padre"}, timeout=30)
     gp_id = gp_res.json()["id"]
-    gh_res = requests.post(f"{BASE_URL}/groups", headers=headers, json={"name": gh_name, "parent_id": gp_id, "description": "Grupo Hijo"})
+    gh_res = requests.post(f"{BASE_URL}/groups", headers=headers, json={"name": gh_name, "parent_id": gp_id, "description": "Grupo Hijo"}, timeout=30)
     gh_id = gh_res.json()["id"]
     print(f"✅ OK: Jerarquía creada ({gp_name} -> {gh_name})")
 
     # 4. Probar Restricciones
-    tt_res = requests.get(f"{BASE_URL}/ticket-types", headers=headers)
+    tt_res = requests.get(f"{BASE_URL}/ticket-types", headers=headers, timeout=30)
     all_types = tt_res.json()
     op_type_id = all_types[0]["id"] if all_types else None
     
@@ -64,7 +64,7 @@ def test_system():
 
     # 5. Inventario
     loc_name = f"LOC_{{ts}}"
-    loc_res = requests.post(f"{BASE_URL}/locations", headers=headers, json={"name": loc_name, "dependency_code": str(ts)[-4:], "path": f"TEST/{{ts}}"})
+    loc_res = requests.post(f"{BASE_URL}/locations", headers=headers, json={"name": loc_name, "dependency_code": str(ts, timeout=30)[-4:], "path": f"TEST/{{ts}}"})
     loc_id = loc_res.json()["id"]
     asset_res = requests.post(f"{BASE_URL}/assets/install", headers=headers, json={
         "asset_data": {
@@ -77,7 +77,7 @@ def test_system():
         print("✅ OK: Activo registrado en inventario")
 
     # 6. Auditoría
-    audit_res = requests.get(f"{BASE_URL}/audit?limit=10", headers=headers)
+    audit_res = requests.get(f"{BASE_URL}/audit?limit=10", headers=headers, timeout=30)
     if len(audit_res.json()) > 0:
         print(f"✅ OK: Auditoría operativa ({len(audit_res.json())} eventos)")
     else:

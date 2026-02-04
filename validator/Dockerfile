@@ -1,5 +1,5 @@
 # Use a base image that includes Node.js (for Playwright) and Python (for API tests, Bandit, Pip-audit)
-FROM mcr.microsoft.com/playwright/python:v1.41.0-jammy
+FROM mcr.microsoft.com/playwright/python:v1.49.1-jammy
 
 # Install common utilities
 RUN apt-get update && apt-get install -y \
@@ -20,7 +20,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 
 # Install Python dependencies for security and API tests
 # Install pip-audit and bandit
-RUN pip install pip-audit bandit requests
+RUN pip install pip-audit bandit requests psycopg2-binary redis
 
 # Set working directory
 WORKDIR /app

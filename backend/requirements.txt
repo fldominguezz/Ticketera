@@ -45,3 +45,4 @@ pytest-asyncio
 httpx
 aiosqlite
 pytest-cov
+defusedxml==0.7.1
