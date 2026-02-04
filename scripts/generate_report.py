@@ -239,9 +239,11 @@ def generate_report():
                 if "test_name" in error:
                     f.write(f"**Test:** {error['test_name']}\n")
                 f.write(f"**Issue:** {error['message']}\n")
-                # Corrected f-string for JSON details, escaping triple backticks.
-                f.write(f"**Details:**\n```json\n{json.dumps(error['details'], indent=2)}\n```\n")
-                # Add generic recommendation for now, could be smarter later
+                
+                details = error.get("details")
+                if details:
+                    f.write(f"**Details:**\n```json\n{json.dumps(details, indent=2)}\n```\n")
+                
                 f.write(f"**Recommended Fix:** Investigate logs for the failing service (e.g., `docker-compose logs <service_name>`) and ensure all dependencies are met and configurations are correct.\n\n")
 
     print(f"Generated Markdown report: {md_report_path}")

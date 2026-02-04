@@ -39,6 +39,7 @@ jobs:
           echo "DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/ticketera_db" >> .env
           echo "SECRET_KEY=supersecret" >> .env
           echo "ALGORITHM=HS256" >> .env
+          echo "ACCESS_TOKEN_EXPIRE_MINUTES=60" >> .env
           echo "REFRESH_TOKEN_EXPIRE_DAYS=7" >> .env
           echo "FIRST_SUPERUSER=admin@example.com" >> .env
           echo "FIRST_SUPERUSER_PASSWORD=admin123" >> .env

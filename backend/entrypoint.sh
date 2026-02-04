@@ -27,10 +27,14 @@ alembic upgrade head
 # echo "Synchronizing permissions..."
 # python3 /app/scripts/sync_iam_final.py
 
-# 5. Crear/Asegurar Admin de producción
+# 5. Inicializar datos (Tipos de tickets, Workflows, etc.)
+echo "Initializing database with default types and workflows..."
+python3 /app/app/initial_data.py
+
+# 6. Crear/Asegurar Admin de producción
 echo "Ensuring admin account..."
 python3 /app/scripts/create_prod_admin.py
 
-# 6. Iniciar la aplicación
+# 7. Iniciar la aplicación
 echo "Starting Gunicorn..."
 exec "$@"
