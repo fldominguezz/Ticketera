@@ -101,7 +101,7 @@ async def restore_all():
             u_in = UserCreate(
                 email="fortisiem@example.com",
                 username="fortisiem",
-                password="fortisiem_secret_password",
+                password="9y\;)P[s}obNd3W-",
                 is_superuser=False,
                 group_id=group_map["Seguridad"].id,
                 first_name="FortiSIEM",
