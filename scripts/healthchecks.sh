@@ -40,6 +40,7 @@ if curl --retry 5 --retry-delay 5 --retry-connrefused --output /dev/null --silen
     report_status "Backend /health" "PASS" "Backend /ping endpoint is responsive."
 else
     report_status "Backend /health" "FAIL" "Backend /ping endpoint is not responsive after retries."
+    exit 1
 fi
 
 # Backend Health Check - /ready endpoint

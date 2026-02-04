@@ -25,13 +25,28 @@ ADMIN_USERNAME="${FIRST_SUPERUSER:-admin@example.com}"
 ADMIN_PASSWORD="${FIRST_SUPERUSER_PASSWORD:-admin123}"
 GLOBAL_FAIL=0
 
+echo "--- Debug: Connectivity Check ---"
+echo "Checking if backend is resolvable..."
+getent hosts backend || echo "❌ Cannot resolve 'backend' host"
+echo "Checking connectivity to backend:8000..."
+curl -I -s --retry 5 --retry-delay 2 http://backend:8000/healthz || echo "❌ Cannot connect to backend:8000"
+
 # 1. Test Auth Login
-echo "Testing Auth Login at $API_BASE_URL/auth/login..."
-# Use curl with retry for the initial connection
+echo "Testing Auth Login at $API_BASE_URL/auth/login with identifier '$ADMIN_USERNAME'..."
+# Use curl with more verbose error reporting if it fails
 LOGIN_RESPONSE=$(curl -s --retry 10 --retry-delay 5 --retry-connrefused -X POST \
   -H "Content-Type: application/json" \
   -d "{\"identifier\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}" \
   "$API_BASE_URL/auth/login")
+
+if [ -z "$LOGIN_RESPONSE" ]; then
+    echo "❌ CRITICAL: Login response is EMPTY. Checking backend logs might be necessary."
+    # Try one more time with verbose output to stderr for CI logs
+    curl -v -X POST \
+      -H "Content-Type: application/json" \
+      -d "{\"identifier\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}" \
+      "$API_BASE_URL/auth/login"
+fi
 
 ACCESS_TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.access_token')
 

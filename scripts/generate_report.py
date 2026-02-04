@@ -8,20 +8,24 @@ if not os.path.exists(REPORT_DIR):
     os.makedirs(REPORT_DIR)
 
 def run_command(command, section_name, capture_output=True):
-    print(f"Running: {command}")
+    print(f"--- Running: {command} ---")
     try:
         process = subprocess.run(command, shell=True, check=True, capture_output=capture_output, text=True)
         status = "PASS"
         output = process.stdout.strip() if capture_output else ""
+        if output:
+            print(output)
         error = process.stderr.strip() if capture_output else ""
         message = f"{section_name} completed successfully."
     except subprocess.CalledProcessError as e:
         status = "FAIL"
         output = e.stdout.strip() if capture_output else ""
+        if output:
+            print(f"STDOUT:\n{output}")
         error = e.stderr.strip() if capture_output else ""
+        if error:
+            print(f"STDERR:\n{error}")
         message = f"{section_name} failed: {e}"
-        print(f"Error for {section_name}: {error}")
-        print(f"Output for {section_name}: {output}")
     except Exception as e:
         status = "FAIL"
         output = ""
