@@ -29,6 +29,12 @@ db_data/
 redis_data/
 uploads_data/
 
+# Archivos de requerimientos (EXCEPCIÓN)
+!backend/requirements.txt
+!frontend/requirements.txt
+!validator/requirements.txt
+!soc-module/requirements.txt
+
 # Backend Logs & Temp
 backend/*.txt
 backend/*.log

@@ -21,34 +21,9 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
-    # 1. Fix groups table schema
-    op.add_column('groups', sa.Column('dashboard_layout', JSONB(), server_default='[]', nullable=False))
-
-    # 2. Fix users table schema
-    conn = op.get_bind()
-    inspector = sa.inspect(conn)
-    columns = [col['name'] for col in inspector.get_columns('users')]
-
-    if 'preferred_language' not in columns:
-        op.add_column('users', sa.Column('preferred_language', sa.String(length=5), server_default='es', nullable=False))
-    if 'is_2fa_enabled' not in columns:
-        op.add_column('users', sa.Column('is_2fa_enabled', sa.Boolean(), server_default='false', nullable=False))
-    if 'failed_login_attempts' not in columns:
-        op.add_column('users', sa.Column('failed_login_attempts', sa.Integer(), server_default='0', nullable=False))
-    if 'locked_until' not in columns:
-        op.add_column('users', sa.Column('locked_until', sa.DateTime(timezone=True), nullable=True))
-    if 'force_password_change' not in columns:
-        op.add_column('users', sa.Column('force_password_change', sa.Boolean(), server_default='false', nullable=False))
-    if 'reset_2fa_next_login' not in columns:
-        op.add_column('users', sa.Column('reset_2fa_next_login', sa.Boolean(), server_default='false', nullable=False))
-    if 'enroll_2fa_mandatory' not in columns:
-        op.add_column('users', sa.Column('enroll_2fa_mandatory', sa.Boolean(), server_default='false', nullable=False))
-    if 'policy_exempt' not in columns:
-        op.add_column('users', sa.Column('policy_exempt', sa.Boolean(), server_default='false', nullable=False))
-    if 'dashboard_layout' not in columns:
-        op.add_column('users', sa.Column('dashboard_layout', JSONB(), server_default='[]', nullable=False))
-
-    # 3. Seed Initial Data
+    # --- Seeding Initial Data ---
+    
+    # Define table helpers for seeding
     groups_table = sa.table(
         "groups",
         sa.column("id", sa.UUID),
@@ -86,6 +61,7 @@ def upgrade() -> None:
     admin_user_id = uuid.uuid4()
     now = datetime.now()
 
+    # Bulk Insert Group
     op.bulk_insert(groups_table, [
         {
             'id': admin_group_id, 
@@ -96,6 +72,7 @@ def upgrade() -> None:
         },
     ])
 
+    # Bulk Insert User
     op.bulk_insert(users_table, [
         {
             "id": admin_user_id,
@@ -124,5 +101,3 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.execute("DELETE FROM users WHERE username = 'admin'")
     op.execute("DELETE FROM groups WHERE name = 'Administradores'")
-    op.drop_column('users', 'dashboard_layout')
-    op.drop_column('groups', 'dashboard_layout')
