@@ -23,7 +23,8 @@ jobs:
           echo "DATABASE_URL=postgres://user:password@db:5432/ticketera_db" >> .env
           echo "SECRET_KEY=supersecret" >> .env
           
-          docker compose up -d --build
+          docker compose build --no-cache
+          docker compose up -d
           
           # Wait for services to be healthy (validator waits for dependencies)
           # But we want to explicitly run the validator and see its exit code
