@@ -17,14 +17,6 @@ report_status() {
 
 echo "--- A) Running Infrastructure Healthchecks ---"
 
-# Resolve backend IP dynamically to avoid DNS issues in CI
-BACKEND_IP=$(getent hosts backend | awk '{ print $1 }')
-if [ -z "$BACKEND_IP" ]; then
-    echo "⚠️ Warning: Could not resolve 'backend' via DNS, trying localhost fallback..."
-    BACKEND_IP="127.0.0.1"
-fi
-echo "Resolved backend to: $BACKEND_IP"
-
 # 1. Verify that all services are "UP"
 echo "Verifying service availability..."
 
@@ -43,8 +35,8 @@ else
 fi
 
 # Backend Health Check - /healthz endpoint
-echo "Checking backend health at http://$BACKEND_IP:8000/healthz..."
-if curl --noproxy "*" --retry 10 --retry-delay 5 --retry-connrefused --output /dev/null --silent --fail http://$BACKEND_IP:8000/healthz; then
+echo "Checking backend health at http://backend:8000/healthz..."
+if curl --noproxy "*" --retry 10 --retry-delay 5 --retry-connrefused --output /dev/null --silent --fail http://backend:8000/healthz; then
     report_status "Backend /health" "PASS" "Backend /healthz endpoint is responsive."
 else
     report_status "Backend /health" "FAIL" "Backend /healthz endpoint is not responsive after retries."
