@@ -1,82 +1,100 @@
-# CyberCase SOC Orchestrator 🛡️
+# 🛡️ Ticketera SOC
+### Orquestador Integral de Incidentes de Ciberseguridad
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js-000000?logo=nextdotjs)](https://nextjs.org/)
-[![Docker](https://img.shields.io/badge/Deployment-Docker-2496ED?logo=docker)](https://www.docker.com/)
+[![Production Ready](https://img.shields.io/badge/Status-Production--Ready-success.svg)](#)
+[![Validated](https://img.shields.io/badge/QA-E2E--Validated-blue.svg)](#)
 
-**CyberCase SOC Orchestrator** es una plataforma integral de gestión de incidentes y activos diseñada específicamente para Centros de Operaciones de Seguridad (SOC) modernos. Actúa como el puente crítico entre la ingestión de datos crudos del SIEM y la respuesta orquestada ante incidentes.
+**Ticketera SOC** no es solo un gestor de tickets; es una plataforma de misión crítica diseñada para centralizar, automatizar y auditar el ciclo de vida de los incidentes de seguridad. Creada específicamente para Centros de Operaciones de Seguridad (SOC), actúa como el puente crítico entre la detección automática (SIEM) y la respuesta operativa humana.
 
 ---
 
 ## 🚀 Valor Estratégico
 
-En el ecosistema de ciberseguridad actual, la velocidad de respuesta es la diferencia entre un incidente contenido y un desastre de datos. CyberCase optimiza el flujo de trabajo del analista mediante:
+En el ecosistema de ciberseguridad actual, la velocidad de respuesta es la diferencia entre un incidente contenido y un desastre de datos. Este sistema optimiza el flujo de trabajo del analista mediante:
 
-- **Reducción de Fatiga por Alertas:** Agrupación inteligente y enriquecimiento automático de eventos SIEM.
-- **Trazabilidad Forense:** Cada cambio, comentario o adjunto queda registrado en un log de auditoría inmutable.
-- **Cumplimiento y SLA:** Monitoreo en tiempo real de tiempos de respuesta y resolución.
-- **Privacidad por Diseño:** Aislamiento estricto de datos por grupos y áreas operativas.
-
----
-
-## ✨ Funciones Core
-
-### 1. Monitor de Eventos SIEM Profesional
-- **Parser Inteligente:** Procesa automáticamente logs en formatos XML (FortiSIEM), JSON y Key-Value (Fortinet/Syslog).
-- **Visor Estructurado:** Desglose automático de IPs de origen/destino, puertos, protocolos y técnicas **MITRE ATT&CK**.
-- **Laboratorio RAW:** Herramienta profesional de análisis de logs con resaltado de sintaxis, búsqueda interna y herramientas de exportación.
-
-### 2. Inventario de Activos 360°
-- **Gestión Jerárquica:** Árbol de ubicaciones dinámico con búsqueda ultra-rápida.
-- **Seguimiento Técnico:** Historial completo de instalaciones, movimientos y cambios de estado de cada equipo.
-- **Importación Inteligente:** Soporte nativo para reportes de ESET Cloud y FortiClient EMS.
-
-### 3. Gestión de Incidentes (Ticketing SOC)
-- **Colaboración Proactiva:** Sistema de menciones (`@usuario`) con notificaciones en tiempo real.
-- **Gestión de Evidencias:** Carga múltiple de archivos con visor de pre-carga y control de integridad.
-- **Control de Acceso Dinámico:** Reglas de estado estrictas que bloquean la alteración de casos resueltos.
-
-### 4. Seguridad de Grado Empresarial
-- **Autenticación Multi-Factor (2FA):** Soporte obligatorio de TOTP (Google Authenticator, Authy).
-- **Hardening de Sesiones:** Control de concurrencia y expiración de tokens JWT.
-- **RBAC Robusto:** Permisos granulares basados en roles y grupos jerárquicos.
+*   **⚡ Ingesta Automática (SIEM Ready):** Módulo especializado para recibir alertas vía Syslog (UDP 514) y procesar logs crudos de FortiSIEM/FortiGate.
+*   **🔐 Seguridad Hardened:** Autenticación de doble factor (2FA) integrada, Control de Acceso Basado en Roles (RBAC) y auditoría inmutable.
+*   **🔎 Búsqueda Forense:** Motor Meilisearch integrado para indexación y búsqueda ultra-rápida de históricos.
+*   **📊 Observabilidad Operativa:** Dashboards en tiempo real (WebSockets) y stack de monitoreo integrado (Prometheus/Grafana).
+*   **🛡️ Soberanía de Datos:** Despliegue 100% On-Premise basado en Docker, sin dependencia de nubes externas.
 
 ---
 
-## 🛠️ Stack Tecnológico
+## 🏗️ Arquitectura Técnica
+
+El sistema utiliza una arquitectura de microservicios orquestada, garantizando portabilidad y aislamiento:
 
 | Componente | Tecnología |
 | :--- | :--- |
-| **Backend** | FastAPI (Python 3.9), SQLAlchemy 2.0, Alembic |
-| **Frontend** | Next.js 14, React, Bootstrap 5, Lucide Icons |
-| **Gráficos** | Recharts (Data Visualization) |
+| **Frontend** | Next.js 14 (TypeScript), React Bootstrap |
+| **Backend** | FastAPI (Python 3.11) asíncrono |
 | **Base de Datos** | PostgreSQL 16 |
-| **Caché/Sesiones** | Redis 7 |
+| **Caché / Sesiones** | Redis 7 |
+| **Búsqueda** | Meilisearch |
 | **Infraestructura** | Docker Compose, Nginx (Reverse Proxy) |
 
 ---
 
-## 📥 Instalación Rápida
+## 🛠️ Guía de Instalación Rápida (Zero Errors)
 
+### Requisitos Previos
+*   Docker Engine 24.0+ y Docker Compose V2.
+*   Puertos disponibles: `80`, `443`, `514` (UDP).
+
+### Paso 1: Clonar el Repositorio
 ```bash
-# 1. Clonar el repositorio
-git clone https://github.com/cibercase-ds/cybercase-soc.git
-cd cybercase-soc
+git clone https://github.com/fldominguezz/Ticketera.git
+cd Ticketera
+```
 
-# 2. Configurar variables de entorno
+### Paso 2: Configurar Variables de Entorno
+Crea un archivo `.env` a partir de la plantilla genérica:
+```bash
 cp .env.example .env
+```
+*Edita el archivo `.env` y ajusta el valor de `DOMAIN_NAME` con la IP de tu servidor (Ej: `10.1.1.1`).*
 
-# 3. Desplegar con Docker
-docker compose up -d --build
+### Paso 3: Desplegar
+```bash
+# Este comando construye las imágenes y levanta todos los servicios en segundo plano
+docker-compose up --build -d
+```
+
+### Paso 4: Acceso e Inicio
+1.  Ingresa a: `https://tu-ip-o-dominio` (Ej: `https://10.1.1.1`).
+2.  Acepta el certificado de seguridad (Autofirmado por Nginx en el arranque).
+3.  Inicia sesión con las credenciales de `FIRST_SUPERUSER` definidas en tu `.env`.
+
+---
+
+## 🔧 Mantenimiento y Operaciones
+
+### Ver estado de los servicios
+```bash
+docker-compose ps
+```
+
+### Consultar logs del Backend (Debug)
+```bash
+docker-compose logs -f backend
+```
+
+### Backup de seguridad de la Base de Datos
+```bash
+docker exec ticketera-db-1 pg_dump -U operador_db ticketera_db > backup_soc_$(date +%F).sql
+```
+
+### Actualización del Sistema
+```bash
+git pull origin main
+docker-compose up --build -d
 ```
 
 ---
 
-## 📖 Manual de Usuario
+## 🛡️ Validación de Calidad
+Este repositorio incluye un **Agente de Validación Automática** (`validator/`) que ejecuta pruebas E2E con **Playwright** en cada despliegue, asegurando que el motor de autenticación, la conexión a la base de datos y la creación de tickets estén operativos al 100%.
 
-Para obtener una guía detallada sobre cómo operar la plataforma, consulta nuestro [Manual de Usuario](./docs/USER_MANUAL.md).
-
-## 🛡️ Soporte y Licencia
-
-Desarrollado para entornos de misión crítica. Bajo licencia MIT. Para soporte especializado, contactar a la División de Seguridad Informática de CyberCase.
+---
+Desarrollado para entornos de misión crítica. Bajo licencia MIT.
