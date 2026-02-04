@@ -103,9 +103,13 @@ def generate_report():
     playwright_process = subprocess.run(playwright_command, shell=True, capture_output=True, text=True)
     print(f"Playwright Exit Code: {playwright_process.returncode}")
     
-    # Save output to file for consistency
-    with open(playwright_output_file, "w") as f:
+    # Do NOT overwrite playwright_output_file here, as Playwright already generated it
+    # We save console output to a separate log file for debugging
+    playwright_console_log = os.path.join(REPORT_DIR, "playwright-console.log")
+    with open(playwright_console_log, "w") as f:
+        f.write("STDOUT:\n")
         f.write(playwright_process.stdout)
+        f.write("\nSTDERR:\n")
         f.write(playwright_process.stderr)
 
     if playwright_process.returncode != 0:

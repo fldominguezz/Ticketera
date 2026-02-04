@@ -80,16 +80,18 @@ fi
 
 # Get a valid group_id (Area SOC or Admin)
 GROUPS_JSON=$(curl -s -X GET -H "Authorization: $BEARER_TOKEN" "$API_BASE_URL/groups")
-GROUP_ID="e905cf4d-b282-4fbe-a158-bffc2b04e430"
-
-if [ "$GROUP_ID" == "null" ] || [ -z "$GROUP_ID" ]; then
-    GROUP_ID="e905cf4d-b282-4fbe-a158-bffc2b04e430"
-fi
+GROUP_ID=$(echo "$GROUPS_JSON" | jq -r '.[0].id // empty')
 
 if [ -n "$GROUP_ID" ] && [ "$GROUP_ID" != "null" ]; then
-    echo "Using Group ID: $GROUP_ID"
+    echo "Using discovered Group ID: $GROUP_ID"
 else
-    report_status "Group Discovery" "FAIL" "Could not find a valid group."
+    echo "⚠️ Group Discovery failed from API, trying fallback..."
+    # Fallback to a known name if possible or fail
+    GROUP_ID=$(echo "$GROUPS_JSON" | jq -r '.[] | select(.name=="Administración") | .id')
+fi
+
+if [ -z "$GROUP_ID" ] || [ "$GROUP_ID" == "null" ]; then
+    report_status "Group Discovery" "FAIL" "Could not find a valid group. Response: $GROUPS_JSON"
     exit 1
 fi
 

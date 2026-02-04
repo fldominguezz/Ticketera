@@ -41,7 +41,10 @@ test('Full System Smoke Test', async ({ page }) => {
   const ticketTitle = 'Smoke Test Ticket ' + Date.now();
   console.log('Creating ticket:', ticketTitle);
   await page.fill('input[placeholder*="descripción del problema"]', ticketTitle);
-  await page.locator('.ql-editor').fill('Validated by automated smoke test.');
+  
+  // More robust selector for Quill editor
+  const editor = page.locator('.ql-editor').first();
+  await editor.fill('Validated by automated smoke test.');
   
   await page.click('button:has-text("GUARDAR Y CREAR TICKET")');
   
