@@ -1,5 +1,6 @@
 #!/bin/bash
-set -e
+# Remove set -e
+# set -e
 
 # Function to report status
 report_status() {
@@ -20,8 +21,8 @@ report_status() {
 echo "--- C) Running API Validation (contract tests) ---"
 
 API_BASE_URL="http://backend:8000/api/v1"
-ADMIN_USERNAME="admin"
-ADMIN_PASSWORD="adminpassword"
+ADMIN_USERNAME="test_admin"
+ADMIN_PASSWORD="testpassword123"
 GLOBAL_FAIL=0
 
 # 1. Test Auth Login

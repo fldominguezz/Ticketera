@@ -4,8 +4,8 @@ test.describe('Ticket Management', () => {
   test.beforeEach(async ({ page }) => {
     // Login before each test
     await page.goto('/login');
-    await page.fill('input[name="username"]', 'admin'); // Adjusted to username as per recent context
-    await page.fill('input[name="password"]', 'adminpassword');
+    await page.fill('input[name="username"]', 'test_admin'); // Adjusted to username as per recent context
+    await page.fill('input[name="password"]', 'testpassword123');
     await page.click('button[type="submit"]');
     await page.waitForURL('/dashboard');
   });
@@ -63,10 +63,10 @@ test.describe('Ticket Management', () => {
     
     // Add comment
     const commentBox = page.locator('textarea[name="comment"]');
-    await commentBox.fill('Automated comment with @admin mention.');
+    await commentBox.fill('Automated comment with @test_admin mention.');
     await page.click('button:has-text("Post Comment")');
     
     // Verify comment appears
-    await expect(page.locator('text=Automated comment with @admin mention')).toBeVisible();
+    await expect(page.locator('text=Automated comment with @test_admin mention')).toBeVisible();
   });
 });

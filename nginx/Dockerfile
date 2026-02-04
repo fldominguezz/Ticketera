@@ -1,7 +1,7 @@
 FROM nginx:alpine
 
 # Instalar openssl para generar certificados y gettext para envsubst si fuera necesario
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl curl
 
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY conf.d/ /etc/nginx/conf.d/

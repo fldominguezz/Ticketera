@@ -86,9 +86,9 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/admin/system/ping"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 5
 
   frontend:
@@ -105,11 +105,13 @@ services:
       - backend
     networks:
       - app-network
+    environment:
+      - HOSTNAME=0.0.0.0
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 15s
+      timeout: 10s
+      retries: 10
 
   nginx:
     build:

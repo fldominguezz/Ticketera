@@ -94,16 +94,26 @@ async def init_db() -> None:
             superuser_user = await user.create(session, obj_in=user_in)
             logger.info(f"Superuser created: {settings.FIRST_SUPERUSER}")
         else:
-            # Ensure superuser has admin role
-            result = await session.execute(select(UserRole).filter(UserRole.user_id == superuser_user.id, UserRole.role_id == admin_role.id))
-            user_role = result.scalar_one_or_none()
-            if not user_role:
-                user_role = UserRole(user_id=superuser_user.id, role_id=admin_role.id)
-                session.add(user_role)
-                await session.commit()
-                logger.info("Assigned Administrator role to superuser")
             logger.info("Superuser already exists")
 
+        # 5. Create Test Admin for E2E
+        test_admin_email = "test_admin@example.com"
+        test_admin_user = await user.get_by_email(session, email=test_admin_email)
+        if not test_admin_user:
+            test_user_in = UserCreate(
+                email=test_admin_email,
+                username="test_admin",
+                password="testpassword123",
+                is_superuser=True,
+                group_id=group.id,
+                first_name="Test",
+                last_name="Admin",
+                role_ids=[admin_role.id]
+            )
+            test_admin_user = await user.create(session, obj_in=test_user_in)
+            logger.info(f"Test Admin created: {test_admin_email}")
+        else:
+            logger.info("Test Admin already exists")
 
         # 6. Ensure Workflow and Workflow States
         result = await session.execute(select(Workflow).filter(Workflow.name == "Default Ticket Workflow"))

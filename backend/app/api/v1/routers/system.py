@@ -13,6 +13,13 @@ router = APIRouter()
 
 BACKUP_DIR = "/root/Ticketera/backups"
 
+@router.get("/ping", tags=["health"])
+async def ping() -> Any:
+    """
+    Public endpoint for healthchecks.
+    """
+    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+
 @router.get("/health")
 async def get_system_health(
     current_user: Annotated[Any, Depends(require_role(['owner', 'admin']))]

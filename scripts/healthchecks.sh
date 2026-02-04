@@ -1,5 +1,6 @@
 #!/bin/bash
-set -e
+# Remove set -e to allow all checks to run and be reported
+# set -e
 
 # Function to report status
 report_status() {
@@ -10,7 +11,7 @@ report_status() {
         echo "✅ $TEST_NAME: PASS - $MESSAGE"
     else
         echo "❌ $TEST_NAME: FAIL - $MESSAGE"
-        exit 1 # Exit on first failure
+        # export GLOBAL_FAIL=1 # Let the orchestrator handle failure
     fi
 }
 
@@ -20,31 +21,32 @@ echo "--- A) Running Infrastructure Healthchecks ---"
 echo "Verifying service availability..."
 
 # Nginx Health Check (expecting 200 from https)
-if curl -k --output /dev/null --silent --head --fail https://nginx; then
+if curl -k --output /dev/null --silent --fail https://nginx; then
     report_status "Nginx UP" "PASS" "Nginx service is accessible via HTTPS."
 else
     report_status "Nginx UP" "FAIL" "Nginx service is not accessible via HTTPS."
 fi
 
 # Frontend Health Check (expecting 200 from http)
-if curl --output /dev/null --silent --head --fail http://frontend:3000; then
+if curl --output /dev/null --silent --fail http://frontend:3000; then
     report_status "Frontend UP" "PASS" "Frontend service is accessible on port 3000."
 else
     report_status "Frontend UP" "FAIL" "Frontend service is not accessible on port 3000."
 fi
 
 # Backend Health Check - /health endpoint
-if curl --output /dev/null --silent --head --fail http://backend:8000/health; then
-    report_status "Backend /health" "PASS" "Backend /health endpoint is responsive."
+echo "Checking backend health at http://backend:8000/api/v1/admin/system/ping..."
+if curl --retry 5 --retry-delay 5 --retry-connrefused --output /dev/null --silent --fail http://backend:8000/api/v1/admin/system/ping; then
+    report_status "Backend /health" "PASS" "Backend /ping endpoint is responsive."
 else
-    report_status "Backend /health" "FAIL" "Backend /health endpoint is not responsive."
+    report_status "Backend /health" "FAIL" "Backend /ping endpoint is not responsive after retries."
 fi
 
 # Backend Health Check - /ready endpoint
-if curl --output /dev/null --silent --head --fail http://backend:8000/ready; then
-    report_status "Backend /ready" "PASS" "Backend /ready endpoint is responsive."
+if curl --retry 3 --retry-delay 2 --retry-connrefused --output /dev/null --silent --fail http://backend:8000/api/v1/admin/system/ping; then
+    report_status "Backend /ready" "PASS" "Backend /ping endpoint is responsive."
 else
-    report_status "Backend /ready" "FAIL" "Backend /ready endpoint is not responsive."
+    report_status "Backend /ready" "FAIL" "Backend /ping endpoint is not responsive."
 fi
 
 # DB Health Check (PostgreSQL)

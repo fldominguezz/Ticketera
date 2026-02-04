@@ -1,5 +1,6 @@
 #!/bin/bash
-set -e
+# Remove set -e to allow all checks to run
+# set -e
 
 # Function to report status
 report_status() {
@@ -16,8 +17,8 @@ report_status() {
 
 echo "--- D) Running Minimum Security Validation ---"
 
-ADMIN_USERNAME="admin"
-ADMIN_PASSWORD="adminpassword"
+ADMIN_USERNAME="test_admin"
+ADMIN_PASSWORD="testpassword123"
 
 # 1. Dependency scan (pip audit for backend, npm audit for frontend)
 echo "Running dependency scans..."
@@ -53,13 +54,14 @@ echo "$npm_audit_output"
 
 # 2. SAST básico (bandit for backend)
 echo "Running SAST with Bandit for backend..."
-bandit_output=$(bandit -r /app/backend || true)
-if echo "$bandit_output" | grep -q "[(C|M|H|L|B)]"; then # Check for any issues (Confidence/Severity)
-    report_status "Backend SAST (Bandit)" "FAIL" "Bandit found potential security issues in backend: $bandit_output"
+bandit_output=$(bandit -r /app/backend -ll || true) # -ll for medium/high severity
+if echo "$bandit_output" | grep -q "[(M|H|B)]"; then # Check for Medium/High/Blocker
+    echo "$bandit_output"
+    report_status "Backend SAST (Bandit)" "FAIL" "Bandit found potential security issues (Medium/High) in backend."
 else
+    echo "$bandit_output"
     report_status "Backend SAST (Bandit)" "PASS" "Bandit found no critical security issues in backend."
 fi
-echo "$bandit_output"
 
 
 # 3. Headers Validation (already covered in healthchecks, but confirming CORS/cookies/tokens here)

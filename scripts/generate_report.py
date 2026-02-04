@@ -88,64 +88,82 @@ def generate_report():
     # Run Playwright tests and capture JSON output to a file
     # Adding debug prints to see Playwright's output
     print(f"Executing Playwright command: {playwright_command}")
-    playwright_process = subprocess.run(playwright_command + f" > {playwright_output_file}", shell=True, capture_output=True, text=True)
-    print(f"Playwright Stdout: {playwright_process.stdout}")
-    print(f"Playwright Stderr: {playwright_process.stderr}")
+    playwright_process = subprocess.run(playwright_command + f" > {playwright_output_file} 2>&1", shell=True, capture_output=False, text=True)
     print(f"Playwright Exit Code: {playwright_process.returncode}")
 
     e2e_status = "FAIL" if playwright_process.returncode != 0 else "PASS"
     e2e_details = []
 
     if os.path.exists(playwright_output_file) and os.path.getsize(playwright_output_file) > 0:
-        with open(playwright_output_file, 'r') as f:
-            playwright_results = json.load(f)
-        
-        total_tests = 0
-        failed_tests = 0
-        total_duration = 0 
-        
-        for suite in playwright_results.get("suites", []):
-            for spec in suite.get("specs", []):
-                for test_result in spec.get("tests", []):
-                    total_tests += 1
-                    test_status = "PASS"
-                    # Access errors gracefully using .get()
-                    test_errors = [error.get("message", "Unknown error") for error in test_result.get("errors", [])]
-                    current_test_duration = 0
-                    
-                    for step in test_result.get("steps", []):
-                        current_test_duration += step.get("duration", 0)
-                    
-                    if test_result.get("status") == "failed":
-                        failed_tests += 1
-                        test_status = "FAIL"
-                        overall_status = "FAIL"
-                        if test_errors: # Add only if there are actual errors
-                            report_data["errors"].append({
-                                "category": "E2E Functional Validation",
-                                "test_name": spec.get("title"),
-                                "message": "E2E test failed.",
-                                "details": {"errors": test_errors} # Store actual errors
-                            })
-                    
-                    test_duration = test_result.get("duration", current_test_duration)
+        try:
+            with open(playwright_output_file, 'r') as f:
+                # Playwright might output non-JSON text before or after JSON if redirected with 2>&1
+                # but with --reporter=json it should be clean. 
+                # However, if there was a crash, it might not be valid JSON.
+                content = f.read()
+                # Find the first { and last } to extract JSON if there's noise
+                start = content.find('{')
+                end = content.rfind('}')
+                if start != -1 and end != -1:
+                    playwright_results = json.loads(content[start:end+1])
+                else:
+                    raise ValueError("No valid JSON found in Playwright output.")
+            
+            total_tests = 0
+            failed_tests = 0
+            total_duration = 0 
+            
+            for suite in playwright_results.get("suites", []):
+                for spec in suite.get("specs", []):
+                    for test_result in spec.get("tests", []):
+                        total_tests += 1
+                        test_status = "PASS"
+                        # Access errors gracefully using .get()
+                        test_errors = [error.get("message", "Unknown error") for error in test_result.get("errors", [])]
+                        current_test_duration = 0
+                        
+                        for step in test_result.get("steps", []):
+                            current_test_duration += step.get("duration", 0)
+                        
+                        if test_result.get("status") == "failed":
+                            failed_tests += 1
+                            test_status = "FAIL"
+                            overall_status = "FAIL"
+                            if test_errors: # Add only if there are actual errors
+                                report_data["errors"].append({
+                                    "category": "E2E Functional Validation",
+                                    "test_name": spec.get("title"),
+                                    "message": "E2E test failed.",
+                                    "details": {"errors": test_errors} # Store actual errors
+                                })
+                        
+                        test_duration = test_result.get("duration", current_test_duration)
 
-                    e2e_details.append({
-                        "name": spec.get("title"),
-                        "status": test_status,
-                        "errors": test_errors,
-                        "duration_ms": test_duration 
-                    })
-        e2e_status = "PASS" if failed_tests == 0 else "FAIL"
-        report_data["categories"].append({
-            "name": "E2E Functional Validation",
-            "status": e2e_status,
-            "total_tests": total_tests,
-            "failed_tests": failed_tests,
-            "duration_ms": total_duration, 
-            "tests": e2e_details,
-            "artifacts_dir": os.path.join(REPORT_DIR, "playwright-report") 
-        })
+                        e2e_details.append({
+                            "name": spec.get("title"),
+                            "status": test_status,
+                            "errors": test_errors,
+                            "duration_ms": test_duration 
+                        })
+            e2e_status = "PASS" if failed_tests == 0 else "FAIL"
+            report_data["categories"].append({
+                "name": "E2E Functional Validation",
+                "status": e2e_status,
+                "total_tests": total_tests,
+                "failed_tests": failed_tests,
+                "duration_ms": total_duration, 
+                "tests": e2e_details,
+                "artifacts_dir": os.path.join(REPORT_DIR, "playwright-report") 
+            })
+        except Exception as e:
+            print(f"Error parsing Playwright JSON: {e}")
+            overall_status = "FAIL"
+            report_data["errors"].append({"category": "E2E Functional Validation", "message": f"Error parsing Playwright report: {e}"})
+            report_data["categories"].append({
+                "name": "E2E Functional Validation",
+                "status": "FAIL",
+                "message": f"Error parsing Playwright report: {e}"
+            })
     else:
         overall_status = "FAIL"
         report_data["errors"].append({"category": "E2E Functional Validation", "message": "Playwright JSON report not found or is empty."})
@@ -171,11 +189,11 @@ def generate_report():
         f.write(f"**Overall Status:** {{'✅ PASS' if report_data['overall_status'] == 'PASS' else '❌ FAIL'}}\n\n")
         
         for category in report_data["categories"]:
-            f.write(f"## {{category['name']}} - {{'✅ PASS' if category['status'] == 'PASS' else '❌ FAIL'}}\n\n")
+            f.write(f"## {category['name']} - {'✅ PASS' if category['status'] == 'PASS' else '❌ FAIL'}\n\n")
             if "tests" in category:
                 for test in category["tests"]:
-                    f.write(f"- {{'✅' if test['status'] == 'PASS' else '❌'}} {{test['name']}}: {{test['status']}}\n")
-                    if test["status"] == "FAIL" and test["errors"]:
+                    f.write(f"- {'✅' if test['status'] == 'PASS' else '❌'} {test['name']}: {test['status']}\n")
+                    if test["status"] == "FAIL" and test.get("errors"):
                         for error_msg in test["errors"]:
                             f.write(f"  - Error: {error_msg}\n")
                 if "total_tests" in category:

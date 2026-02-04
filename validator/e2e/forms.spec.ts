@@ -3,8 +3,8 @@ import { test, expect } from '@playwright/test';
 test.describe('Dynamic Forms', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/login');
-    await page.fill('input[name="username"]', 'admin');
-    await page.fill('input[name="password"]', 'adminpassword');
+    await page.fill('input[name="username"]', 'test_admin');
+    await page.fill('input[name="password"]', 'testpassword123');
     await page.click('button[type="submit"]');
     await page.waitForURL('/dashboard');
   });

@@ -3,14 +3,14 @@ import { test, expect } from '@playwright/test';
 test.describe('Admin Panel', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/login');
-    await page.fill('input[name="username"]', 'admin');
-    await page.fill('input[name="password"]', 'adminpassword');
+    await page.fill('input[name="username"]', 'test_admin');
+    await page.fill('input[name="password"]', 'testpassword123');
     await page.click('button[type="submit"]');
     await page.waitForURL('/dashboard');
   });
 
   test('should create a new user and assign role', async ({ page }) => {
-    await page.goto('/admin/users');
+    await page.goto('/test_admin/users');
     
     await page.click('button:has-text("Create User")');
     
@@ -29,7 +29,7 @@ test.describe('Admin Panel', () => {
   });
 
   test('should verify export functionality', async ({ page }) => {
-    // This could be in tickets or admin, testing generic export button
+    // This could be in tickets or test_admin, testing generic export button
     await page.goto('/tickets');
     
     const exportBtn = page.locator('button:has-text("Export")');

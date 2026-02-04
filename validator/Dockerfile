@@ -35,6 +35,8 @@ RUN cd frontend && npm install
 # Install Playwright's local dependencies in the e2e directory
 # Assuming validator/e2e/package.json exists and lists @playwright/test
 RUN cd validator/e2e && npm install
+RUN npx playwright install --with-deps chromium
+
 # Add Playwright's local bin directory to PATH for subsequent commands
 ENV PATH="/app/validator/e2e/node_modules/.bin:$PATH"
 
