@@ -16,7 +16,13 @@ ALGORITHM = settings.ALGORITHM
 # --- Password ---
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verifies a plain password against a hashed one."""
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception as e:
+        # Log the error but don't crash the whole request
+        import logging
+        logging.getLogger(__name__).error(f"Password verification error: {e}")
+        return False
 
 def get_password_hash(password: str) -> str:
     """Hashes a plain password."""

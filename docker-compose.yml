@@ -93,11 +93,11 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/admin/system/ping"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/api/v1/admin/system/ping"]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 60s
+      retries: 15
+      start_period: 90s
 
   frontend:
     build:

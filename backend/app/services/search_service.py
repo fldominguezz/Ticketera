@@ -75,9 +75,9 @@ class SearchService:
 
         try:
             # Ensure dates are strings
-            if "created_at" in ticket_data and not isinstance(ticket_data["created_at"], str):
+            if ticket_data.get("created_at") and not isinstance(ticket_data["created_at"], str):
                  ticket_data["created_at"] = ticket_data["created_at"].isoformat()
-            if "updated_at" in ticket_data and not isinstance(ticket_data["updated_at"], str):
+            if ticket_data.get("updated_at") and not isinstance(ticket_data["updated_at"], str):
                  ticket_data["updated_at"] = ticket_data["updated_at"].isoformat()
             
             # Convert UUIDs to strings
