@@ -41,14 +41,20 @@ def parse_shell_script_output(output, section_name):
     global_status = "PASS"
     for line in lines:
         if line.startswith("✅"):
-            test_name = line.split("✅ ")[1].split(": PASS")[0].strip()
-            message = line.split("PASS - ")[1].strip()
-            results.append({"name": test_name, "status": "PASS", "message": message})
+            parts = line.split("✅ ")[1].split(": PASS")
+            if len(parts) > 1:
+                test_name = parts[0].strip()
+                msg_parts = line.split("PASS - ")
+                message = msg_parts[1].strip() if len(msg_parts) > 1 else "No message"
+                results.append({"name": test_name, "status": "PASS", "message": message})
         elif line.startswith("❌"):
-            test_name = line.split("❌ ")[1].split(": FAIL")[0].strip()
-            message = line.split("FAIL - ")[1].strip()
-            results.append({"name": test_name, "status": "FAIL", "message": message})
-            global_status = "FAIL"
+            parts = line.split("❌ ")[1].split(": FAIL")
+            if len(parts) > 1:
+                test_name = parts[0].strip()
+                msg_parts = line.split("FAIL - ")
+                message = msg_parts[1].strip() if len(msg_parts) > 1 else "No message"
+                results.append({"name": test_name, "status": "FAIL", "message": message})
+                global_status = "FAIL"
     return {"name": section_name, "status": global_status, "tests": results, "raw_output": output}
 
 def generate_report():
