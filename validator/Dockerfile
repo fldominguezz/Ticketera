@@ -10,7 +10,8 @@ RUN sed -i 's|http://archive.ubuntu.com/ubuntu/|http://azure.archive.ubuntu.com/
     git \
     iputils-ping \
     postgresql-client \
-    redis-tools && \
+    redis-tools \
+    python3-venv && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 20 from NodeSource APT repository

@@ -1,6 +1,7 @@
 #!/bin/bash
 # set -e # Don't exit on error to allow log dumping
 
+echo "--- 🚀 Total Validation Agent Started ---"
 echo "--- Pre-Validation: Waiting for Services Connectivity ---"
 MAX_RETRIES=60
 sleep 5 # Initial grace period for networking
