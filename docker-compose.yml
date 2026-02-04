@@ -198,6 +198,8 @@ services:
 
   validator:
     container_name: validator
+    profiles:
+      - test
     build:
       context: .
       dockerfile: ./validator/Dockerfile
