@@ -15,9 +15,10 @@ services:
       - app-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 20s
 
   redis:
     image: redis:7-alpine
@@ -34,9 +35,10 @@ services:
       - app-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   meilisearch:
     image: getmeili/meilisearch:v1.6
@@ -54,10 +56,11 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:7700/health"]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 10
+      start_period: 40s
 
   backend:
     build:
@@ -93,11 +96,11 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/api/v1/admin/system/ping"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD-SHELL", "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/api/v1/admin/system/ping\")'"]
+      interval: 15s
+      timeout: 10s
       retries: 15
-      start_period: 90s
+      start_period: 120s
 
   frontend:
     build:

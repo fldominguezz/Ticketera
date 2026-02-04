@@ -60,7 +60,7 @@ def include_routers(app: FastAPI):
         attachments, endpoints, forensics, plugins
     )
 
-    app.include_router(soc_ws.router, tags=["websockets"])
+    app.include_router(soc_ws.router, prefix=f"{settings.API_V1_STR}", tags=["websockets"])
     app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
     app.include_router(expedientes.router, prefix=f"{settings.API_V1_STR}/expedientes", tags=["expedientes"])
     app.include_router(users.router, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
