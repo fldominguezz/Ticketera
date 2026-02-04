@@ -26,13 +26,10 @@ RUN pip install pip-audit bandit requests
 WORKDIR /app
 
 # Copy the entire project root into the container
-# This should place frontend, backend, scripts, validator directories directly under /app
 COPY . .
 
-# Install Node.js dependencies for frontend (if any)
-RUN cd frontend && npm install
-
 # Install Playwright's local dependencies in the e2e directory
+RUN cd validator/e2e && npm install
 # Assuming validator/e2e/package.json exists and lists @playwright/test
 RUN cd validator/e2e && npm install
 RUN npx playwright install --with-deps chromium
