@@ -17,8 +17,21 @@ async def get_password_policy(
 ):
     res = await db.execute(select(models.PasswordPolicy).limit(1))
     policy = res.scalar_one_or_none()
+    
     if not policy:
-        raise HTTPException(status_code=404, detail="Policy not found")
+        # Create a default policy if none exists
+        policy = models.PasswordPolicy(
+            min_length=12,
+            requires_uppercase=True,
+            requires_lowercase=True,
+            requires_number=True,
+            requires_special_char=True,
+            enforce_2fa_all=False
+        )
+        db.add(policy)
+        await db.commit()
+        await db.refresh(policy)
+        
     return policy
 
 @router.put("/password-policy", response_model=PasswordPolicy)

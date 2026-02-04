@@ -68,7 +68,7 @@ export default function PasswordPolicyPage() {
                                             <Form.Control 
                                                 type="number" 
                                                 className="fw-bold"
-                                                value={policy.min_length} 
+                                                value={policy?.min_length || 12} 
                                                 onChange={e => setPolicy({...policy, min_length: parseInt(e.target.value)})}
                                             />
                                             <Form.Text className="x-small">Se recomiendan 12 caracteres para entornos SOC.</Form.Text>
@@ -80,7 +80,7 @@ export default function PasswordPolicyPage() {
                                             <Form.Control 
                                                 type="number"
                                                 placeholder="Nunca expira"
-                                                value={policy.expire_days || ''} 
+                                                value={policy?.expire_days || ''} 
                                                 onChange={e => setPolicy({...policy, expire_days: e.target.value ? parseInt(e.target.value) : null})}
                                             />
                                         </Form.Group>
@@ -92,10 +92,10 @@ export default function PasswordPolicyPage() {
                                         <LockIcon size={12} className="me-2"/> Requerimientos Obligatorios
                                     </h6>
                                     <Row className="g-3">
-                                        <Col md={6}><Form.Check type="switch" label="Letras Mayúsculas (A-Z)" checked={policy.requires_uppercase} onChange={e => setPolicy({...policy, requires_uppercase: e.target.checked})}/></Col>
-                                        <Col md={6}><Form.Check type="switch" label="Letras Minúsculas (a-z)" checked={policy.requires_lowercase} onChange={e => setPolicy({...policy, requires_lowercase: e.target.checked})}/></Col>
-                                        <Col md={6}><Form.Check type="switch" label="Números (0-9)" checked={policy.requires_number} onChange={e => setPolicy({...policy, requires_number: e.target.checked})}/></Col>
-                                        <Col md={6}><Form.Check type="switch" label="Caracteres Especiales (!@#...)" checked={policy.requires_special_char} onChange={e => setPolicy({...policy, requires_special_char: e.target.checked})}/></Col>
+                                        <Col md={6}><Form.Check type="switch" label="Letras Mayúsculas (A-Z)" checked={policy?.requires_uppercase || false} onChange={e => setPolicy({...policy, requires_uppercase: e.target.checked})}/></Col>
+                                        <Col md={6}><Form.Check type="switch" label="Letras Minúsculas (a-z)" checked={policy?.requires_lowercase || false} onChange={e => setPolicy({...policy, requires_lowercase: e.target.checked})}/></Col>
+                                        <Col md={6}><Form.Check type="switch" label="Números (0-9)" checked={policy?.requires_number || false} onChange={e => setPolicy({...policy, requires_number: e.target.checked})}/></Col>
+                                        <Col md={6}><Form.Check type="switch" label="Caracteres Especiales (!@#...)" checked={policy?.requires_special_char || false} onChange={e => setPolicy({...policy, requires_special_char: e.target.checked})}/></Col>
                                     </Row>
                                 </div>
 
@@ -103,7 +103,7 @@ export default function PasswordPolicyPage() {
                                     <Form.Check 
                                         type="switch" 
                                         label={<span className="fw-bold text-primary">FORZAR 2FA (TOTP) PARA TODOS LOS USUARIOS</span>} 
-                                        checked={policy.enforce_2fa_all} 
+                                        checked={policy?.enforce_2fa_all || false} 
                                         onChange={e => setPolicy({...policy, enforce_2fa_all: e.target.checked})}
                                     />
                                     <p className="x-small text-muted mt-2 mb-0">Obliga a configurar Google Authenticator en el primer inicio de sesión.</p>
