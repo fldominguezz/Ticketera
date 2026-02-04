@@ -20,20 +20,22 @@ report_status() {
 
 echo "--- C) Running API Validation (contract tests) ---"
 
-API_BASE_URL="http://backend:8000/api/v1"
-ADMIN_USERNAME="${FIRST_SUPERUSER:-admin@example.com}"
-ADMIN_PASSWORD="${FIRST_SUPERUSER_PASSWORD:-admin123}"
+# Resolve backend IP dynamically to avoid DNS issues in CI
+BACKEND_IP=$(getent hosts backend | awk '{ print $1 }')
+if [ -z "$BACKEND_IP" ]; then
+    BACKEND_IP="127.0.0.1"
+fi
+
+API_BASE_URL="http://$BACKEND_IP:8000/api/v1"
+# Aggressive trim: remove all spaces
+ADMIN_USERNAME=$(echo "${FIRST_SUPERUSER:-admin@example.com}" | tr -d '[:space:]')
+ADMIN_PASSWORD=$(echo "${FIRST_SUPERUSER_PASSWORD:-admin123}" | tr -d '[:space:]')
 GLOBAL_FAIL=0
 
-# Trim potential whitespace
-ADMIN_USERNAME=$(echo $ADMIN_USERNAME | xargs)
-ADMIN_PASSWORD=$(echo $ADMIN_PASSWORD | xargs)
-
 echo "--- Debug: Connectivity Check ---"
-echo "Checking if backend is resolvable..."
-getent hosts backend || echo "❌ Cannot resolve 'backend' host"
-echo "Checking connectivity to backend:8000/healthz..."
-curl -I -s --noproxy "*" --retry 5 --retry-delay 2 http://backend:8000/healthz || echo "❌ Cannot connect to backend:8000"
+echo "Resolved backend IP: $BACKEND_IP"
+echo "Checking connectivity to $BACKEND_IP:8000/healthz..."
+curl -I -s --noproxy "*" --retry 5 --retry-delay 2 http://$BACKEND_IP:8000/healthz || echo "❌ Cannot connect to $BACKEND_IP:8000"
 
 # 1. Test Auth Login
 echo "Testing Auth Login at $API_BASE_URL/auth/login with identifier '$ADMIN_USERNAME'..."
