@@ -28,7 +28,7 @@ GLOBAL_FAIL=0
 echo "Testing Auth Login..."
 LOGIN_RESPONSE=$(curl -s -X POST \
   -H "Content-Type: application/json" \
-  -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}" \
+  -d "{\"identifier\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}" \
   "$API_BASE_URL/auth/login")
 
 ACCESS_TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.access_token')

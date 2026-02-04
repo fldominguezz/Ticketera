@@ -16,6 +16,9 @@ report_status() {
 
 echo "--- D) Running Minimum Security Validation ---"
 
+ADMIN_USERNAME="admin"
+ADMIN_PASSWORD="adminpassword"
+
 # 1. Dependency scan (pip audit for backend, npm audit for frontend)
 echo "Running dependency scans..."
 
@@ -90,7 +93,7 @@ echo "Verifying secure cookie flags (HttpOnly, Secure, SameSite)..."
 # Perform a login to get set-cookie headers
 LOGIN_RESPONSE_HEADERS=$(curl -s -v -X POST \
   -H "Content-Type: application/json" \
-  -d "{\"username\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}" \
+  -d "{\"identifier\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}" \
   http://backend:8000/api/v1/auth/login 2>&1 | grep '< Set-Cookie:')
 
 # Placeholder for actual cookie checks, as FastAPI might return tokens in body rather than cookies by default.

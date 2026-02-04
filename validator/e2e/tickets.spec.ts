@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Ticket Management', () => {
   test.beforeEach(async ({ page }) => {
     // Login before each test
-    await page.goto('/auth/login');
+    await page.goto('/login');
     await page.fill('input[name="username"]', 'admin'); // Adjusted to username as per recent context
     await page.fill('input[name="password"]', 'adminpassword');
     await page.click('button[type="submit"]');

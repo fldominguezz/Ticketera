@@ -2,11 +2,11 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Authentication Flow', () => {
   test('should allow admin to login and navigate to dashboard', async ({ page }) => {
-    await page.goto('/auth/login');
-    await expect(page).toHaveURL(/.*auth\/login/);
+    await page.goto('/login');
+    await expect(page).toHaveURL(/.*login/);
 
     // Fill in login credentials
-    await page.fill('input[name="email"]', 'admin');
+    await page.fill('input[name="username"]', 'admin');
     await page.fill('input[name="password"]', 'adminpassword');
 
     // Click the login button

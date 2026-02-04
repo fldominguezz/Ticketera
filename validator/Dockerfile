@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     gcc \
     python3-dev \
+    postgresql-client \
+    redis-tools \
     # npm is installed via Node.js installation below \
     && rm -rf /var/lib/apt/lists/*
 

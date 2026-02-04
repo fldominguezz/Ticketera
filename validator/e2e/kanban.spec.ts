@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Kanban Board', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/auth/login');
+    await page.goto('/login');
     await page.fill('input[name="username"]', 'admin');
     await page.fill('input[name="password"]', 'adminpassword');
     await page.click('button[type="submit"]');

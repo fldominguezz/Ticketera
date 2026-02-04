@@ -18,7 +18,8 @@ export default defineConfig({
   ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
-    baseURL: 'https://10.1.9.240',
+    baseURL: process.env.BASE_URL || 'https://10.1.9.240',
+    ignoreHTTPSErrors: true, // Needed for self-signed certs in CI
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'on-first-retry',

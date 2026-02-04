@@ -112,6 +112,7 @@ export default function Login() {
                   <User size={16} className="position-absolute" style={{ left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
                   <Form.Control 
                     type="text"
+                    name="username"
                     placeholder="Username"
                     autoComplete="username"
                     style={{ paddingLeft: 40, height: 45 }}
@@ -128,6 +129,7 @@ export default function Login() {
                   <Lock size={16} className="position-absolute" style={{ left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
                   <Form.Control 
                     type="password"
+                    name="password"
                     placeholder="Password"
                     autoComplete="current-password"
                     style={{ paddingLeft: 40, height: 45 }}
