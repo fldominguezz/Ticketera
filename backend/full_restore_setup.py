@@ -121,10 +121,10 @@ async def restore_all():
 
         # 6. Create SLA Policies
         slas = [
-            {"name": "Crítico (2h)", "priority": "critical", "response_time_minutes": 30, "resolution_time_minutes": 120},
-            {"name": "Alta (4h)", "priority": "high", "response_time_minutes": 60, "resolution_time_minutes": 240},
-            {"name": "Media (8h)", "priority": "medium", "response_time_minutes": 120, "resolution_time_minutes": 480},
-            {"name": "Baja (24h)", "priority": "low", "response_time_minutes": 240, "resolution_time_minutes": 1440}
+            {"name": "Crítico (2h)", "priority": "critical", "response_time_goal": 30, "resolution_time_goal": 120},
+            {"name": "Alta (4h)", "priority": "high", "response_time_goal": 60, "resolution_time_goal": 240},
+            {"name": "Media (8h)", "priority": "medium", "response_time_goal": 120, "resolution_time_goal": 480},
+            {"name": "Baja (24h)", "priority": "low", "response_time_goal": 240, "resolution_time_goal": 1440}
         ]
         for s_data in slas:
             res = await session.execute(select(SLAPolicy).filter(SLAPolicy.name == s_data["name"]))
