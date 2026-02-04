@@ -26,8 +26,9 @@ ADMIN_PASSWORD="${FIRST_SUPERUSER_PASSWORD:-admin123}"
 GLOBAL_FAIL=0
 
 # 1. Test Auth Login
-echo "Testing Auth Login..."
-LOGIN_RESPONSE=$(curl -s -X POST \
+echo "Testing Auth Login at $API_BASE_URL/auth/login..."
+# Use curl with retry for the initial connection
+LOGIN_RESPONSE=$(curl -s --retry 10 --retry-delay 5 --retry-connrefused -X POST \
   -H "Content-Type: application/json" \
   -d "{\"identifier\": \"$ADMIN_USERNAME\", \"password\": \"$ADMIN_PASSWORD\"}" \
   "$API_BASE_URL/auth/login")
