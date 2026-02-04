@@ -24,6 +24,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 
+@app.get("/healthz", tags=["health"])
+async def healthz():
+    """Minimal healthcheck endpoint."""
+    return {"status": "ok"}
+
 # Configurar CORS
 app.add_middleware(
     CORSMiddleware,
@@ -34,10 +39,6 @@ app.add_middleware(
 )
 
 setup_observability(app)
-
-@app.get("/healthz", tags=["health"])
-async def healthz():
-    return {"status": "ok"}
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

@@ -11,16 +11,19 @@ class SearchService:
         self.key = os.getenv("MEILISEARCH_KEY", "masterKeyTicketeraSOC")
         self.client = None
         self.index_name = "tickets"
-        self._initialize_client()
+        # Initialization removed from __init__ to prevent blocking imports
 
-    def _initialize_client(self):
+    def _ensure_client(self):
+        if self.client:
+            return True
         try:
             self.client = meilisearch.Client(self.url, self.key)
-            # Ensure index exists and configure it
             self._configure_index()
+            return True
         except Exception as e:
             logger.error(f"Failed to initialize Meilisearch client: {e}")
             self.client = None
+            return False
 
     def _configure_index(self):
         if not self.client:
@@ -28,7 +31,6 @@ class SearchService:
         
         try:
             # Check if index exists, create if not
-            # Meilisearch create_index is idempotent in newer versions but let's be safe
             try:
                 self.client.get_index(self.index_name)
             except Exception:
@@ -68,10 +70,8 @@ class SearchService:
         """
         Add or update a ticket in the search index.
         """
-        if not self.client:
-            self._initialize_client()
-            if not self.client:
-                return
+        if not self._ensure_client():
+            return
 
         try:
             # Ensure dates are strings
