@@ -35,6 +35,10 @@ app.add_middleware(
 
 setup_observability(app)
 
+@app.get("/healthz", tags=["health"])
+async def healthz():
+    return {"status": "ok"}
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

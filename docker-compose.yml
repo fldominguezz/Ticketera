@@ -92,15 +92,15 @@ services:
         condition: service_healthy
       meilisearch:
         condition: service_healthy
-    command: gunicorn app.main:app --workers 1 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 300 --access-logfile -
+    command: gunicorn app.main:app --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 300 --access-logfile -
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/api/v1/admin/system/ping\")'"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/healthz"]
       interval: 15s
       timeout: 10s
-      retries: 15
-      start_period: 120s
+      retries: 20
+      start_period: 180s
 
   frontend:
     build:
