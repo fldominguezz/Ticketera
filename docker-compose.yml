@@ -92,15 +92,15 @@ services:
         condition: service_healthy
       meilisearch:
         condition: service_healthy
-    command: gunicorn app.main:app --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 300 --access-logfile -
+    command: gunicorn app.main:app --workers 1 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 300 --access-logfile -
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=5)"]
-      interval: 15s
-      timeout: 10s
-      retries: 30
-      start_period: 240s
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
 
   frontend:
     build:
@@ -210,16 +210,11 @@ services:
       - BASE_URL=https://nginx
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      backend:
-        condition: service_healthy
-      frontend:
-        condition: service_healthy
-      nginx:
-        condition: service_healthy
+      - db
+      - redis
+      - backend
+      - frontend
+      - nginx
     networks:
       - app-network
 
