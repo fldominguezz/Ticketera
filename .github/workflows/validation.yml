@@ -31,13 +31,22 @@ jobs:
 
       - name: Build and Start Services
         run: |
-          # Create .env from example or secrets (simplified for this agent)
-          cp .env .env.local || touch .env
-          echo "DATABASE_URL=postgres://user:password@db:5432/ticketera_db" >> .env
+          # Create .env with necessary variables for healthchecks
+          echo "POSTGRES_USER=postgres" > .env
+          echo "POSTGRES_PASSWORD=postgres" >> .env
+          echo "POSTGRES_DB=ticketera_db" >> .env
+          echo "DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/ticketera_db" >> .env
           echo "SECRET_KEY=supersecret" >> .env
+          echo "FIRST_SUPERUSER=admin@example.com" >> .env
+          echo "FIRST_SUPERUSER_PASSWORD=admin123" >> .env
           
           docker compose build
-          docker compose up -d
+          docker compose up -d db redis meilisearch
+          
+          # Esperar un poco a que la DB levante antes del resto
+          sleep 10
+          
+          docker compose up -d backend frontend nginx soc-module
           
           # Wait for services to be healthy (validator waits for dependencies)
           # But we want to explicitly run the validator and see its exit code
