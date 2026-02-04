@@ -1,7 +1,8 @@
 #!/bin/bash
-set -e
+set -ex  # Exit on error and print each command
 
 # 1. Esperar a la base de datos
+echo "⏳ Waiting for database..."
 python3 /app/scripts/wait_for_db.py
 
 # 2. Reparación preventiva de Alembic

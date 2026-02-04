@@ -13,12 +13,20 @@ until curl -s --max-time 2 "$BACKEND_URL" > /dev/null; do
     RETRY_COUNT=$((RETRY_COUNT+1))
     if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
         echo "❌ CRITICAL: Backend did not become available after 10 minutes."
-        echo "--- Backend Container Logs (Diagnostic) ---"
-        # We try to get logs if possible, though validator might not have docker access
-        # The orchestrator will fail anyway if the next step fails
+        echo "--- Network Diagnostic ---"
+        echo "1. Pinging backend host..."
+        ping -c 3 backend || echo "Ping failed"
+        echo "2. Detailed curl to healthz..."
+        curl -v "$BACKEND_URL"
+        echo "3. Testing raw TCP port 8000..."
+        (echo > /dev/tcp/backend/8000) >/dev/null 2>&1 && echo "Port 8000 is OPEN" || echo "Port 8000 is CLOSED"
         exit 1
     fi
-    echo "Waiting for backend... ($RETRY_COUNT/$MAX_RETRIES)"
+    echo "Waiting for backend at $BACKEND_URL... ($RETRY_COUNT/$MAX_RETRIES)"
+    # Show verbose error every 10 attempts
+    if [ $((RETRY_COUNT % 10)) -eq 0 ]; then
+        curl -v --max-time 2 "$BACKEND_URL" 2>&1 | grep -E "Connection|Connected|error"
+    fi
     sleep 5
 done
 
