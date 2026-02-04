@@ -4,11 +4,11 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package.json ./
-# Eliminamos package-lock.json del COPY para regenerarlo fresco debido al cambio de versiones
-# COPY package-lock.json* ./ 
+# Evitar descarga de binarios pesados o incompatibles durante el build
+ENV CYPRESS_INSTALL_BINARY=0
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-# Usamos npm install para generar un nuevo lockfile compatible con las nuevas versiones
-RUN npm install
+RUN npm install --no-audit
 
 # Etapa 2: Builder
 FROM node:20-alpine AS builder
