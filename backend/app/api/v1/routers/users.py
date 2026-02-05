@@ -222,6 +222,15 @@ async def enable_2fa(
     current_user.is_2fa_enabled = True
     db.add(current_user)
     await db.commit()
+
+    from app.services.notification_service import notification_service
+    await notification_service.notify_user(
+        db, user_id=current_user.id,
+        title="🔐 Seguridad: 2FA Activado",
+        message="Has activado correctamente la autenticación de dos factores.",
+        link="/profile"
+    )
+    
     return {"message": "2FA enabled successfully"}
 
 @router.post("/me/2fa/disable")
@@ -240,6 +249,15 @@ async def disable_2fa(
     current_user.totp_secret = None
     db.add(current_user)
     await db.commit()
+
+    from app.services.notification_service import notification_service
+    await notification_service.notify_user(
+        db, user_id=current_user.id,
+        title="⚠️ Seguridad: 2FA Desactivado",
+        message="Se ha desactivado la autenticación de dos factores en tu cuenta.",
+        link="/profile"
+    )
+
     return {"message": "2FA disabled successfully"}
 
 # --- Administrative Operations (RBAC Protected) ---

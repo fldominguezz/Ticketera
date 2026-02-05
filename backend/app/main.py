@@ -18,7 +18,35 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Conectar DB al arranque
     app.state.db_engine = engine
     app.state.async_session_local = AsyncSessionLocal
+    
+    # Iniciar chequeo de disco en background
+    asyncio.create_task(periodic_disk_check())
+    
     yield
+
+async def periodic_disk_check():
+    """Chequea el espacio en disco cada hora y notifica a los admins si es crítico (<10%)."""
+    import shutil
+    from app.services.notification_service import notification_service
+    
+    while True:
+        try:
+            total, used, free = shutil.disk_usage("/")
+            percent_free = (free / total) * 100
+            
+            if percent_free < 10:
+                async with AsyncSessionLocal() as db:
+                    await notification_service.notify_admins(
+                        db,
+                        title="⚠️ ALERTA DE SISTEMA",
+                        message=f"Espacio en disco crítico: {percent_free:.1f}% disponible.",
+                        link="/admin/system"
+                    )
+                    await db.commit()
+        except Exception as e:
+            logger.error(f"Error en chequeo de disco: {e}")
+            
+        await asyncio.sleep(3600) # Chequear cada hora
 
 from fastapi.middleware.cors import CORSMiddleware
 

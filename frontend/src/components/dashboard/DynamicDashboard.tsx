@@ -71,11 +71,11 @@ const renderWidgetContent = (w: Widget, stats: any) => {
                 <Col xs={8}>
                     {(siem.categories || []).slice(0, 3).map((cat: any, i: number) => (
                         <div key={i} className="mb-2">
-                            <div className="text-truncate x-small fw-bold mb-1 uppercase opacity-75">{cat.name}</div>
+                            <div className="text-truncate x-small fw-bold mb-1 uppercase text-main">{cat.name}</div>
                             <ProgressBar variant="primary" now={(cat.count / (siem.total || 1)) * 100} style={{height: '4px'}} className="bg-surface-muted" />
                         </div>
                     ))}
-                    {(!siem.categories || siem.categories.length === 0) && <div className="text-muted x-small italic text-center py-3 opacity-50">Sin alertas</div>}
+                    {(!siem.categories || siem.categories.length === 0) && <div className="text-muted x-small italic text-center py-3">Sin alertas</div>}
                 </Col>
             </Row>
         );

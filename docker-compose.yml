@@ -200,6 +200,21 @@ services:
     depends_on:
       - backend
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ticketera-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    restart: always
+
   validator:
     container_name: validator
     profiles:
@@ -229,6 +244,7 @@ volumes:
   meili_data:
   prometheus_data:
   grafana_data:
+  ollama_data:
 
 networks:
   app-network:

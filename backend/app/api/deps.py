@@ -218,8 +218,11 @@ def require_ticket_permission(action: str):
         if current_user.is_superuser: return ticket
 
         # Capability Mapping
-        # We assume keys like: ticket:read:global, ticket:read:group, ticket:read:own
-        
+        # We check for:
+        # 0. MASTER action permission (e.g. ticket:comment)
+        if current_user.has_permission(f"ticket:{action}"):
+            return ticket
+
         # 1. Check GLOBAL capability
         if current_user.has_permission(f"ticket:{action}:global"):
             return ticket

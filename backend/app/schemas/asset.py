@@ -40,6 +40,7 @@ class Asset(BaseModel):
     status: str = "operative"
     criticality: str = "medium"
     av_product: Optional[str] = None
+    device_type: Optional[str] = None
     os_name: Optional[str] = None
     os_version: Optional[str] = None
     last_seen: Optional[datetime] = None
@@ -59,11 +60,32 @@ class AssetCreate(BaseModel):
     ip_address: Optional[str] = None
     dependencia: Optional[str] = None
     codigo_dependencia: Optional[str] = None
+    device_type: Optional[str] = None
+    os_name: Optional[str] = None
+    av_product: Optional[str] = None
+    status: Optional[str] = "operative"
+    observations: Optional[str] = None
+    responsible_user_id: Optional[UUID] = None
     location_node_id: Optional[UUID] = None
 
 class AssetUpdate(BaseModel):
+    hostname: Optional[str] = None
+    serial: Optional[str] = None
+    asset_tag: Optional[str] = None
+    mac_address: Optional[str] = None
+    ip_address: Optional[str] = None
+    dependencia: Optional[str] = None
+    codigo_dependencia: Optional[str] = None
     status: Optional[str] = None
+    criticality: Optional[str] = None
+    av_product: Optional[str] = None
+    device_type: Optional[str] = None
+    os_name: Optional[str] = None
+    os_version: Optional[str] = None
+    observations: Optional[str] = None
     location_node_id: Optional[UUID] = None
+    owner_group_id: Optional[UUID] = None
+    responsible_user_id: Optional[UUID] = None
 
 class AssetInstallRecordCreate(BaseModel):
     gde_number: Optional[str] = None

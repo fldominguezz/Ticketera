@@ -11,11 +11,15 @@ import uuid
 import logging
 import defusedxml.ElementTree as ET
 import re
+import asyncio
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
 class SIEMService:
+    def __init__(self):
+        self._analysis_lock = asyncio.Lock() # Bloqueo para procesar 1x1
+
     def _parse_kv_string(self, text: str) -> Dict[str, str]:
         """
         Parses generic syslog/Fortinet key=value or key="value" strings.
@@ -49,13 +53,13 @@ class SIEMService:
                 incident_src = root.find("incidentSource")
                 if incident_src is not None:
                     for entry in incident_src.findall("entry"):
-                        if entry.get("name") == "Source IP":
+                        if entry.get("name") == "Source IP" or entry.get("attribute") == "srcIpAddr":
                             source_ip = entry.text
 
                 incident_target = root.find("incidentTarget")
                 if incident_target is not None:
                     for entry in incident_target.findall("entry"):
-                        if entry.get("name") == "Destination IP":
+                        if entry.get("name") == "Destination IP" or entry.get("attribute") == "destIpAddr":
                             dest_ip = entry.text
 
                 return {
@@ -91,11 +95,17 @@ class SIEMService:
                 inc_match = re.search(r'incidentId="(.*?)"', xml_string)
                 if inc_match: incident_id = inc_match.group(1)
 
+                # Fallback Regex IP
+                source_ip = "N/A"
+                ip_match = re.search(r'src="?([\d\.]+)"?|srcip="?([\d\.]+)"?', xml_string)
+                if ip_match:
+                    source_ip = ip_match.group(1) or ip_match.group(2)
+
                 return {
                     "incident_id": incident_id,
                     "severity_num": "5",
                     "rule_name": rule_name,
-                    "source_ip": "N/A",
+                    "source_ip": source_ip,
                     "dest_ip": "N/A",
                     "mitre_tactic": mitre_tactic,
                     "mitre_tech": "N/A",
@@ -128,9 +138,19 @@ class SIEMService:
                 incident_id = parsed["incident_id"]
                 raw_event_text = parsed["raw_log"] or raw_data
                 parsed_kv = self._parse_kv_string(raw_event_text)
+                
+                # REFUERZO: Si el XML no traía IP, buscar en el raw_log parseado
+                source_ip = parsed["source_ip"]
+                if source_ip == "N/A":
+                    source_ip = parsed_kv.get("src") or parsed_kv.get("srcip") or parsed_kv.get("source_ip") or "N/A"
+
+                dest_ip = parsed["dest_ip"]
+                if dest_ip == "N/A":
+                    dest_ip = parsed_kv.get("dst") or parsed_kv.get("dstip") or parsed_kv.get("destination_ip") or "N/A"
+
                 event_info = {
-                    "ip": parsed["source_ip"],
-                    "dest_ip": parsed["dest_ip"],
+                    "ip": source_ip,
+                    "dest_ip": dest_ip,
                     "event_type": parsed["rule_name"],
                     "severity": self._map_severity(parsed["severity_num"]),
                     "details": parsed["description"],
@@ -174,17 +194,56 @@ class SIEMService:
         await db.commit()
         await db.refresh(new_alert)
 
+        # Disparar análisis experto en segundo plano (no bloqueante)
+        asyncio.create_task(self.perform_expert_analysis(new_alert.id))
+
+        # Notificaciones inteligentes
         from app.services.notification_service import notification_service
-        from app.db.models.user import User
-        res_users = await db.execute(select(User).filter(User.is_superuser == True))
-        for u in res_users.scalars().all():
-            await notification_service.notify_user(
-                db, user_id=u.id,
-                title=f"🚨 EVENTO SIEM: {event_info['severity'].upper()}",
+        
+        if event_info['severity'] in ['critical', 'high']:
+            # Notificar a Admins y SOC (si existiera un grupo SOC, por ahora a todos los admins con prioridad)
+            await notification_service.notify_admins(
+                db,
+                title=f"🚨 ALERTA {event_info['severity'].upper()}",
+                message=f"Evento detectado: {event_info['event_type']} en {event_info['ip']}",
+                link=f"/soc/events"
+            )
+        else:
+            # Notificación normal
+            await notification_service.notify_admins(
+                db,
+                title=f"🛡️ Evento SIEM: {event_info['severity'].title()}",
                 message=f"Regla: {event_info['event_type']}",
                 link=f"/soc/events"
             )
 
         return new_alert
+
+    async def perform_expert_analysis(self, alert_id: uuid.UUID):
+        """Tarea en segundo plano para procesar la IA sin bloquear el recibo del evento.
+        Se procesa 1x1 usando un Lock para evitar saturar el CPU.
+        """
+        from app.db.session import AsyncSessionLocal
+        from app.services.expert_analysis_service import expert_analysis_service
+        
+        async with self._analysis_lock: # Solo entra uno a la vez aquí
+            async with AsyncSessionLocal() as db:
+                try:
+                    # 1. Obtener la alerta
+                    res = await db.execute(select(Alert).where(Alert.id == alert_id))
+                    alert = res.scalar_one_or_none()
+                    if not alert: return
+
+                    # 2. Ejecutar análisis (este método ahora consulta a Ollama internamente)
+                    analysis = expert_analysis_service.analyze_raw_log(alert.raw_log or alert.description)
+                    
+                    # 3. Guardar resultados
+                    alert.ai_summary = analysis.get("summary")
+                    alert.ai_remediation = analysis.get("recommendation")
+                    
+                    await db.commit()
+                    logger.info(f"AI Analysis completed for alert {alert_id}")
+                except Exception as e:
+                    logger.error(f"Background AI Analysis failed for {alert_id}: {e}")
 
 siem_service = SIEMService()

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
+import { useAuth } from '../../context/AuthContext';
 import { 
   Monitor, Network, ShieldCheck, Save, ChevronLeft, UserCheck, Plus, Trash2, Hash, MapPin, Activity, HardDrive
 } from 'lucide-react';
@@ -10,6 +11,7 @@ import {
 
 const AssetInstallPage = () => {
   const router = useRouter();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [users, setUsers] = useState<any[]>([]);
@@ -19,10 +21,16 @@ const AssetInstallPage = () => {
   const [globalData, setGlobalData] = useState({
     responsible_user_id: '',
     tecnico_instalacion_id: '',
-    tecnico_carga_id: '',
+    tecnico_carga_id: user?.id || '',
     gde_number: '',
     status: 'tagging_pending',
   });
+
+  useEffect(() => {
+    if (user && !globalData.tecnico_carga_id) {
+        setGlobalData(prev => ({ ...prev, tecnico_carga_id: user.id }));
+    }
+  }, [user]);
 
   const [devices, setDevices] = useState([{
     id: Math.random().toString(36).substr(2, 9),
@@ -50,7 +58,7 @@ const AssetInstallPage = () => {
       const res = await fetch('/api/v1/users', { headers: { 'Authorization': `Bearer ${token}` } });
       if (res.ok) {
         const data = await res.json();
-        const filtered = data.filter((u: any) => !['fortisiem', 'system'].includes(u.username.toLowerCase()));
+        const filtered = data.filter((u: any) => !['fortisiem', 'system'].includes((u.username || '').toLowerCase()));
         setUsers(filtered);
       }
     } catch (err) { console.error(err); }
@@ -111,7 +119,8 @@ const AssetInstallPage = () => {
 
     // Obtener nombres de los técnicos seleccionados para el payload
     const inst = users.find(u => u.id === globalData.tecnico_instalacion_id);
-    const carg = users.find(u => u.id === globalData.tecnico_carga_id);
+    // El técnico de carga eres TÚ (el usuario logueado)
+    const tecnicoCargaNombre = user ? `${user.first_name} ${user.last_name}` : 'Sistema';
 
     try {
       const token = localStorage.getItem('access_token');
@@ -123,6 +132,10 @@ const AssetInstallPage = () => {
             mac_address: dev.mac_address,
             ip_address: dev.ip_address,
             device_type: dev.device_type,
+            os_name: dev.os_name,
+            av_product: dev.av_product,
+            dependencia: dev.dependencia,
+            codigo_dependencia: dev.codigo_dependencia,
             status: globalData.status,
             observations: dev.observations,
             responsible_user_id: globalData.responsible_user_id || null,
@@ -131,8 +144,9 @@ const AssetInstallPage = () => {
           install_data: {
             gde_number: globalData.gde_number,
             tecnico_instalacion: inst ? `${inst.first_name} ${inst.last_name}` : '',
-            tecnico_carga: carg ? `${carg.first_name} ${carg.last_name}` : '',
-            install_details: { os: dev.os_name, av: dev.av_product }
+            tecnico_carga: tecnicoCargaNombre,
+            install_details: { os: dev.os_name, av: dev.av_product },
+            observations: dev.observations
           }
         };
 
@@ -205,15 +219,6 @@ const AssetInstallPage = () => {
                         </Form.Select>
                       </Form.Group>
                     </Col>
-                    <Col md={6}>
-                      <Form.Group>
-                        <Form.Label className="x-small fw-bold text-muted uppercase">Técnico de Carga (Data Entry) *</Form.Label>
-                        <Form.Select value={globalData.tecnico_carga_id} onChange={(e:any) => setGlobalData({...globalData, tecnico_carga_id: e.target.value})} required className="border-0 shadow-sm fw-bold bg-surface-muted">
-                          <option value="">Seleccionar técnico...</option>
-                          {users.map(u => <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>)}
-                        </Form.Select>
-                      </Form.Group>
-                    </Col>
                     <Col md={12}>
                       <Form.Group>
                         <Form.Label className="x-small fw-bold text-muted uppercase">Número de GDE / Expediente</Form.Label>
@@ -259,9 +264,9 @@ const AssetInstallPage = () => {
                             <InputGroup.Text className="bg-surface-muted border-0"><MapPin size={12}/></InputGroup.Text>
                             <Form.Control name="dependencia" value={device.dependencia} onChange={(e) => { handleDeviceChange(device.id, e); setActiveSuggestion(device.id + '_name'); }} required className="fw-bold border-0 bg-surface-muted" autoComplete="off" placeholder="Buscar por nombre..." />
                           </InputGroup>
-                          {activeSuggestion === device.id + '_name' && device.dependencia.length > 1 && (
+                          {activeSuggestion === device.id + '_name' && (device.dependencia || '').length > 1 && (
                             <ListGroup className="position-absolute w-100 shadow-lg z-3 mt-1">
-                              {locations.filter(l => l.name.toLowerCase().includes(device.dependencia.toLowerCase())).map(l => (
+                              {locations.filter(l => (l.name || '').toLowerCase().includes((device.dependencia || '').toLowerCase())).map(l => (
                                 <ListGroup.Item key={l.id} action onClick={() => selectLocation(device.id, l)} className="d-flex justify-content-between align-items-center x-small py-2 border-0 bg-surface">
                                   <span className="fw-bold text-primary">{l.name}</span>
                                   <Badge bg="secondary" className="bg-opacity-20 text-body">{l.dependency_code}</Badge>

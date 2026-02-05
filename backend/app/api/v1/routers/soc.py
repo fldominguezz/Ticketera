@@ -25,6 +25,8 @@ class AlertSchema(BaseModel):
     raw_log: Optional[str]
     status: str
     ticket_id: Optional[UUID]
+    ai_summary: Optional[str] = None
+    ai_remediation: Optional[str] = None
     extra_data: Optional[Dict[str, Any]] = None
     created_at: datetime
     

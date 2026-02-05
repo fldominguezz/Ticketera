@@ -6,7 +6,7 @@ from sqlalchemy.future import select
 from sqlalchemy import or_
 
 from app.db.models.asset import Asset
-from app.db.models.asset_history import AssetLocationHistory, AssetIPHistory, AssetInstallRecord
+from app.db.models.asset_history import AssetLocationHistory, AssetIPHistory, AssetInstallRecord, AssetEventLog
 from app.schemas.asset import AssetCreate, AssetUpdate, AssetInstallRecordCreate
 
 from sqlalchemy.sql import func
@@ -41,9 +41,8 @@ class CRUDAsset:
             await db.commit()
             await db.refresh(db_obj, attribute_names=[
                 "id", "hostname", "serial", "asset_tag", "mac_address", "ip_address",
-                "location_node_id", "division", "owner_group_id", "responsible_user_id",
-                "status", "criticality", "av_product", "source_system", "external_id",
-                "device_type", "os_name", "os_version", "observations", "last_seen",
+                "location_node_id", "dependencia", "codigo_dependencia", "owner_group_id", "responsible_user_id",
+                "status", "criticality", "av_product", "device_type", "os_name", "os_version", "observations", "last_seen",
                 "created_at", "updated_at", "deleted_at"
             ])
         return db_obj
@@ -66,9 +65,8 @@ class CRUDAsset:
         await db.commit()
         await db.refresh(db_obj, attribute_names=[
             "id", "hostname", "serial", "asset_tag", "mac_address", "ip_address",
-            "location_node_id", "division", "owner_group_id", "responsible_user_id",
-            "status", "criticality", "av_product", "source_system", "external_id",
-            "device_type", "os_name", "os_version", "observations", "last_seen",
+            "location_node_id", "dependencia", "codigo_dependencia", "owner_group_id", "responsible_user_id",
+            "status", "criticality", "av_product", "device_type", "os_name", "os_version", "observations", "last_seen",
             "created_at", "updated_at"
         ])
         
@@ -84,7 +82,7 @@ class CRUDAsset:
             ip_history = AssetIPHistory(
                 asset_id=db_obj.id,
                 ip_address=db_obj.ip_address,
-                source=db_obj.source_system
+                source="manual"
             )
             db.add(ip_history)
             
@@ -94,6 +92,7 @@ class CRUDAsset:
     async def update(self, db: AsyncSession, db_obj: Asset, obj_in: AssetUpdate, user_id: Optional[UUID] = None) -> Asset:
         old_location_id = db_obj.location_node_id
         old_ip = db_obj.ip_address
+        old_status = db_obj.status
         
         update_data = obj_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():
@@ -110,21 +109,52 @@ class CRUDAsset:
                 reason="Update via API"
             )
             db.add(loc_history)
+
+            # Log de Evento: Movimiento
+            from app.db.models.location import LocationNode
+            res_loc = await db.execute(select(LocationNode).where(LocationNode.id == obj_in.location_node_id))
+            new_loc = res_loc.scalar_one_or_none()
             
-        if obj_in.ip_address and obj_in.ip_address != old_ip:
+            event = AssetEventLog(
+                asset_id=db_obj.id,
+                event_type="move",
+                description=f"Movido a {new_loc.name if new_loc else 'nueva ubicación'}",
+                user_id=user_id
+            )
+            db.add(event)
+            
+            # Notificar cambio de ubicación
+            from app.services.notification_service import notification_service
+            await notification_service.notify_admins(
+                db,
+                title="📍 Activo Movido",
+                message=f"El equipo {db_obj.hostname} fue movido a: {new_loc.name if new_loc else 'Desconocida'}",
+                link=f"/inventory?hostname={db_obj.hostname}"
+            )
+
+        if obj_in.status and obj_in.status != old_status:
+            event = AssetEventLog(
+                asset_id=db_obj.id,
+                event_type="status_change",
+                description=f"Estado cambiado de {old_status} a {obj_in.status}",
+                user_id=user_id,
+                details={"old": old_status, "new": obj_in.status}
+            )
+            db.add(event)
+            
+        if hasattr(obj_in, 'ip_address') and obj_in.ip_address and obj_in.ip_address != old_ip:
              ip_history = AssetIPHistory(
                 asset_id=db_obj.id,
                 ip_address=obj_in.ip_address,
-                source=db_obj.source_system or "manual"
+                source="manual"
             )
              db.add(ip_history)
 
         await db.commit()
         await db.refresh(db_obj, attribute_names=[
             "id", "hostname", "serial", "asset_tag", "mac_address", "ip_address",
-            "location_node_id", "division", "owner_group_id", "responsible_user_id",
-            "status", "criticality", "av_product", "source_system", "external_id",
-            "device_type", "os_name", "os_version", "observations", "last_seen",
+            "location_node_id", "dependencia", "codigo_dependencia", "owner_group_id", "responsible_user_id",
+            "status", "criticality", "av_product", "device_type", "os_name", "os_version", "observations", "last_seen",
             "created_at", "updated_at"
         ])
         return db_obj
@@ -153,6 +183,16 @@ class CRUDAsset:
         return None
 
     async def process_installation(self, db: AsyncSession, asset_data: AssetCreate, install_data: AssetInstallRecordCreate, user_id: UUID) -> Asset:
+        # Extraer datos adicionales de install_details si existen
+        install_record_data = install_data.model_dump()
+        details = install_record_data.get("install_details") or {}
+        
+        # Si el frontend envía OS/AV en details, los movemos al asset_data si este no los tiene
+        if details.get("os") and not asset_data.os_name:
+            asset_data.os_name = details.get("os")
+        if details.get("av") and not asset_data.av_product:
+            asset_data.av_product = details.get("av")
+
         existing_asset = await self.find_existing_asset(
             db, 
             serial=asset_data.serial, 
@@ -162,15 +202,32 @@ class CRUDAsset:
         )
         
         if existing_asset:
-            update_dict = asset_data.model_dump(exclude_unset=True)
-            asset_update = AssetUpdate(**update_dict)
-            asset = await self.update(db, existing_asset, asset_update, user_id=user_id)
-            asset.last_seen = datetime.now()
-            db.add(asset)
+            # Forzamos la actualización de todos los campos que vienen del frontend
+            update_data = asset_data.model_dump() # Sin exclude_unset para capturar todo lo enviado
+            
+            # Limpieza de nulos si fuera necesario, pero aquí queremos que pise lo que haya
+            for field, value in update_data.items():
+                if value is not None:
+                    setattr(existing_asset, field, value)
+            
+            # Manejo especial de campos técnicos del registro de instalación
+            if details.get("os"): existing_asset.os_name = details.get("os")
+            if details.get("av"): existing_asset.av_product = details.get("av")
+            
+            existing_asset.last_seen = datetime.now()
+            db.add(existing_asset)
+            asset = existing_asset
         else:
-            asset = await self.create(db, asset_data)
+            # Creación limpia con todos los campos
+            create_data = asset_data.model_dump()
+            if details.get("os"): create_data["os_name"] = details.get("os")
+            if details.get("av"): create_data["av_product"] = details.get("av")
+            
+            asset = Asset(**create_data)
             asset.last_seen = datetime.now()
             db.add(asset)
+        
+        await db.flush() # Guardar cambios para tener el ID del asset antes del record
         
         install_record_data = install_data.model_dump()
         
@@ -186,21 +243,31 @@ class CRUDAsset:
         )
         db.add(install_record)
 
+        # Log de Evento: Instalación
+        install_event = AssetEventLog(
+            asset_id=asset.id,
+            event_type="install",
+            description=f"Instalación registrada bajo GDE {install_record_data.get('gde_number')}",
+            user_id=user_id,
+            details={"gde": install_record_data.get('gde_number')}
+        )
+        db.add(install_event)
+
+        await db.commit()
+
         if asset.status == "tagging_pending":
             from app.services.notification_service import notification_service
             await notification_service.notify_all_active(
                 db,
-                title="Equipos pendientes de etiquetado",
-                message=f"El Area técnica ha instalado unos equipos, queda pendiente etiquetarlos. Hostname: {asset.hostname}",
-                link=f"/inventory?location_id={asset.location_node_id}"
+                title="🖥️ Nuevo Equipo Instalado",
+                message=f"Se ha registrado una nueva instalación. Pendiente etiquetado técnico. Hostname: {asset.hostname}",
+                link=f"/inventory/{asset.id}"
             )
         
-        await db.commit()
         await db.refresh(asset, attribute_names=[
             "id", "hostname", "serial", "asset_tag", "mac_address", "ip_address",
-            "location_node_id", "division", "owner_group_id", "responsible_user_id",
-            "status", "criticality", "av_product", "source_system", "external_id",
-            "device_type", "os_name", "os_version", "observations", "last_seen",
+            "location_node_id", "dependencia", "codigo_dependencia", "owner_group_id", "responsible_user_id",
+            "status", "criticality", "av_product", "device_type", "os_name", "os_version", "observations", "last_seen",
             "created_at", "updated_at"
         ])
         return asset

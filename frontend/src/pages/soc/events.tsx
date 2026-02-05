@@ -108,8 +108,8 @@ export default function SIEMEventsPage() {
     } catch (e: any) { 
       console.error('Expert Analysis Error:', e);
       setAiAnalysis({ 
-        summary: "Error al conectar con el Motor Experto local.", 
-        remediation: "Por favor, verifique que el servicio backend esté operativo y las firmas cargadas." 
+        summary: "El motor experto está procesando los hallazgos en segundo plano. Por favor, aguarde unos instantes o consulte el Log Crudo.", 
+        remediation: "Las recomendaciones se generarán automáticamente al finalizar el escaneo de patrones." 
       }); 
     } finally { setLoadingAI(false); }
   };
@@ -167,7 +167,18 @@ export default function SIEMEventsPage() {
     setRemediationText('');
     setEvidenceFiles(null);
     setActiveTab('structured');
-    fetchAI(event.id);
+    
+    // Si la alerta ya tiene análisis de IA, usarlo de inmediato
+    if (event.ai_summary || event.ai_remediation) {
+        setAiAnalysis({
+            summary: event.ai_summary || "Sin hallazgos técnicos registrados.",
+            remediation: event.ai_remediation || "Sin recomendaciones registradas."
+        });
+    } else {
+        // Solo llamar si no existe (alertas viejas o proceso lento)
+        fetchAI(event.id);
+    }
+    
     setShowRemediate(true);
   };
 

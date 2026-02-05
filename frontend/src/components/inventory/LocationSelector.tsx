@@ -41,7 +41,7 @@ const LocationSelector: React.FC<Props> = ({ onSelect, selectedId }) => {
   };
 
   const filteredLocations = searchTerm 
-    ? locations.filter(l => l.path.toLowerCase().includes(searchTerm.toLowerCase()))
+    ? locations.filter(l => (l.path || '').toLowerCase().includes((searchTerm || '').toLowerCase()))
     : locations;
 
   const toggleExpand = (id: string) => {

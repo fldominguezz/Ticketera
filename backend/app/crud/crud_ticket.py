@@ -161,6 +161,17 @@ class CRUDTicket:
         if "assigned_to_id" in update_data and update_data["assigned_to_id"] != old_assignee:
             audit_details["old_assignee"] = str(old_assignee) if old_assignee else None
             audit_details["new_assignee"] = str(update_data["assigned_to_id"]) if update_data["assigned_to_id"] else None
+            
+            # Notificación de asignación
+            if update_data["assigned_to_id"]:
+                from app.services.notification_service import notification_service
+                await notification_service.notify_user(
+                    db,
+                    user_id=update_data["assigned_to_id"],
+                    title="🎟️ Ticket Asignado",
+                    message=f"Se te ha asignado el ticket: {db_obj.title}",
+                    link=f"/tickets/{db_obj.id}"
+                )
 
         if audit_details and current_user_id:
             await audit_log.create_log(db, user_id=current_user_id, event_type="ticket_updated", target_type="ticket", target_id=db_obj.id, details=audit_details)
@@ -180,7 +191,32 @@ class CRUDTicket:
         await db.commit()
         from sqlalchemy.orm import selectinload
         result = await db.execute(select(TicketComment).where(TicketComment.id == db_obj.id).options(selectinload(TicketComment.user)))
-        return result.scalar_one()
+        comment = result.scalar_one()
+
+        # Notificar a los involucrados
+        from app.db.models.ticket import Ticket
+        res_ticket = await db.execute(select(Ticket).where(Ticket.id == ticket_id))
+        ticket_obj = res_ticket.scalar_one()
+        
+        from app.services.notification_service import notification_service
+        # Notificar al creador si no es quien comenta
+        if ticket_obj.created_by_id != user_id:
+            await notification_service.notify_user(
+                db, user_id=ticket_obj.created_by_id,
+                title="💬 Nuevo Comentario",
+                message=f"Hay un nuevo mensaje en el ticket: {ticket_obj.title}",
+                link=f"/tickets/{ticket_id}"
+            )
+        # Notificar al asignado si no es quien comenta
+        if ticket_obj.assigned_to_id and ticket_obj.assigned_to_id != user_id and ticket_obj.assigned_to_id != ticket_obj.created_by_id:
+            await notification_service.notify_user(
+                db, user_id=ticket_obj.assigned_to_id,
+                title="💬 Nuevo Comentario",
+                message=f"El usuario {comment.user.username} comentó en un ticket asignado a ti.",
+                link=f"/tickets/{ticket_id}"
+            )
+
+        return comment
 
     async def get_comments(self, db: AsyncSession, ticket_id: UUID, include_internal: bool = False) -> List[TicketComment]:
         from sqlalchemy.orm import selectinload

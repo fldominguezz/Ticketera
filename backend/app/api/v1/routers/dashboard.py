@@ -9,6 +9,7 @@ from app.api.deps import get_db, require_permission, require_role
 from app.db.models.user import User
 from app.db.models.group import Group
 from app.db.models.ticket import Ticket, TicketType
+from app.db.models.alert import Alert
 from app.db.models.asset import Asset
 from app.db.models.location import LocationNode
 from app.db.models.dashboard import DashboardConfig as DashboardModel
@@ -179,25 +180,12 @@ async def get_widget_data(
         data = {row.status: row.count for row in res}
         return {"type": "tickets", "data": data, "total": sum(data.values())}
 
-    # 2. Source: SIEM
+    # 2. Source: SIEM (Alertas técnicas)
     if source == "siem_alerts":
-        siem_type_ids = await get_siem_type_ids(db)
-        if not siem_type_ids: return {"data": {}}
-        
-        siem_filters = [Ticket.ticket_type_id.in_(siem_type_ids), Ticket.deleted_at == None]
-        
-        # Lógica de jerarquía para SIEM
-        if not current_user.is_superuser:
-            if current_user.group_id:
-                group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
-                siem_filters.append(Ticket.group_id.in_(group_ids))
-            else:
-                return {"type": "siem", "categories": []}
-
-        # SIEM categories
-        cat_query = select(Ticket.title, func.count(Ticket.id)).where(and_(*siem_filters)).group_by(Ticket.title).order_by(func.count(Ticket.id).desc()).limit(5)
+        # Las alertas son eventos técnicos globales
+        cat_query = select(Alert.rule_name, func.count(Alert.id)).group_by(Alert.rule_name).order_by(func.count(Alert.id).desc()).limit(5)
         res = await db.execute(cat_query)
-        return {"type": "siem", "categories": [{"name": r.title.replace("SIEM: ", "")[:25], "count": r.count} for r in res]}
+        return {"type": "siem", "categories": [{"name": r.rule_name[:25], "count": r.count} for r in res]}
 
     # 3. Source: Assets
     if source == "assets_status":
@@ -259,32 +247,45 @@ async def get_dashboard_stats_legacy(
     res_tickets = await db.execute(tickets_query)
     t_data = {row.status: row.count for row in res_tickets}
     
-    # --- SIEM STATS ---
+    # --- SIEM STATS (ALERTAS REALES) ---
     siem_data = {"total": 0, "remediated": 0, "in_process": 0, "open": 0, "categories": []}
     
-    siem_q = select(Ticket.status, func.count(Ticket.id)).where(
-        and_(*ticket_filters, siem_condition)
-    ).group_by(Ticket.status)
-    res_siem = await db.execute(siem_q)
+    # Contar por estado desde la tabla de ALERTAS
+    res_siem = await db.execute(select(Alert.status, func.count(Alert.id)).group_by(Alert.status))
     s_stats = {row.status: row.count for row in res_siem}
     
     siem_data["total"] = sum(s_stats.values())
     siem_data["remediated"] = s_stats.get("resolved", 0) + s_stats.get("closed", 0)
     siem_data["in_process"] = s_stats.get("in_progress", 0)
-    siem_data["open"] = s_stats.get("open", 0) + s_stats.get("new", 0)
+    siem_data["open"] = s_stats.get("new", 0) + s_stats.get("open", 0)
     
-    # Categorías (Top 5) - Limpiamos el título para el gráfico
-    cat_q = select(Ticket.title, func.count(Ticket.id)).where(
-        and_(*ticket_filters, siem_condition)
-    ).group_by(Ticket.title).order_by(func.count(Ticket.id).desc()).limit(5)
-    res_cats = await db.execute(cat_q)
+    # Categorías (Top 5 de Reglas del SIEM)
+    res_cats = await db.execute(
+        select(Alert.rule_name, func.count(Alert.id))
+        .group_by(Alert.rule_name)
+        .order_by(func.count(Alert.id).desc())
+        .limit(5)
+    )
     
-    def clean_title(t):
-        for prefix in ["INCIDENTE: ", "ALERTA: ", "SOC - PFA - "]:
-            t = t.replace(prefix, "")
-        return t[:25]
+    siem_data["categories"] = [{"name": r.rule_name[:25], "count": r.count} for r in res_cats]
 
-    siem_data["categories"] = [{"name": clean_title(r.title), "count": r.count} for r in res_cats]
+    # --- DISPOSITIVOS AFECTADOS (FIREWALLS) ---
+    # Extraemos devname del raw_log de las alertas
+    import re
+    res_logs = await db.execute(select(Alert.raw_log).where(Alert.raw_log != None))
+    logs = res_logs.scalars().all()
+    
+    dev_counts = {}
+    for log in logs:
+        # Buscar devname="VALOR" o devname=VALOR
+        match = re.search(r'devname="?([^"\s,]+)"?', log)
+        if match:
+            dev = match.group(1)
+            dev_counts[dev] = dev_counts.get(dev, 0) + 1
+            
+    # Ordenar y tomar Top 5
+    top_devs = sorted(dev_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+    siem_data["affected_devices"] = [{"name": name, "count": count} for name, count in top_devs]
 
     # --- ASSETS STATS ---
     res_assets = await db.execute(select(Asset.status, func.count(Asset.id)).where(and_(*asset_filters)).group_by(Asset.status))

@@ -4,7 +4,7 @@ import { ShieldAlert, Clock, CheckCircle2, AlertCircle, HardDrive, BarChart3, Ac
 import Layout from '../components/Layout';
 import { useTheme } from '../context/ThemeContext';
 import { useRouter } from 'next/router';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 
 interface DashboardStats {
   role: string;
@@ -14,7 +14,8 @@ interface DashboardStats {
       remediated: number; 
       in_process: number; 
       open: number; 
-      categories: { name: string; count: number }[] 
+      categories: { name: string; count: number }[] ;
+      affected_devices?: { name: string; count: number }[];
   } | null;
   assets: { 
       operative: number; 
@@ -34,6 +35,14 @@ export default function Dashboard() {
   const { theme } = useTheme();
   const router = useRouter();
   const isDark = theme === 'dark';
+  const isSoc = theme === 'soc';
+
+  // Determinar color de los textos en los gráficos según el tema
+  const getTickColor = () => {
+    if (isSoc) return '#38bdf8'; // Celeste SOC
+    if (isDark) return '#adb5bd'; // Gris claro Dark
+    return '#495057'; // Gris oscuro Light
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -133,16 +142,76 @@ export default function Dashboard() {
                         <BarChart data={stats.siem.categories || []} layout="vertical" margin={{ left: 20, right: 30 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"} vertical={false} />
                             <XAxis type="number" hide />
-                            <YAxis dataKey="name" type="category" width={150} fontSize={10} tick={{ fill: isDark ? '#adb5bd' : '#495057' }} axisLine={false} tickLine={false} />
-                            <Tooltip contentStyle={{ backgroundColor: isDark ? '#161b22' : '#ffffff', borderColor: 'rgba(128,128,128,0.2)', color: isDark ? '#fff' : '#000' }} />
+                            <YAxis 
+                                dataKey="name" 
+                                type="category" 
+                                width={150} 
+                                fontSize={10} 
+                                tick={{ fill: getTickColor() }} 
+                                axisLine={false} 
+                                tickLine={false} 
+                            />
+                            <Tooltip 
+                                contentStyle={{ 
+                                    backgroundColor: isDark || isSoc ? '#161b22' : '#ffffff', 
+                                    borderColor: 'rgba(128,128,128,0.2)',
+                                    borderRadius: '8px',
+                                    fontSize: '12px'
+                                }} 
+                                itemStyle={{ color: isDark || isSoc ? '#fff' : '#000' }}
+                                labelStyle={{ color: isDark || isSoc ? '#38bdf8' : '#0d6efd', fontWeight: 'bold', marginBottom: '4px' }}
+                            />
                             <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={20}>
                             {(stats.siem.categories || []).map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                            <LabelList dataKey="count" position="right" fill={getTickColor()} fontSize={10} fontWeight="bold" offset={10} />
                             </Bar>
                         </BarChart>
                         </ResponsiveContainer>
                     ) : (
                         <div className="d-flex align-items-center justify-content-center h-100 text-muted small italic">
                             Sin datos de alertas para graficar.
+                        </div>
+                    )}
+                    </div>
+                </Card>
+            </Col>
+            <Col lg={4}>
+                <Card className="p-4 border-0 shadow-sm h-100">
+                    <h6 className="fw-bold mb-4 text-uppercase d-flex align-items-center gap-2">
+                    <ShieldAlert size={16} className="text-danger" /> Firewalls Afectados
+                    </h6>
+                    <div style={{ width: '100%', height: 300 }}>
+                    {mounted && stats.siem.affected_devices && stats.siem.affected_devices.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={stats.siem.affected_devices} layout="vertical" margin={{ left: 10, right: 30 }}>
+                            <XAxis type="number" hide />
+                            <YAxis 
+                                dataKey="name" 
+                                type="category" 
+                                width={100} 
+                                fontSize={10} 
+                                tick={{ fill: getTickColor() }} 
+                                axisLine={false} 
+                                tickLine={false} 
+                            />
+                            <Tooltip 
+                                contentStyle={{ 
+                                    backgroundColor: isDark || isSoc ? '#161b22' : '#ffffff', 
+                                    borderColor: 'rgba(128,128,128,0.2)',
+                                    borderRadius: '8px',
+                                    fontSize: '12px'
+                                }} 
+                                itemStyle={{ color: isDark || isSoc ? '#fff' : '#000' }}
+                                labelStyle={{ color: '#ffc107', fontWeight: 'bold', marginBottom: '4px' }}
+                            />
+                            <Bar dataKey="count" fill="#ffc107" radius={[0, 4, 4, 0]} barSize={15}>
+                                <LabelList dataKey="count" position="right" fill={getTickColor()} fontSize={10} fontWeight="bold" offset={10} />
+                            </Bar>
+                        </BarChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="d-flex align-items-center justify-content-center h-100 text-muted small italic">
+                            Sin datos de dispositivos.
                         </div>
                     )}
                     </div>
@@ -158,7 +227,7 @@ export default function Dashboard() {
                         onClick={() => navigateTo('/soc/events?status=all')}
                         role="button"
                     >
-                        <span className="small fw-bold text-muted">TOTAL ALERTAS</span>
+                        <span className={`small fw-bold ${isSoc ? 'text-main' : 'text-muted'}`}>TOTAL ALERTAS</span>
                         <span className="h4 m-0 fw-bold text-primary">{stats.siem.total}</span>
                     </div>
                     <div 
@@ -166,7 +235,7 @@ export default function Dashboard() {
                         onClick={() => navigateTo('/soc/events?status=resolved')}
                         role="button"
                     >
-                        <span className="small fw-bold text-success">REMEDIADAS</span>
+                        <span className={`small fw-bold ${isSoc ? 'text-success' : 'text-success'}`}>REMEDIADAS</span>
                         <span className="h4 m-0 fw-bold text-success">{stats.siem.remediated}</span>
                     </div>
                     <div 
@@ -174,7 +243,7 @@ export default function Dashboard() {
                         onClick={() => navigateTo('/soc/events?status=in_progress')}
                         role="button"
                     >
-                        <span className="small fw-bold text-warning">EN PROCESO</span>
+                        <span className={`small fw-bold ${isSoc ? 'text-warning' : 'text-warning'}`}>EN PROCESO</span>
                         <span className="h4 m-0 fw-bold text-warning">{stats.siem.in_process}</span>
                     </div>
                     <div 
@@ -182,7 +251,7 @@ export default function Dashboard() {
                         onClick={() => navigateTo('/soc/events?status=pending')}
                         role="button"
                     >
-                        <span className="small fw-bold text-danger">ABIERTAS</span>
+                        <span className={`small fw-bold ${isSoc ? 'text-danger' : 'text-danger'}`}>ABIERTAS</span>
                         <span className="h4 m-0 fw-bold text-danger">{stats.siem.open}</span>
                     </div>
                 </Card>

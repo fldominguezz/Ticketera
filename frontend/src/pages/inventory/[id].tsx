@@ -57,7 +57,12 @@ const AssetDetailPage = () => {
       });
       if (res.ok) {
         const data = await res.json();
-        setAssetTickets(Array.isArray(data) ? data : []);
+        // El backend devuelve un objeto con { items: [], total: ... }
+        if (data && Array.isArray(data.items)) {
+            setAssetTickets(data.items);
+        } else {
+            setAssetTickets(Array.isArray(data) ? data : []);
+        }
       }
     } catch (err) { console.error(err); } finally { setLoadingTickets(false); }
   };
@@ -103,10 +108,52 @@ const AssetDetailPage = () => {
 
         <Row className="g-4">
           <Col lg={4}>
+            {/* PERSONAL TÉCNICO INVOLUCRADO */}
+            <Card className="border-0 shadow-lg mb-4 bg-primary bg-opacity-10" style={{borderRadius: '16px', border: '1px solid rgba(var(--bs-primary-rgb), 0.2)'}}>
+              <Card.Body className="p-4">
+                 <h6 className="fw-black mb-4 uppercase x-small tracking-widest text-primary d-flex align-items-center">
+                    <UserCheck size={16} className="me-2"/> Personal Técnico
+                 </h6>
+                 
+                 <div className="mb-4">
+                    <label className="x-small fw-black text-muted uppercase d-block mb-2">Responsable de Patrimonio</label>
+                    <div className="d-flex align-items-center gap-2 p-2 bg-white rounded shadow-sm">
+                       <div className="avatar bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center fw-bold" style={{width: 32, height: 32, fontSize: '12px'}}>
+                          {asset.responsible_user ? `${asset.responsible_user.first_name[0]}${asset.responsible_user.last_name[0]}` : '?'}
+                       </div>
+                       <div className="fw-bold text-dark">
+                         {asset.responsible_user ? `${asset.responsible_user.first_name} ${asset.responsible_user.last_name}` : 'No definido'}
+                       </div>
+                    </div>
+                 </div>
+
+                 {asset.install_records && asset.install_records.length > 0 && (
+                   <div className="mt-2 border-top pt-3 border-primary border-opacity-10">
+                      <Row className="g-3">
+                         <Col xs={12}>
+                            <label className="x-small fw-bold text-muted uppercase d-block mb-1">Último Instalador (Campo)</label>
+                            <div className="small fw-black text-main d-flex align-items-center">
+                               <div className="p-1 bg-success bg-opacity-10 text-success rounded me-2"><UserCheck size={14}/></div>
+                               {asset.install_records[0].tecnico_instalacion || '---'}
+                            </div>
+                         </Col>
+                         <Col xs={12}>
+                            <label className="x-small fw-bold text-muted uppercase d-block mb-1">Última Carga de Datos</label>
+                            <div className="small fw-black text-main d-flex align-items-center">
+                               <div className="p-1 bg-info bg-opacity-10 text-info rounded me-2"><Activity size={14}/></div>
+                               {asset.install_records[0].tecnico_carga || '---'}
+                            </div>
+                         </Col>
+                      </Row>
+                   </div>
+                 )}
+              </Card.Body>
+            </Card>
+
             {/* UBICACIÓN Y DEPENDENCIA */}
-            <Card className="border-0 shadow-lg mb-4 bg-card overflow-hidden" style={{borderRadius: '16px'}}>
-              <div className="bg-primary bg-opacity-10 p-3 border-bottom border-white border-opacity-5">
-                 <h6 className="fw-black m-0 uppercase x-small tracking-widest text-primary d-flex align-items-center">
+            <Card className="border-0 shadow-sm mb-4 bg-card overflow-hidden" style={{borderRadius: '16px'}}>
+              <div className="bg-surface-muted p-3 border-bottom">
+                 <h6 className="fw-black m-0 uppercase x-small tracking-widest text-muted d-flex align-items-center">
                     <MapPin size={14} className="me-2"/> Asignación Organizativa
                  </h6>
               </div>
@@ -115,15 +162,9 @@ const AssetDetailPage = () => {
                     <label className="x-small fw-black text-muted uppercase d-block mb-1">Dependencia Oficial</label>
                     <div className="h5 fw-bold text-main mb-0">{asset.location?.name || 'SIN ASIGNAR'}</div>
                  </div>
-                 <div className="d-flex gap-4">
-                    <div>
-                       <label className="x-small fw-black text-muted uppercase d-block mb-1">Código DEP</label>
-                       <div className="fw-black text-primary font-monospace h6">#{asset.location?.dependency_code || '---'}</div>
-                    </div>
-                    <div>
-                       <label className="x-small fw-black text-muted uppercase d-block mb-1">Responsable</label>
-                       <div className="small fw-bold text-main">{asset.responsible_user?.first_name} {asset.responsible_user?.last_name || 'No definido'}</div>
-                    </div>
+                 <div>
+                    <label className="x-small fw-black text-muted uppercase d-block mb-1">Código DEP</label>
+                    <div className="fw-black text-primary font-monospace h6">#{asset.location?.dependency_code || '---'}</div>
                  </div>
               </Card.Body>
             </Card>
@@ -206,11 +247,15 @@ const AssetDetailPage = () => {
                                   <FileText size={32} className="text-primary opacity-25" />
                                </div>
                                <Row className="g-3">
-                                  <Col md={6}>
+                                  <Col md={4}>
                                      <label className="x-small fw-black text-muted uppercase d-block">Instalador</label>
                                      <div className="small fw-bold d-flex align-items-center mt-1"><UserCheck size={14} className="me-2 text-success"/> {r.tecnico_instalacion || '---'}</div>
                                   </Col>
-                                  <Col md={6}>
+                                  <Col md={4}>
+                                     <label className="x-small fw-black text-muted uppercase d-block">Carga de Datos</label>
+                                     <div className="small fw-bold d-flex align-items-center mt-1"><Activity size={14} className="me-2 text-info"/> {r.tecnico_carga || '---'}</div>
+                                  </Col>
+                                  <Col md={4}>
                                      <label className="x-small fw-black text-muted uppercase d-block">Observaciones</label>
                                      <p className="small mb-0 italic">"{r.observations || 'Sin observaciones.'}"</p>
                                   </Col>
@@ -223,17 +268,43 @@ const AssetDetailPage = () => {
 
                   <Tab eventKey="history" title={<span><History size={16} className="me-1"/> LOG DE EVENTOS</span>} className="p-4">
                     <div className="timeline">
-                      {asset.location_history?.map((h: any, idx: number) => (
-                        <div key={idx} className="timeline-item pb-3 border-start ps-3 position-relative">
-                          <div className="dot position-absolute bg-primary rounded-circle" style={{width:'10px', height:'10px', left:'-5px', top:'5px'}}></div>
-                          <div className="small fw-black text-muted">{new Date(h.created_at).toLocaleString()}</div>
-                          <div className="small mt-1">
-                              <span className="fw-bold">{h.reason || 'Sincronización de sistema'}</span>
-                              <div className="x-small text-muted mt-1 uppercase fw-bold">Operador: {h.changed_by_name || 'System Auto'}</div>
+                      {asset.event_logs?.map((log: any, idx: number) => {
+                        const getEventIcon = (type: string) => {
+                          switch(type) {
+                            case 'move': return <MapPin size={12} className="text-warning"/>;
+                            case 'status_change': return <Activity size={12} className="text-info"/>;
+                            case 'ticket_created': return <Ticket size={12} className="text-danger"/>;
+                            case 'expediente_linked': return <FileText size={12} className="text-success"/>;
+                            case 'install': return <Plus size={12} className="text-primary"/>;
+                            default: return <div className="dot bg-primary rounded-circle" style={{width:'8px', height:'8px'}}></div>;
+                          }
+                        };
+
+                        return (
+                          <div key={log.id || idx} className="timeline-item pb-4 border-start ps-4 position-relative">
+                            <div className="position-absolute d-flex align-items-center justify-content-center bg-surface border border-color rounded-circle shadow-sm" style={{width:'24px', height:'24px', left:'-12px', top:'0px', zIndex: 2}}>
+                               {getEventIcon(log.event_type)}
+                            </div>
+                            <div className="small fw-black text-muted mb-1">
+                                {new Date(log.created_at).toLocaleString()}
+                            </div>
+                            <div className="bg-surface border border-color p-3 rounded-3 shadow-sm shadow-hover transition-all">
+                                <div className="fw-bold text-main">{log.description}</div>
+                                {log.user && (
+                                  <div className="x-small text-muted mt-2 d-flex align-items-center gap-1 uppercase fw-bold">
+                                     <UserCheck size={10}/> Operador: {log.user.first_name} {log.user.last_name}
+                                  </div>
+                                )}
+                            </div>
                           </div>
+                        );
+                      })}
+                      {(!asset.event_logs || asset.event_logs.length === 0) && (
+                        <div className="text-center py-5">
+                           <History size={48} className="text-muted opacity-10 mb-3"/>
+                           <p className="text-muted small italic">No hay historial de eventos registrado para este equipo.</p>
                         </div>
-                      ))}
-                      {(!asset.location_history || asset.location_history.length === 0) && <p className="text-center py-4 text-muted small">No hay historial disponible.</p>}
+                      )}
                     </div>
                   </Tab>
 

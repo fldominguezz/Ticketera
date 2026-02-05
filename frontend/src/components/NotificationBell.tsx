@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dropdown, Badge, Button } from 'react-bootstrap';
-import { Bell, BellOff, Circle, Check } from 'lucide-react';
+import { Bell, BellOff, Circle, Check, Clock, ShieldAlert, Activity } from 'lucide-react';
 import { useRouter } from 'next/router';
 import api from '../lib/api';
 
@@ -76,7 +76,7 @@ export default function NotificationBell() {
     };
   
     const getNotificationStyles = (title: string) => {
-      const t = title.toLowerCase();
+      const t = (title || '').toLowerCase();
       if (t.includes('alerta') || t.includes('siem') || t.includes('security')) {
         return { icon: <ShieldAlert size={14} className="text-danger" />, class: 'notif-security' };
       }

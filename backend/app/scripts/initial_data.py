@@ -38,6 +38,12 @@ async def init_db() -> None:
             {"key": PermissionEnum.TICKET_UPDATE_ASSIGNED, "name": "Tickets: Editar Asignados", "module": "TICKETS", "scope_type": "own"},
             {"key": PermissionEnum.TICKET_ASSIGN_GROUP, "name": "Tickets: Asignar en Grupo", "module": "TICKETS", "scope_type": "group"},
             {"key": PermissionEnum.TICKET_CLOSE_GROUP, "name": "Tickets: Cerrar en Grupo", "module": "TICKETS", "scope_type": "group"},
+            {"key": PermissionEnum.TICKET_COMMENT_GLOBAL, "name": "Tickets: Comentar Global", "module": "TICKETS", "scope_type": "global"},
+            {"key": PermissionEnum.TICKET_COMMENT_GROUP, "name": "Tickets: Comentar en Grupo", "module": "TICKETS", "scope_type": "group"},
+            {"key": PermissionEnum.TICKET_COMMENT_OWN, "name": "Tickets: Comentar Propios", "module": "TICKETS", "scope_type": "own"},
+            {"key": PermissionEnum.TICKET_WATCH_GLOBAL, "name": "Tickets: Observar Global", "module": "TICKETS", "scope_type": "global"},
+            {"key": PermissionEnum.TICKET_WATCH_GROUP, "name": "Tickets: Observar en Grupo", "module": "TICKETS", "scope_type": "group"},
+            {"key": PermissionEnum.TICKET_WATCH_OWN, "name": "Tickets: Observar Propios", "module": "TICKETS", "scope_type": "own"},
             
             # PARTES
             {"key": PermissionEnum.PARTES_READ_GLOBAL, "name": "Partes: Leer Global", "module": "PARTES", "scope_type": "global"},

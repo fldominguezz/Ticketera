@@ -23,6 +23,10 @@ class Alert(Base):
     
     status = Column(String(50), default="new") # new, acknowledged, resolved, promoted
     
+    # Análisis de IA persistente
+    ai_summary = Column(Text, nullable=True)
+    ai_remediation = Column(Text, nullable=True)
+    
     # Si la alerta se convierte en Ticket, guardamos la relación
     ticket_id = Column(UUID(as_uuid=True), ForeignKey("tickets.id"), nullable=True)
     

@@ -30,6 +30,7 @@ class Asset(Base):
     status = Column(String(50), default="operative")
     criticality = Column(String(50), default="medium")
     av_product = Column(String(100), nullable=True)
+    device_type = Column(String(100), nullable=True)
     os_name = Column(String(100), nullable=True)
     os_version = Column(String(100), nullable=True)
     observations = Column(Text, nullable=True)
@@ -46,6 +47,7 @@ class Asset(Base):
     location_history = relationship("AssetLocationHistory", back_populates="asset")
     install_records = relationship("AssetInstallRecord", back_populates="asset")
     ip_history = relationship("AssetIPHistory", back_populates="asset")
+    event_logs = relationship("AssetEventLog", back_populates="asset")
 
     def __repr__(self):
         return f"<Asset(hostname='{self.hostname}')>"

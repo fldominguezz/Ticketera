@@ -10,6 +10,12 @@ class PermissionEnum(str, Enum):
     TICKET_UPDATE_ASSIGNED = "ticket:update:assigned"
     TICKET_ASSIGN_GROUP = "ticket:assign:group"
     TICKET_CLOSE_GROUP = "ticket:close:group"
+    TICKET_COMMENT_GLOBAL = "ticket:comment:global"
+    TICKET_COMMENT_GROUP = "ticket:comment:group"
+    TICKET_COMMENT_OWN = "ticket:comment:own"
+    TICKET_WATCH_GLOBAL = "ticket:watch:global"
+    TICKET_WATCH_GROUP = "ticket:watch:group"
+    TICKET_WATCH_OWN = "ticket:watch:own"
     
     # --- PARTES ---
     PARTES_READ_GLOBAL = "partes:read:global"

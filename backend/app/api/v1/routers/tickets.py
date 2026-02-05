@@ -287,6 +287,19 @@ async def create_ticket(
         
         # Index in Meilisearch
         background_tasks.add_task(index_ticket_task, ticket)
+
+        # Log de Evento en el Activo (si aplica)
+        if ticket.asset_id:
+            from app.db.models.asset_history import AssetEventLog
+            asset_event = AssetEventLog(
+                asset_id=ticket.asset_id,
+                event_type="ticket_created",
+                description=f"Ticket creado: {ticket.ticket_id} - {ticket.title}",
+                user_id=current_user.id,
+                details={"ticket_id": str(ticket.id), "ticket_code": ticket.ticket_id}
+            )
+            db.add(asset_event)
+            await db.commit()
     except Exception as e:
         print(f"Error in post-creation tasks: {e}")
     
