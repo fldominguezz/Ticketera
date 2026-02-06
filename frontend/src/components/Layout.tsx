@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { UserAvatar } from './UserAvatar';
 import NotificationBell from './NotificationBell';
 import Footer from './layout/Footer';
 
@@ -200,10 +201,8 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
             </Button>
             {!isSecurityOnboarding && <NotificationBell />}
             <Dropdown align="end">
-              <Dropdown.Toggle as="div" className="d-flex align-items-center gap-2 cursor-pointer">
-                <div className="avatar bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center" style={{width: 32, height: 32}}>
-                  <User size={18} />
-                </div>
+              <Dropdown.Toggle as="div" className="d-flex align-items-center gap-2 cursor-pointer p-1">
+                <UserAvatar user={user} size={32} fontSize="12px" />
               </Dropdown.Toggle>
               <Dropdown.Menu className="shadow border-0">
                 <Dropdown.Item onClick={() => router.push('/profile')}>Mi Perfil</Dropdown.Item>
