@@ -49,8 +49,15 @@ async def periodic_disk_check():
         await asyncio.sleep(3600) # Chequear cada hora
 
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
 
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
+
+# Montar carpeta de subidas para servir archivos estáticos (avatars, etc.)
+if not os.path.exists("/app/uploads"):
+    os.makedirs("/app/uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="/app/uploads"), name="uploads")
 
 @app.get("/healthz", tags=["health"])
 async def healthz():

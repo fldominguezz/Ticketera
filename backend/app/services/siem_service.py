@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 class SIEMService:
     def __init__(self):
-        self._analysis_lock = asyncio.Lock() # Bloqueo para procesar 1x1
+        self._analysis_lock = asyncio.Lock() # Bloqueo para procesar 1x1 (obsoleto por semáforo)
+        self._ai_semaphore = asyncio.Semaphore(2) # MÁXIMO 2 ANÁLISIS DE IA SIMULTÁNEOS
 
     def _parse_kv_string(self, text: str) -> Dict[str, str]:
         """
@@ -197,53 +198,64 @@ class SIEMService:
         # Disparar análisis experto en segundo plano (no bloqueante)
         asyncio.create_task(self.perform_expert_analysis(new_alert.id))
 
-        # Notificaciones inteligentes
-        from app.services.notification_service import notification_service
+        # Notificaciones inteligentes en segundo plano para no bloquear el retorno
+        async def send_notifications():
+            from app.services.notification_service import notification_service
+            from app.db.session import AsyncSessionLocal
+            
+            async with AsyncSessionLocal() as background_db:
+                if event_info['severity'] in ['critical', 'high']:
+                    await notification_service.notify_admins(
+                        background_db,
+                        title=f"🚨 ALERTA {event_info['severity'].upper()}",
+                        message=f"Evento detectado: {event_info['event_type']} en {event_info['ip']}",
+                        link=f"/soc/events"
+                    )
+                else:
+                    await notification_service.notify_admins(
+                        background_db,
+                        title=f"🛡️ Evento SIEM: {event_info['severity'].title()}",
+                        message=f"Regla: {event_info['event_type']}",
+                        link=f"/soc/events"
+                    )
         
-        if event_info['severity'] in ['critical', 'high']:
-            # Notificar a Admins y SOC (si existiera un grupo SOC, por ahora a todos los admins con prioridad)
-            await notification_service.notify_admins(
-                db,
-                title=f"🚨 ALERTA {event_info['severity'].upper()}",
-                message=f"Evento detectado: {event_info['event_type']} en {event_info['ip']}",
-                link=f"/soc/events"
-            )
-        else:
-            # Notificación normal
-            await notification_service.notify_admins(
-                db,
-                title=f"🛡️ Evento SIEM: {event_info['severity'].title()}",
-                message=f"Regla: {event_info['event_type']}",
-                link=f"/soc/events"
-            )
+        asyncio.create_task(send_notifications())
 
         return new_alert
 
     async def perform_expert_analysis(self, alert_id: uuid.UUID):
-        """Tarea en segundo plano para procesar la IA sin bloquear el recibo del evento.
-        Se procesa 1x1 usando un Lock para evitar saturar el CPU.
+        """Tarea en segundo plano para procesar la IA.
+        Se eliminó el lock para permitir concurrencia ligera gestionada por Ollama.
         """
         from app.db.session import AsyncSessionLocal
         from app.services.expert_analysis_service import expert_analysis_service
         
-        async with self._analysis_lock: # Solo entra uno a la vez aquí
-            async with AsyncSessionLocal() as db:
-                try:
-                    # 1. Obtener la alerta
-                    res = await db.execute(select(Alert).where(Alert.id == alert_id))
-                    alert = res.scalar_one_or_none()
-                    if not alert: return
+        async with AsyncSessionLocal() as db:
+            try:
+                # 1. Obtener la alerta
+                res = await db.execute(select(Alert).where(Alert.id == alert_id))
+                alert = res.scalar_one_or_none()
+                
+                if not alert: return
+                
+                # EVITAR RE-PROCESAR: Si ya tiene resumen, no gastar CPU
+                if alert.ai_summary and alert.ai_summary.strip():
+                    logger.info(f"Alert {alert_id} already has AI analysis. Skipping.")
+                    return
 
-                    # 2. Ejecutar análisis (este método ahora consulta a Ollama internamente)
+                # 2. Ejecutar análisis (CON SEMÁFORO)
+                async with self._ai_semaphore:
+                    logger.info(f"Executing AI Analysis for alert {alert_id} (Slot acquired)...")
                     analysis = expert_analysis_service.analyze_raw_log(alert.raw_log or alert.description)
-                    
+                
+                if analysis:
                     # 3. Guardar resultados
                     alert.ai_summary = analysis.get("summary")
-                    alert.ai_remediation = analysis.get("recommendation")
+                    alert.ai_remediation = analysis.get("remediation")
                     
                     await db.commit()
-                    logger.info(f"AI Analysis completed for alert {alert_id}")
-                except Exception as e:
-                    logger.error(f"Background AI Analysis failed for {alert_id}: {e}")
+                    logger.info(f"AI Analysis successfully saved for alert {alert_id}")
+            except Exception as e:
+                logger.error(f"Background AI Analysis failed for {alert_id}: {e}")
 
 siem_service = SIEMService()

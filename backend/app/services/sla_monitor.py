@@ -13,31 +13,48 @@ logger = logging.getLogger(__name__)
 class SLAMonitor:
     async def check_breaches(self, db: AsyncSession):
         """
-        Busca tickets a punto de vencer (menos de 30 min) o ya vencidos 
-        que no hayan sido notificados.
+        Busca tickets a punto de vencer (menos de 30 min) o ya vencidos.
         """
         now = datetime.utcnow()
         warning_window = now + timedelta(minutes=30)
 
-        # 1. Buscar vencimientos de RESPUESTA inminentes
-        query = select(SLAMetric).join(Ticket).where(
+        # 1. Vencimientos de RESPUESTA
+        query_resp = select(SLAMetric).join(Ticket).where(
             and_(
                 SLAMetric.responded_at == None,
                 SLAMetric.response_deadline <= warning_window,
                 Ticket.status != 'closed'
             )
         )
-        metrics = (await db.execute(query)).scalars().all()
+        metrics_resp = (await db.execute(query_resp)).scalars().all()
 
-        for m in metrics:
+        for m in metrics_resp:
             await notification_service.notify_user(
                 db,
                 user_id=m.ticket.assigned_to_id or m.ticket.created_by_id,
-                title="⚠️ Alerta de SLA: Respuesta",
-                message=f"El ticket {m.ticket.title} vencerá en menos de 30 min.",
+                title="⚠️ SLA Respuesta Inminente",
+                message=f"Ticket {m.ticket.id}: vence en <30 min.",
                 link=f"/tickets/{m.ticket.id}"
             )
-            logger.info(f"SLA Warning sent for Ticket {m.ticket.id}")
+
+        # 2. Vencimientos de RESOLUCIÓN
+        query_res = select(SLAMetric).join(Ticket).where(
+            and_(
+                SLAMetric.resolved_at == None,
+                SLAMetric.resolution_deadline <= warning_window,
+                Ticket.status != 'closed'
+            )
+        )
+        metrics_res = (await db.execute(query_res)).scalars().all()
+
+        for m in metrics_res:
+            await notification_service.notify_user(
+                db,
+                user_id=m.ticket.assigned_to_id or m.ticket.created_by_id,
+                title="🚨 SLA Resolución Crítica",
+                message=f"El plazo de resolución del ticket {m.ticket.id} está por expirar.",
+                link=f"/tickets/{m.ticket.id}"
+            )
 
         await db.commit()
 

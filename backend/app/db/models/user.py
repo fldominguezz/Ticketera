@@ -32,6 +32,7 @@ class User(Base):
     reset_2fa_next_login = Column(Boolean, default=False, nullable=False)
     enroll_2fa_mandatory = Column(Boolean, default=False, nullable=False)
     policy_exempt = Column(Boolean, default=False, nullable=False)
+    avatar_url = Column(String(512), nullable=True)
     dashboard_layout = Column(JSONB, default=list, nullable=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

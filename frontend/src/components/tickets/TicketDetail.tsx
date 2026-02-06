@@ -3,7 +3,7 @@ import { Card, Button, Form, Badge, Table, Tabs, Tab, Spinner, Modal, Row, Col }
 import { User, Clock, Paperclip, Download as DownloadIcon, Eye, AlertCircle, Monitor, Send, Lock } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { RichCommentEditor } from './RichCommentEditor';
+import { UserAvatar } from '../UserAvatar';
 import 'react-quill/dist/quill.snow.css';
 
 interface Comment { id: string; content: string; is_internal: boolean; user_id: string; user_name?: string; user_avatar?: string; created_at: string; }
@@ -296,11 +296,16 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                     />
                     {comments.map(c => (
                       <div key={c.id} className={`d-flex gap-3 mb-4 p-3 rounded-4 ${c.is_internal ? 'bg-warning bg-opacity-10' : 'hover-bg-surface-muted'}`}>
-                        <div className="bg-primary bg-opacity-10 p-2 rounded-circle flex-shrink-0" style={{ width: 40, height: 40 }}><User size={24} className="text-primary" /></div>
-                                              <div className="flex-grow-1">
-                                                <div className="d-flex justify-content-between mb-1"><span className="fw-black text-main small">{c.user_name || 'User'}</span><span className="text-muted x-small">{new Date(c.created_at).toLocaleString()}</span></div>
-                                                <div className="small text-main opacity-90" style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
-                                              </div>                      </div>
+                        <UserAvatar 
+                          user={{ username: c.user_name, avatar_url: c.user_avatar }} 
+                          size={40} 
+                          fontSize="16px"
+                        />
+                        <div className="flex-grow-1">
+                          <div className="d-flex justify-content-between mb-1"><span className="fw-black text-main small">{c.user_name || 'User'}</span><span className="text-muted x-small">{new Date(c.created_at).toLocaleString()}</span></div>
+                          <div className="small text-main opacity-90" style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
+                        </div>
+                      </div>
                     ))}
                   </Card.Body>
                 </Card>

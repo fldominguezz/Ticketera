@@ -90,6 +90,29 @@ export default function TicketsPage() {
     </div>;
   };
 
+  const getSLABadge = (ticket: any) => {
+    if (!ticket.sla_metric) return <span className="text-muted opacity-25">--</span>;
+    
+    const now = new Date();
+    const deadline = new Date(ticket.sla_metric.resolution_deadline || ticket.sla_metric.response_deadline);
+    const diffMs = deadline.getTime() - now.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+
+    let color = 'success';
+    let icon = 'CheckCircle';
+    
+    if (diffMins < 0) { color = 'danger'; icon = 'AlertCircle'; }
+    else if (diffMins < 60) { color = 'danger'; icon = 'Clock'; }
+    else if (diffMins < 180) { color = 'warning'; icon = 'Clock'; }
+
+    return (
+      <div className={`d-flex align-items-center gap-1 text-${color} fw-black`} style={{ fontSize: '10px' }}>
+        <Clock size={12} className={diffMins < 60 ? 'animate-pulse' : ''} />
+        {diffMins < 0 ? 'VENCIDO' : `${Math.floor(diffMins / 60)}h ${diffMins % 60}m`}
+      </div>
+    );
+  };
+
   return (
     <Layout title="Gestión de Tickets">
       <Container fluid className="py-3 px-lg-4">
@@ -149,9 +172,10 @@ export default function TicketsPage() {
                 <thead>
                   <tr className="small text-muted uppercase tracking-widest border-bottom border-color bg-surface">
                     <th className="ps-4 py-3" style={{width: '120px'}}>ID</th>
-                    <th className="py-3" style={{width: '25%'}}>ASUNTO</th>
+                    <th className="py-3" style={{width: '20%'}}>ASUNTO</th>
                     <th className="py-3">ESTADO</th>
                     <th className="py-3">PRIORIDAD</th>
+                    <th className="py-3">SLA RESTANTE</th>
                     <th className="py-3" style={{width: '180px'}}>CREADOR</th>
                     <th className="py-3">ASIGNACIÓN</th>
                     <th className="pe-4 py-3 text-end">FECHA</th>
@@ -174,6 +198,7 @@ export default function TicketsPage() {
                       </td>
                       <td className="py-2">{getStatusBadge(t.status)}</td>
                       <td className="py-2">{getPriorityBadge(t.priority)}</td>
+                      <td className="py-2">{getSLABadge(t)}</td>
                       <td className="py-2">
                          <div className="d-flex align-items-center gap-2">
                             <span className="small fw-black text-muted">{t.created_by_name}</span>

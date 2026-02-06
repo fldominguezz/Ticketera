@@ -12,7 +12,40 @@ from app.schemas.ticket import TicketCreate
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
+from app.services.expert_analysis_service import expert_analysis_service
+
 router = APIRouter()
+
+@router.post("/alerts/{alert_id}/reanalyze")
+async def reanalyze_alert(
+    alert_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_permission("siem:manage"))]
+):
+    """Fuerza un nuevo análisis de IA sobre el raw_log de una alerta existente."""
+    result = await db.execute(select(Alert).where(Alert.id == alert_id))
+    alert = result.scalar_one_or_none()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alerta no encontrada")
+    
+    if not alert.raw_log:
+        raise HTTPException(status_code=400, detail="La alerta no tiene raw_log para analizar")
+    
+    # Llamar al servicio de análisis
+    analysis = expert_analysis_service.analyze_raw_log(alert.raw_log)
+    
+    # Actualizar la alerta
+    alert.ai_summary = analysis.get("summary")
+    alert.ai_remediation = analysis.get("remediation")
+    
+    await db.commit()
+    await db.refresh(alert)
+    
+    return {
+        "status": "ok",
+        "ai_summary": alert.ai_summary,
+        "ai_remediation": alert.ai_remediation
+    }
 
 class AlertSchema(BaseModel):
     id: UUID

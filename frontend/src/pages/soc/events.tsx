@@ -46,8 +46,39 @@ export default function SIEMEventsPage() {
   const [saving, setSaving] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<{summary: string, remediation: string} | null>(null);
   const [loadingAI, setLoadingAI] = useState(false);
+  const [reanalyzing, setReanalyzing] = useState(false);
   const [rawSearchTerm, setRawSearchTerm] = useState('');
   const [evidenceFiles, setEvidenceFiles] = useState<FileList | null>(null);
+
+  const handleReanalyze = async () => {
+    if (!selectedTicket) return;
+    setReanalyzing(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`/api/v1/soc/alerts/${selectedTicket.id}/reanalyze`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const updatedAnalysis = {
+          summary: data.ai_summary || "Sin hallazgos.",
+          remediation: data.ai_remediation || "Sin acciones."
+        };
+        setAiAnalysis(updatedAnalysis);
+        // Actualizar el ticket seleccionado en el estado local
+        setSelectedTicket((prev: any) => ({
+          ...prev,
+          ai_summary: data.ai_summary,
+          ai_remediation: data.ai_remediation
+        }));
+      }
+    } catch (e) {
+      console.error('Re-analyze error:', e);
+    } finally {
+      setReanalyzing(false);
+    }
+  };
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -174,9 +205,6 @@ export default function SIEMEventsPage() {
             summary: event.ai_summary || "Sin hallazgos técnicos registrados.",
             remediation: event.ai_remediation || "Sin recomendaciones registradas."
         });
-    } else {
-        // Solo llamar si no existe (alertas viejas o proceso lento)
-        fetchAI(event.id);
     }
     
     setShowRemediate(true);
@@ -343,6 +371,19 @@ export default function SIEMEventsPage() {
                 </div>
               )}
               {activeTab === 'ia' && (<div className="ia-analysis-view p-4 rounded-4 border border-primary border-opacity-25 bg-surface-muted">
+                  <div className="d-flex justify-content-between align-items-center mb-4">
+                    <h6 className="x-small fw-black text-primary uppercase m-0">Inteligencia Artificial SOC</h6>
+                    <Button 
+                      variant="outline-primary" 
+                      size="sm" 
+                      className="rounded-pill x-small fw-black px-3"
+                      onClick={handleReanalyze}
+                      disabled={reanalyzing}
+                    >
+                      {reanalyzing ? <Spinner animation="border" size="sm" className="me-2" /> : <Settings size={12} className="me-2" />}
+                      RE-ANALIZAR IA
+                    </Button>
+                  </div>
                   {aiAnalysis ? (<><h6 className="x-small fw-black text-primary uppercase mb-2">Hallazgos Técnicos</h6><div className="bg-surface p-3 rounded-3 small text-success font-monospace mb-3">{aiAnalysis.summary}</div><h6 className="x-small fw-black text-warning uppercase mb-2">Acciones Recomendadas</h6><div className="bg-surface p-3 rounded-3 small text-warning font-monospace">{aiAnalysis.remediation}</div></>) : <div className="text-center py-5"><Spinner animation="grow" size="sm" variant="primary" /><p className="small text-muted mt-2 uppercase fw-bold opacity-50">Escaneando patrones en Raw Log...</p></div>}
               </div>)}
           </div>

@@ -23,7 +23,57 @@ from app.core.security import (
 from app.db.models import User, Group, PasswordPolicy
 from app.db.models.iam import UserRole, Role, RolePermission
 
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Body, File, UploadFile
+import os
+import shutil
+
 router = APIRouter()
+
+@router.post("/me/avatar", response_model=UserSchema)
+async def update_user_avatar(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    file: UploadFile = File(...)
+):
+    """
+    Upload and update user's profile picture.
+    """
+    # Validar extensión
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in [".jpg", ".jpeg", ".png", ".webp"]:
+        raise HTTPException(status_code=400, detail="Invalid file type. Only images allowed.")
+
+    # Guardar archivo
+    upload_dir = "/app/uploads/avatars"
+    if not os.path.exists(upload_dir):
+        os.makedirs(upload_dir, exist_ok=True)
+        
+    filename = f"{current_user.id}{ext}"
+    file_path = os.path.join(upload_dir, filename)
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # Actualizar DB
+    avatar_url = f"/uploads/avatars/{filename}"
+    current_user.avatar_url = avatar_url
+    db.add(current_user)
+    await db.commit()
+    
+    return current_user
+
+@router.delete("/me/avatar", response_model=UserSchema)
+async def delete_user_avatar(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """
+    Remove user's profile picture.
+    """
+    current_user.avatar_url = None
+    db.add(current_user)
+    await db.commit()
+    return current_user
 
 @router.post(
     "",

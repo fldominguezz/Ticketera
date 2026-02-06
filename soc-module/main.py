@@ -27,7 +27,7 @@ def forward_to_backend(data, addr):
             data=data, 
             headers=headers, 
             auth=HTTPBasicAuth(SIEM_USER, SIEM_PASS),
-            timeout=10
+            timeout=30
         )
         
         if response.status_code == 200:

@@ -82,7 +82,7 @@ services:
       ENABLE_METRICS: "True" # Activa Prometheus exporter
     volumes:
       - ./backend:/app
-      - uploads_data:/app/uploads
+      - ./uploads:/app/uploads
     networks:
       - app-network
     depends_on:
@@ -137,6 +137,8 @@ services:
     depends_on:
       - backend
       - frontend
+    volumes:
+      - ./uploads:/app/uploads
     networks:
       - app-network
     healthcheck:
@@ -203,6 +205,9 @@ services:
   ollama:
     image: ollama/ollama:latest
     container_name: ticketera-ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=5m
+      - OLLAMA_NUM_PARALLEL=1
     volumes:
       - ollama_data:/root/.ollama
     ports:
@@ -212,6 +217,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '4.0'
           memory: 4G
     restart: always
 

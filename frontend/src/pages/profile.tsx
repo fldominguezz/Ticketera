@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
 import { Container, Card, Row, Col, Button, Badge, ListGroup, Tabs, Tab, Form, Spinner, Alert, Modal } from 'react-bootstrap';
-import { Shield, Monitor, Globe, Clock, User as UserIcon, Mail, AlertTriangle } from 'lucide-react';
+import { Shield, Monitor, Globe, Clock, User as UserIcon, Mail, AlertTriangle, Camera } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import { UserAvatar } from '../components/UserAvatar';
 
 export default function ProfilePage() {
   const { t } = useTranslation();
@@ -13,13 +14,62 @@ export default function ProfilePage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [showPasswordModal, setShowModal] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const token = localStorage.getItem('access_token');
+    try {
+      const res = await fetch('/api/v1/users/me/avatar', {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      if (res.ok) {
+        await refreshUser();
+      } else {
+        alert('Error al subir la imagen');
+      }
+    } catch (e) { console.error(e); }
+    finally { setUploading(false); }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!confirm('¿Estás seguro de que quieres eliminar tu foto de perfil?')) return;
+    
+    setLoading(true);
+    const token = localStorage.getItem('access_token');
+    try {
+      const res = await fetch('/api/v1/users/me/avatar', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        await refreshUser();
+      }
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
 
   const handleDisable2FA = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,14 +106,52 @@ export default function ProfilePage() {
           <Col lg={4}>
             <Card className="border-0 shadow-sm text-center p-4">
               <Card.Body>
-                <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3 text-white shadow" style={{ width: '80px', height: '80px' }}>
-                  <UserIcon size={40} />
+                <div 
+                  className="position-relative mx-auto mb-3 cursor-pointer profile-avatar-container" 
+                  style={{ width: '100px', height: '100px' }}
+                  onClick={handleAvatarClick}
+                >
+                  <UserAvatar 
+                    user={user} 
+                    size={100} 
+                    fontSize="40px" 
+                    className={uploading ? 'opacity-50' : ''}
+                  />
+                  {uploading && (
+                    <div className="position-absolute top-50 left-50 translate-middle">
+                      <Spinner animation="border" size="sm" variant="light" />
+                    </div>
+                  )}
+                  <div className="avatar-edit-overlay rounded-circle d-flex align-items-center justify-content-center">
+                    <Camera size={24} className="text-white" />
+                  </div>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="d-none" 
+                    accept="image/*" 
+                    onChange={handleFileChange}
+                  />
                 </div>
                 <h4 className="fw-bold mb-1">{user?.first_name} {user?.last_name}</h4>
                 <p className="text-muted small">{user?.email}</p>
-                <Badge bg="primary" className="px-3 py-2 rounded-pill">
-                  {user?.is_superuser ? 'Administrador' : 'Técnico'}
-                </Badge>
+                
+                {user?.avatar_url && (
+                  <Button 
+                    variant="link" 
+                    size="sm" 
+                    className="text-danger x-small fw-bold text-decoration-none p-0 mb-3"
+                    onClick={handleRemoveAvatar}
+                  >
+                    Eliminar Foto
+                  </Button>
+                )}
+
+                <div className="d-block">
+                  <Badge bg="primary" className="px-3 py-2 rounded-pill">
+                    {user?.is_superuser ? 'Administrador' : 'Técnico'}
+                  </Badge>
+                </div>
                 <hr />
                 <div className="text-start small">
                   <div className="mb-2 d-flex align-items-center"><Mail size={14} className="me-2 text-muted" /> {user?.email}</div>
@@ -168,6 +256,27 @@ export default function ProfilePage() {
           border-bottom: 2px solid var(--bs-primary);
           background: transparent;
         }
+        .profile-avatar-container {
+          transition: transform 0.2s;
+        }
+        .profile-avatar-container:hover {
+          transform: scale(1.05);
+        }
+        .avatar-edit-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0,0,0,0.4);
+          opacity: 0;
+          transition: opacity 0.2s;
+        }
+        .profile-avatar-container:hover .avatar-edit-overlay {
+          opacity: 1;
+        }
+        .cursor-pointer { cursor: pointer; }
+        .object-fit-cover { object-fit: cover; }
       `}</style>
     </Layout>
   );

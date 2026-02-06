@@ -9,6 +9,7 @@ interface AuthContextType {
   verify2FA: (code: string, interimToken: string) => Promise<boolean>;
   logout: () => void;
   checkAuth: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -145,7 +146,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       login, 
       verify2FA,
       logout,
-      checkAuth: () => fetchUser(localStorage.getItem('access_token') || '')
+      checkAuth: () => fetchUser(localStorage.getItem('access_token') || ''),
+      refreshUser: async () => {
+        const token = localStorage.getItem('access_token');
+        if (token) await fetchUser(token);
+      }
     }}>
       {children}
     </AuthContext.Provider>

@@ -27,6 +27,7 @@ class UserBase(BaseModel):
     group_id: Optional[UUID] = None 
     group_name: Optional[str] = None
     preferred_language: Optional[str] = "es"
+    avatar_url: Optional[str] = None
     dashboard_layout: Optional[List[dict]] = []
 
 class UserCreate(UserBase):
@@ -91,6 +92,7 @@ class User(UserInDBBase):
                 "reset_2fa_next_login": getattr(data, "reset_2fa_next_login", False),
                 "enroll_2fa_mandatory": getattr(data, "enroll_2fa_mandatory", False),
                 "dashboard_layout": getattr(data, "dashboard_layout", []) or [],
+                "avatar_url": getattr(data, "avatar_url", None),
                 "group_id": data.group_id,
                 "group_name": data.group.name if hasattr(data, "group") and data.group else None,
                 "preferred_language": data.preferred_language,

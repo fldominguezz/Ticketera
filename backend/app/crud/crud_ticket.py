@@ -227,6 +227,7 @@ class CRUDTicket:
         comments = result.scalars().all()
         for c in comments:
             c.user_name = f"{c.user.username}" if c.user else "System"
+            c.user_avatar = c.user.avatar_url if c.user else None
         return comments
 
     async def get_watchers(self, db: AsyncSession, ticket_id: UUID) -> List[dict]:
