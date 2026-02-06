@@ -98,17 +98,21 @@ export default function LocationsManagement() {
           <Card.Body className="p-4">
             <Row className="mb-4">
               <Col md={6}>
-                <InputGroup className="bg-black rounded-lg border border-white border-opacity-10">
-                  <InputGroup.Text className="bg-transparent border-0 text-muted">
-                    <Search size={18} />
-                  </InputGroup.Text>
-                  <Form.Control 
-                    placeholder="Buscar por nombre o código [XXXX]..." 
-                    className="bg-transparent border-0 text-white shadow-none"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </InputGroup>
+                <Form.Group controlId="location-search">
+                  <InputGroup className="bg-black rounded-lg border border-white border-opacity-10">
+                    <InputGroup.Text className="bg-transparent border-0 text-muted">
+                      <Search size={18} />
+                    </InputGroup.Text>
+                    <Form.Control 
+                      id="location-search"
+                      name="searchTerm"
+                      placeholder="Buscar por nombre o código [XXXX]..." 
+                      className="bg-transparent border-0 text-white shadow-none"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </InputGroup>
+                </Form.Group>
               </Col>
             </Row>
 
@@ -172,35 +176,43 @@ export default function LocationsManagement() {
         </Modal.Header>
         <Modal.Body className="p-4">
           <Form onSubmit={handleSubmit}>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3" controlId="location-name">
               <Form.Label className="x-small fw-bold text-muted uppercase">Nombre de la Dependencia *</Form.Label>
               <Form.Control 
+                id="location-name"
+                name="name"
                 className="bg-dark text-white border-white border-opacity-10 shadow-none" 
                 required
                 value={formData.name}
                 onChange={e => setFormData({...formData, name: e.target.value})}
               />
             </Form.Group>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3" controlId="location-code">
               <Form.Label className="x-small fw-bold text-muted uppercase">Código de Dependencia</Form.Label>
               <Form.Control 
+                id="location-code"
+                name="dependency_code"
                 className="bg-dark text-white border-white border-opacity-10 shadow-none" 
                 placeholder="Ej: 1234"
                 value={formData.dependency_code}
                 onChange={e => setFormData({...formData, dependency_code: e.target.value})}
               />
             </Form.Group>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3" controlId="location-address">
               <Form.Label className="x-small fw-bold text-muted uppercase">Dirección Física</Form.Label>
               <Form.Control 
+                id="location-address"
+                name="address"
                 className="bg-dark text-white border-white border-opacity-10 shadow-none" 
                 value={formData.address}
                 onChange={e => setFormData({...formData, address: e.target.value})}
               />
             </Form.Group>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3" controlId="location-description">
               <Form.Label className="x-small fw-bold text-muted uppercase">Descripción / Observaciones</Form.Label>
               <Form.Control 
+                id="location-description"
+                name="description"
                 as="textarea" rows={3}
                 className="bg-dark text-white border-white border-opacity-10 shadow-none" 
                 value={formData.description}

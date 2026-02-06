@@ -133,7 +133,7 @@ async def get_current_active_user(
     if not current_user.is_active: raise HTTPException(status_code=400, detail="Inactive user")
     
     path = request.url.path
-    exempt_paths = ["/api/v1/auth/", "/api/v1/users/me"]
+    exempt_paths = ["/api/v1/auth/", "/api/v1/users/me", "/api/v1/locations"]
     
     # Si no es una ruta exenta, verificar que el usuario tenga sesión real
     # para evitar que usen un token de cambio de clave para ver tickets

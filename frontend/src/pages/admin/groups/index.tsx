@@ -184,18 +184,22 @@ export default function GroupsManagement() {
         </Modal.Header>
         <Modal.Body className="p-4 bg-card">
           <Form onSubmit={handleSave}>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3" controlId="group-name">
               <Form.Label className="x-small fw-bold text-muted uppercase">Nombre del Grupo *</Form.Label>
               <Form.Control 
+                id="group-name"
+                name="name"
                 className="bg-surface text-main border-color shadow-none" 
                 required
                 value={newGroup.name}
                 onChange={e => setNewGroup({...newGroup, name: e.target.value})}
               />
             </Form.Group>
-            <Form.Group className="mb-3">
+            <Form.Group className="mb-3" controlId="group-description">
               <Form.Label className="x-small fw-bold text-muted uppercase">Descripción</Form.Label>
               <Form.Control 
+                id="group-description"
+                name="description"
                 as="textarea" rows={3}
                 className="bg-surface text-main border-color shadow-none"
                 value={newGroup.description}

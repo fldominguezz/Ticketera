@@ -29,12 +29,39 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     if (loading || !isClient) return;
 
     const isLoginPage = router.pathname === '/login';
+    const isOnboardingPage = router.pathname === '/security/onboarding';
+
+    // 1. Si estamos en el login, NO intervenimos. Dejamos que el componente Login maneje su estado.
+    if (isLoginPage) return;
+
     if (!user) {
-      if (!isLoginPage) {
+      // 2. Si no hay usuario y no es login/onboarding, al login.
+      if (!isOnboardingPage) {
         router.replace('/login');
       }
-    } else if (isLoginPage) {
-      router.replace('/');
+    } else {
+      // 3. Si el usuario está cargado, verificar integridad de la sesión
+      const isExempt = user.username === 'admin' || user.username === 'fortisiem' || !!user.policy_exempt;
+      const needsPasswordChange = !!user.force_password_change && !isExempt;
+      const needs2FASetup = !!((user.enroll_2fa_mandatory || user.reset_2fa_next_login) && !user.is_2fa_enabled) && !isExempt;
+      
+      // Si tiene acciones de seguridad REALMENTE pendientes, va a onboarding
+      if ((needsPasswordChange || needs2FASetup) && !isOnboardingPage) {
+        router.replace('/security/onboarding');
+        return;
+      }
+
+      // Si es una sesión interina (no exenta) y trata de entrar a páginas privadas, al login
+      const isFullSession = !!user.isFullSession || isExempt;
+      if (!isFullSession && !isLoginPage && !isOnboardingPage) {
+        router.replace('/login');
+        return;
+      }
+
+      // Si está en el login pero ya tiene sesión completa, al home
+      if (isLoginPage && isFullSession) {
+        router.replace('/');
+      }
     }
   }, [user, loading, router.pathname, isClient]);
 

@@ -50,13 +50,8 @@ async def search_inventory(
     
     search_filter = f"%{search}%"
     
-    # Lógica de jerarquía y permisos para Activos
+    # Búsqueda Global (Sin filtros de grupo)
     asset_conditions = [AssetModel.deleted_at == None]
-    if not has_global and has_group:
-        if not current_user.group_id:
-            return {"assets": [], "locations": []}
-        group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
-        asset_conditions.append(AssetModel.owner_group_id.in_(group_ids))
 
     # Search Assets
     query_assets = sa_select(AssetModel, LocationNode.path.label("loc_path")).outerjoin(
@@ -125,12 +120,7 @@ async def bulk_action(
         
     query = sa_select(AssetModel).where(AssetModel.id.in_(action_in.asset_ids))
     
-    # Scope Filter for Group Managers
-    if not has_global_manage and has_group_manage:
-        if not current_user.group_id:
-            raise HTTPException(status_code=403, detail="Usuario sin grupo asignado.")
-        group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
-        query = query.filter(AssetModel.owner_group_id.in_(group_ids))
+    # Eliminamos el filtro de grupo para permitir gestión global si se tiene el permiso básico
         
     result = await db.execute(query)
     assets = result.scalars().all()
@@ -160,7 +150,14 @@ async def bulk_action(
             
         db.add(a)
         
-    await db.commit()
+    await crud_audit.audit_log.create_log(
+        db,
+        user_id=current_user.id,
+        event_type="assets_bulk_updated",
+        ip_address=current_user.last_ip, # If available or from request
+        details={"count": len(assets)}
+    )
+    
     return {"status": "ok", "updated_count": len(assets)}
 
 @router.delete(
@@ -188,65 +185,98 @@ async def bulk_delete(
             a.status = "decommissioned"
             db.add(a)
             
+    await crud_audit.audit_log.create_log(
+        db,
+        user_id=current_user.id,
+        event_type="assets_bulk_deleted",
+        ip_address=current_user.last_ip,
+        details={"count": len(asset_ids)}
+    )
+            
     await db.commit()
     return {"status": "ok", "deleted_count": len(asset_ids)}
 
+class AssetsPaginated(BaseModel):
+    items: List[Any]
+    total: int
+    page: int
+    size: int
+    pages: int
+
 @router.get(
     "", 
-    response_model=List[Any]
+    response_model=AssetsPaginated
 )
 async def read_assets(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_active_user)],
-    skip: int = 0,
-    limit: int = 1000,
+    page: int = 1,
+    size: int = 20,
     location_node_id: Optional[UUID] = None,
     show_decommissioned: bool = Query(False),
-    search: Optional[str] = Query(None)
+    search: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    device_type: Optional[str] = Query(None),
+    av_product: Optional[str] = Query(None)
 ):
     from app.db.models.asset import Asset as AssetModel
     from app.db.models.location import LocationNode
     
-    # 1. Validar Permisos (Scope explícito)
+    # 1. Validar Permisos
     has_global = current_user.has_permission("assets:read:global")
     has_group = current_user.has_permission("assets:read:group")
     
     if not has_global and not has_group:
         raise HTTPException(status_code=403, detail="No tienes permiso para ver activos.")
 
+    skip = (page - 1) * size
     query = sa_select(AssetModel, LocationNode.name.label("loc_name"), LocationNode.dependency_code.label("dep_code")).outerjoin(
         LocationNode, AssetModel.location_node_id == LocationNode.id
     ).filter(AssetModel.deleted_at == None)
     
-    # 2. Aplicar Filtros de Scope
-    if not has_global and has_group:
-        if not current_user.group_id:
-            return []
-        group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
-        query = query.filter(AssetModel.owner_group_id.in_(group_ids))
-
     if location_node_id:
         query = query.filter(AssetModel.location_node_id == location_node_id)
     if not show_decommissioned:
         query = query.filter(AssetModel.status != "decommissioned")
+    if status:
+        query = query.filter(AssetModel.status == status)
+    if device_type:
+        query = query.filter(AssetModel.device_type == device_type)
+    if av_product:
+        query = query.filter(AssetModel.av_product == av_product)
     
     if search:
-        search_filter = f"%{search}%"
-        query = query.filter(
-            (AssetModel.hostname.ilike(search_filter)) |
-            (AssetModel.ip_address.ilike(search_filter)) |
-            (AssetModel.mac_address.ilike(search_filter)) |
-            (AssetModel.dependencia.ilike(search_filter)) |
-            (AssetModel.codigo_dependencia.ilike(search_filter))
-        )
+        if search.startswith("#"):
+            # Búsqueda específica por Código de Dependencia
+            code_search = search[1:].strip()
+            query = query.filter(
+                (AssetModel.codigo_dependencia.ilike(f"%{code_search}%")) |
+                (LocationNode.dependency_code.ilike(f"%{code_search}%"))
+            )
+        else:
+            # Búsqueda general (sin incluir código de dependencia para evitar ruido con IPs)
+            search_filter = f"%{search}%"
+            query = query.filter(
+                (AssetModel.hostname.ilike(search_filter)) |
+                (AssetModel.ip_address.ilike(search_filter)) |
+                (AssetModel.mac_address.ilike(search_filter)) |
+                (AssetModel.dependencia.ilike(search_filter)) |
+                (AssetModel.serial.ilike(search_filter))
+            )
         
-    result = await db.execute(query.offset(skip).limit(limit))
+    # Count total
+    total_query = sa_select(func.count()).select_from(query.subquery())
+    total_res = await db.execute(total_query)
+    total = total_res.scalar_one()
+
+    result = await db.execute(query.order_by(AssetModel.hostname.asc()).offset(skip).limit(size))
     rows = result.all()
     
-    assets = []
+    import math
+    assets_list = []
     for row in rows:
         a = row[0]
-        assets.append({
+        assets_list.append({
             "id": str(a.id), 
             "hostname": a.hostname, 
             "ip_address": a.ip_address or "---",
@@ -255,13 +285,20 @@ async def read_assets(
             "dependencia": a.dependencia,
             "codigo_dependencia": row.dep_code or a.codigo_dependencia or "---",
             "criticality": a.criticality or "medium", 
-            "av_product": a.av_product or "Sin Protección",
+            "av_product": a.av_product or "AV FREE",
             "location_name": row.loc_name or "Sin Ubicación",
             "os_name": a.os_name or "Desconocido", 
             "os_version": a.os_version or "---", 
             "last_seen": str(a.last_seen) if a.last_seen else None
         })
-    return assets
+        
+    return {
+        "items": assets_list,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": math.ceil(total / size) if total > 0 else 0
+    }
 
 @router.get(
     "/{asset_id}", 
@@ -270,7 +307,7 @@ async def read_assets(
 async def read_asset(
     asset_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(require_permission("assets:read:all"))]
+    current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     from app.db.models.asset import Asset as AssetModel
     from app.db.models.user import User as UserModel
@@ -334,7 +371,7 @@ async def read_asset(
                 "tecnico_carga": r.tecnico_carga,
                 "observations": r.observations,
                 "created_at": r.created_at.isoformat()
-            } for r in asset.install_records
+            } for r in sorted(asset.install_records, key=lambda x: x.created_at, reverse=True)
         ],
         "location_history": [
             {
@@ -431,7 +468,7 @@ async def import_assets(
                     ip_address=ip,
                     location_node_id=manual_loc_id,
                     status="operative",
-                    av_product="Sin Protección",
+                    av_product="AV FREE",
                     last_seen=datetime.now()
                 )
                 db.add(new_asset)
@@ -561,13 +598,7 @@ async def delete_asset(
     asset_obj = await crud_asset.get(db, id=asset_id)
     if not asset_obj: raise HTTPException(status_code=404, detail="Asset not found")
     
-    # Scope Check
-    if not has_global_manage and has_group_manage:
-        if not current_user.group_id:
-             raise HTTPException(status_code=403, detail="Fuera de jerarquía")
-        group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
-        if asset_obj.owner_group_id not in group_ids:
-            raise HTTPException(status_code=403, detail="No tienes permiso sobre este activo (Grupo).")
+    # Eliminamos Scope Check por grupo
 
     await crud_asset.remove(db, id=asset_id)
     return {"status": "success"}
@@ -593,12 +624,6 @@ async def update_asset(
     asset_obj = await crud_asset.get(db, id=asset_id)
     if not asset_obj: raise HTTPException(status_code=404, detail="Asset not found")
     
-    # Scope Check
-    if not has_global_manage and has_group_manage:
-        if not current_user.group_id:
-             raise HTTPException(status_code=403, detail="Fuera de jerarquía")
-        group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
-        if asset_obj.owner_group_id not in group_ids:
-            raise HTTPException(status_code=403, detail="No tienes permiso sobre este activo (Grupo).")
+    # Eliminamos Scope Check por grupo
 
     return await crud_asset.update(db, db_obj=asset_obj, obj_in=asset_in, user_id=current_user.id)

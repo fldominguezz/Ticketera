@@ -18,7 +18,7 @@ router = APIRouter()
 )
 async def read_locations(
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(require_permission("admin:locations:read"))],
+    current_user: Annotated[User, Depends(get_current_active_user)],
     q: Optional[str] = Query(None, description="Buscar por nombre o código de dependencia")
 ):
     """

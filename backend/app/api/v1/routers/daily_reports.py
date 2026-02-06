@@ -9,6 +9,7 @@ import shutil
 import os
 import json
 from datetime import datetime, date
+from pydantic import BaseModel
 
 from app.api.deps import get_db, get_current_active_user, require_permission
 from app.crud import crud_daily_report
@@ -25,17 +26,29 @@ TEMPLATE_DIR = "uploads/templates"
 
 from sqlalchemy.orm import selectinload
 
-@router.get("/", response_model=List[DailyReportSchema])
+class DailyReportsPaginated(BaseModel):
+    items: List[DailyReportSchema]
+    total: int
+    page: int
+    size: int
+    pages: int
+
+@router.get("/", response_model=DailyReportsPaginated)
 async def read_daily_reports(
     db: Annotated[AsyncSession, Depends(get_db)],
-    skip: int = 0,
-    limit: int = 100,
+    page: int = 1,
+    size: int = 20,
     current_user: User = Depends(get_current_active_user),
-    search: Optional[str] = None
+    search: Optional[str] = None,
+    group_id: Optional[UUID] = None,
+    year: Optional[int] = None,
+    shift: Optional[str] = None,
+    exact_date: Optional[str] = None # format YYYY-MM-DD
 ) -> Any:
     """
-    Retrieve daily reports with granular permissions.
+    Retrieve daily reports with advanced filtering and full pagination.
     """
+    skip = (page - 1) * size
     query = select(DailyReport).options(selectinload(DailyReport.group))
     
     has_global = current_user.has_permission("partes:read:global")
@@ -47,28 +60,53 @@ async def read_daily_reports(
         child_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
         query = query.filter(or_(DailyReport.group_id.in_(child_ids), DailyReport.owner_group_id.in_(child_ids)))
     else:
-        return []
+        return {"items": [], "total": 0, "page": page, "size": size, "pages": 0}
         
     if search:
         query = query.filter(DailyReport.search_content.ilike(f"%{search}%"))
+    
+    if group_id:
+        query = query.filter(DailyReport.group_id == group_id)
+    
+    if shift:
+        query = query.filter(DailyReport.shift == shift)
         
+    if year:
+        query = query.filter(func.extract('year', DailyReport.date) == year)
+
+    if exact_date:
+        try:
+            target_date = datetime.strptime(exact_date, "%Y-%m-%d").date()
+            query = query.filter(DailyReport.date == target_date)
+        except: pass
+        
+    # Count total
+    total_query = select(func.count()).select_from(query.subquery())
+    total_res = await db.execute(total_query)
+    total = total_res.scalar_one()
+
     result = await db.execute(
         query.order_by(DailyReport.date.desc(), DailyReport.shift.desc())
-        .offset(skip).limit(limit)
+        .offset(skip).limit(size)
     )
     reports = result.scalars().all()
     
-    # Enriquecer manualmente para el Schema
+    import math
     output = []
     for r in reports:
         report_dict = {c.name: getattr(r, c.name) for c in r.__table__.columns}
         report_dict["group_name"] = r.group.name if r.group else "GENERAL"
-        # Manejar fechas para JSON
         report_dict["date"] = r.date
         report_dict["created_at"] = r.created_at
         output.append(report_dict)
         
-    return output
+    return {
+        "items": output,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": math.ceil(total / size) if total > 0 else 0
+    }
 
 @router.post("/", response_model=DailyReportSchema)
 async def create_daily_report(
@@ -78,8 +116,20 @@ async def create_daily_report(
     current_user: User = Depends(require_permission("partes:create")),
 ) -> Any:
     """
-    Create a new daily report using the area's specific template.
+    Create a new daily report. ONLY ALLOWED FOR SOC GROUP.
     """
+    # Security restriction: Only SOC group can create new reports
+    from app.db.models import Group
+    res_my_group = await db.execute(select(Group).where(Group.id == current_user.group_id))
+    my_group = res_my_group.scalar_one_or_none()
+    
+    if not current_user.is_superuser:
+        if not my_group or my_group.name.upper() != "SOC":
+            raise HTTPException(
+                status_code=403, 
+                detail="Acceso Denegado: Solo el personal del SOC puede generar nuevos partes informativos."
+            )
+
     if not current_user.group_id:
         raise HTTPException(status_code=400, detail="User must belong to a group to create a report")
 
@@ -194,15 +244,24 @@ async def upload_legacy_report(
     current_user: User = Depends(require_permission("partes:create")),
 ) -> Any:
     import re
+    import unicodedata
     detected_date = None
     detected_shift = None
-    filename_upper = file.filename.upper()
-    date_match = re.search(r"(\d{2})-(\d{2})-(\d{4})", filename_upper)
+    
+    # Normalizar nombre de archivo para quitar acentos
+    def normalize_text(text):
+        return "".join(c for c in unicodedata.normalize('NFD', text)
+                      if unicodedata.category(c) != 'Mn').upper()
+
+    filename_norm = normalize_text(file.filename)
+    
+    date_match = re.search(r"(\d{2})-(\d{2})-(\d{4})", filename_norm)
     if date_match:
         d, m, y = date_match.groups()
         detected_date = f"{y}-{m}-{d}"
-    if "DIA" in filename_upper: detected_shift = "DIA"
-    elif "NOCHE" in filename_upper: detected_shift = "NOCHE"
+        
+    if "DIA" in filename_norm: detected_shift = "DIA"
+    elif "NOCHE" in filename_norm: detected_shift = "NOCHE"
             
     final_date_str = date_str or detected_date
     final_shift = shift or detected_shift
@@ -219,6 +278,16 @@ async def upload_legacy_report(
         if group_id not in allowed_ids:
              raise HTTPException(status_code=403, detail="No tienes permiso sobre este grupo")
         target_group_id = group_id
+
+    # VERIFICACIÓN DE DUPLICADOS
+    existing_query = select(DailyReport).where(
+        DailyReport.date == report_date,
+        DailyReport.shift == final_shift,
+        DailyReport.group_id == target_group_id
+    )
+    res_ex = await db.execute(existing_query)
+    if res_ex.scalar_one_or_none():
+        return None # El frontend interpretará esto como 'Omitido / Duplicado'
 
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     filename = f"Parte_LEGACY_{uuid.uuid4().hex[:8]}.docx"

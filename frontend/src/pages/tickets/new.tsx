@@ -215,9 +215,10 @@ export default function NewTicketPage() {
                 <Card.Body className="p-4">
                   <h6 className="fw-bold mb-4 text-uppercase text-muted small border-bottom pb-2">Información Básica</h6>
                   
-                  <Form.Group className="mb-3">
+                  <Form.Group className="mb-3" controlId="ticket-title">
                     <Form.Label className="small fw-bold">Asunto / Título *</Form.Label>
                     <Form.Control 
+                      name="title"
                       required
                       placeholder="Breve descripción del problema..."
                       value={formData.title}
@@ -227,9 +228,10 @@ export default function NewTicketPage() {
 
                   <Row className="g-3 mb-3">
                     <Col md={6}>
-                      <Form.Group>
+                      <Form.Group controlId="ticket-platform">
                         <Form.Label className="small fw-bold">Plataforma / Origen *</Form.Label>
                         <Form.Select 
+                          name="platform"
                           required
                           value={formData.platform}
                           onChange={e => setFormData({ ...formData, platform: e.target.value })}
@@ -239,9 +241,10 @@ export default function NewTicketPage() {
                       </Form.Group>
                     </Col>
                     <Col md={6}>
-                      <Form.Group>
+                      <Form.Group controlId="ticket-type">
                         <Form.Label className="small fw-bold">Tipo de Ticket *</Form.Label>
                         <Form.Select 
+                          name="ticket_type_id"
                           required
                           value={formData.ticket_type_id}
                           onChange={e => setFormData({ ...formData, ticket_type_id: e.target.value })}
@@ -255,9 +258,10 @@ export default function NewTicketPage() {
 
                   <Row className="g-3 mb-3">
                     <Col md={6}>
-                      <Form.Group>
+                      <Form.Group controlId="ticket-priority">
                         <Form.Label className="small fw-bold">Prioridad *</Form.Label>
                         <Form.Select 
+                          name="priority"
                           required
                           value={formData.priority}
                           onChange={e => setFormData({ ...formData, priority: e.target.value })}
@@ -271,9 +275,10 @@ export default function NewTicketPage() {
                     </Col>
                     <Col md={6}>
                       {formData.is_private ? (
-                        <Form.Group>
+                        <Form.Group controlId="ticket-assigned-user">
                           <Form.Label className="small fw-bold text-primary">👤 Asignar a Usuario (Privado) *</Form.Label>
                           <Form.Select 
+                            name="assigned_to_id"
                             required
                             value={formData.assigned_to_id}
                             onChange={e => setFormData({ ...formData, assigned_to_id: e.target.value })}
@@ -285,9 +290,10 @@ export default function NewTicketPage() {
                           </Form.Select>
                         </Form.Group>
                       ) : (
-                        <Form.Group>
+                        <Form.Group controlId="ticket-group">
                           <Form.Label className="small fw-bold">Grupo Responsable *</Form.Label>
                           <Form.Select 
+                            name="group_id"
                             required
                             value={formData.group_id}
                             onChange={e => setFormData({ ...formData, group_id: e.target.value })}
@@ -333,16 +339,20 @@ export default function NewTicketPage() {
                   
                   {!selectedAsset ? (
                     <div className="position-relative" ref={searchRef}>
-                      <InputGroup className="border rounded-pill px-3 py-1">
-                        <InputGroup.Text className="bg-transparent border-0"><Search size={18} className="text-muted" /></InputGroup.Text>
-                        <Form.Control 
-                          placeholder="Buscar por Hostname, IP o MAC..."
-                          className="bg-transparent border-0 shadow-none"
-                          value={assetSearch}
-                          onChange={e => { setAssetSearch(e.target.value); setShowAssetResults(true); }}
-                          onFocus={() => setShowAssetResults(true)}
-                        />
-                      </InputGroup>
+                      <Form.Group controlId="asset-search">
+                        <InputGroup className="border rounded-pill px-3 py-1">
+                          <InputGroup.Text className="bg-transparent border-0"><Search size={18} className="text-muted" /></InputGroup.Text>
+                          <Form.Control 
+                            id="asset-search"
+                            name="assetSearch"
+                            placeholder="Buscar por Hostname, IP o MAC..."
+                            className="bg-transparent border-0 shadow-none"
+                            value={assetSearch}
+                            onChange={e => { setAssetSearch(e.target.value); setShowAssetResults(true); }}
+                            onFocus={() => setShowAssetResults(true)}
+                          />
+                        </InputGroup>
+                      </Form.Group>
                       
                       {showAssetResults && assetSearch.length >= 2 && (
                         <Card className="position-absolute w-100 mt-2 shadow-lg border-0 z-3">

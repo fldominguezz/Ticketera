@@ -29,11 +29,15 @@ export const DynamicFormField: React.FC<DynamicFieldProps> = ({ field, value, on
     }
   }, [field.data_source]);
 
+  const fieldId = `dynamic-field-${field.id || field.name}`;
+
   if (field.type === 'select') {
     return (
-      <Form.Group className="mb-3">
+      <Form.Group className="mb-3" controlId={fieldId}>
         <Form.Label className="x-small fw-bold text-muted uppercase tracking-wider">{field.label}</Form.Label>
         <Form.Select 
+          id={fieldId}
+          name={field.name}
           className="bg-black text-white border-white border-opacity-10 shadow-none"
           value={value || ''}
           onChange={(e) => onChange(e.target.value)}
@@ -51,9 +55,11 @@ export const DynamicFormField: React.FC<DynamicFieldProps> = ({ field, value, on
 
   // Otros tipos de campos... (text, textarea, etc)
   return (
-    <Form.Group className="mb-3">
+    <Form.Group className="mb-3" controlId={fieldId}>
       <Form.Label className="x-small fw-bold text-muted uppercase tracking-wider">{field.label}</Form.Label>
       <Form.Control 
+        id={fieldId}
+        name={field.name}
         type={field.type === 'number' ? 'number' : 'text'}
         as={field.type === 'textarea' ? 'textarea' : 'input'}
         rows={field.type === 'textarea' ? 3 : 1}

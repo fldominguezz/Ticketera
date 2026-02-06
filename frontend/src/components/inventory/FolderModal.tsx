@@ -21,9 +21,11 @@ const FolderModal: React.FC<FolderModalProps> = ({
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Form.Group className="mb-3">
+        <Form.Group className="mb-3" controlId="folder-name">
           <Form.Label className="x-small fw-bold text-muted text-uppercase">Nombre de la carpeta</Form.Label>
           <Form.Control 
+            id="folder-name"
+            name="folderName"
             type="text" 
             placeholder="Ej: DIVISION SEGURIDAD" 
             value={folderName} 

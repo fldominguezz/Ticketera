@@ -128,18 +128,22 @@ const AdminDashboard = () => {
                     <Form onSubmit={handleSave}>
                         <Row className="g-4">
                             <Col md={6}>
-                                <Form.Group>
+                                <Form.Group controlId="app-name">
                                     <Form.Label className="small fw-bold">Nombre de la Aplicación</Form.Label>
                                     <Form.Control 
+                                        id="app-name"
+                                        name="app_name"
                                         value={settings.app_name} 
                                         onChange={e => setSettings({...settings, app_name: e.target.value})}
                                     />
                                 </Form.Group>
                             </Col>
                             <Col md={3}>
-                                <Form.Group>
+                                <Form.Group controlId="primary-color">
                                     <Form.Label className="small fw-bold">Color Primario</Form.Label>
                                     <Form.Control 
+                                        id="primary-color"
+                                        name="primary_color"
                                         type="color" 
                                         value={settings.primary_color} 
                                         onChange={e => setSettings({...settings, primary_color: e.target.value})}
@@ -147,8 +151,10 @@ const AdminDashboard = () => {
                                 </Form.Group>
                             </Col>
                             <Col md={3}>
-                                <Form.Group className="d-flex flex-column h-100 justify-content-end">
+                                <Form.Group controlId="require-2fa-global" className="d-flex flex-column h-100 justify-content-end">
                                     <Form.Check 
+                                        id="require-2fa-global"
+                                        name="require_2fa_all_users"
                                         type="switch"
                                         label="Obligar 2FA global"
                                         checked={settings.require_2fa_all_users}
@@ -157,9 +163,11 @@ const AdminDashboard = () => {
                                 </Form.Group>
                             </Col>
                             <Col md={12}>
-                                <Form.Group>
+                                <Form.Group controlId="login-footer-text">
                                     <Form.Label className="small fw-bold">Texto de Pie de Página (Login)</Form.Label>
                                     <Form.Control 
+                                        id="login-footer-text"
+                                        name="login_footer_text"
                                         value={settings.login_footer_text} 
                                         onChange={e => setSettings({...settings, login_footer_text: e.target.value})}
                                     />
@@ -187,9 +195,11 @@ const AdminDashboard = () => {
                     <Form onSubmit={handleSave}>
                         <Row className="g-4">
                             <Col md={8}>
-                                <Form.Group>
+                                <Form.Group controlId="smtp-host">
                                     <Form.Label className="small fw-bold">Servidor SMTP (Host)</Form.Label>
                                     <Form.Control 
+                                        id="smtp-host"
+                                        name="smtp_host"
                                         placeholder="ej: smtp.gmail.com"
                                         value={settings.smtp_host || ''} 
                                         onChange={e => setSettings({...settings, smtp_host: e.target.value})}
@@ -197,9 +207,11 @@ const AdminDashboard = () => {
                                 </Form.Group>
                             </Col>
                             <Col md={4}>
-                                <Form.Group>
+                                <Form.Group controlId="smtp-port">
                                     <Form.Label className="small fw-bold">Puerto</Form.Label>
                                     <Form.Control 
+                                        id="smtp-port"
+                                        name="smtp_port"
                                         type="number"
                                         placeholder="587"
                                         value={settings.smtp_port || ''} 
@@ -208,18 +220,22 @@ const AdminDashboard = () => {
                                 </Form.Group>
                             </Col>
                             <Col md={6}>
-                                <Form.Group>
+                                <Form.Group controlId="smtp-user">
                                     <Form.Label className="small fw-bold">Usuario / Email</Form.Label>
                                     <Form.Control 
+                                        id="smtp-user"
+                                        name="smtp_user"
                                         value={settings.smtp_user || ''} 
                                         onChange={e => setSettings({...settings, smtp_user: e.target.value})}
                                     />
                                 </Form.Group>
                             </Col>
                             <Col md={6}>
-                                <Form.Group>
+                                <Form.Group controlId="smtp-password">
                                     <Form.Label className="small fw-bold">Contraseña</Form.Label>
                                     <Form.Control 
+                                        id="smtp-password"
+                                        name="smtp_password"
                                         type="password"
                                         value={settings.smtp_password || ''} 
                                         onChange={e => setSettings({...settings, smtp_password: e.target.value})}
@@ -231,9 +247,11 @@ const AdminDashboard = () => {
                                 </Form.Group>
                             </Col>
                             <Col md={6}>
-                                <Form.Group>
+                                <Form.Group controlId="smtp-from-email">
                                     <Form.Label className="small fw-bold">Email Remitente (From)</Form.Label>
                                     <Form.Control 
+                                        id="smtp-from-email"
+                                        name="smtp_from_email"
                                         placeholder="no-reply@empresa.com"
                                         value={settings.smtp_from_email || ''} 
                                         onChange={e => setSettings({...settings, smtp_from_email: e.target.value})}
@@ -241,8 +259,10 @@ const AdminDashboard = () => {
                                 </Form.Group>
                             </Col>
                             <Col md={3}>
-                                <Form.Group className="d-flex flex-column h-100 justify-content-end">
+                                <Form.Group controlId="smtp-use-tls" className="d-flex flex-column h-100 justify-content-end">
                                     <Form.Check 
+                                        id="smtp-use-tls"
+                                        name="smtp_use_tls"
                                         type="switch"
                                         label="Usar TLS"
                                         checked={settings.smtp_use_tls}
@@ -251,8 +271,10 @@ const AdminDashboard = () => {
                                 </Form.Group>
                             </Col>
                             <Col md={3}>
-                                <Form.Group className="d-flex flex-column h-100 justify-content-end">
+                                <Form.Group controlId="smtp-use-ssl" className="d-flex flex-column h-100 justify-content-end">
                                     <Form.Check 
+                                        id="smtp-use-ssl"
+                                        name="smtp_use_ssl"
                                         type="switch"
                                         label="Usar SSL"
                                         checked={settings.smtp_use_ssl}

@@ -100,9 +100,22 @@ export default function TicketTypesPage() {
       <Modal show={showModal} onHide={() => setShowModal(false)} centered>
         <Modal.Header closeButton><Modal.Title className="h6 fw-bold">CATEGORÍA</Modal.Title></Modal.Header>
         <Form onSubmit={handleSubmit}><Modal.Body>
-            <Form.Group className="mb-3"><Form.Label className="x-small fw-bold text-muted">NOMBRE</Form.Label><Form.Control required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></Form.Group>
-            <Form.Group className="mb-3"><Form.Label className="x-small fw-bold text-muted">DESCRIPCIÓN</Form.Label><Form.Control as="textarea" rows={2} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} /></Form.Group>
-            <Row><Col md={6}><Form.Group className="mb-3"><Form.Label className="x-small fw-bold text-muted">COLOR</Form.Label><Form.Control type="color" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} /></Form.Group></Col></Row>
+            <Form.Group className="mb-3" controlId="type-name">
+              <Form.Label className="x-small fw-bold text-muted">NOMBRE</Form.Label>
+              <Form.Control id="type-name" name="name" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+            </Form.Group>
+            <Form.Group className="mb-3" controlId="type-description">
+              <Form.Label className="x-small fw-bold text-muted">DESCRIPCIÓN</Form.Label>
+              <Form.Control id="type-description" name="description" as="textarea" rows={2} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
+            </Form.Group>
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3" controlId="type-color">
+                  <Form.Label className="x-small fw-bold text-muted">COLOR</Form.Label>
+                  <Form.Control id="type-color" name="color" type="color" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} />
+                </Form.Group>
+              </Col>
+            </Row>
           </Modal.Body><Modal.Footer className="border-0">
             <Button variant="link" onClick={() => setShowModal(false)} className="text-muted text-decoration-none">Cancelar</Button>
             <Button variant="primary" type="submit" className="fw-bold">GUARDAR</Button>

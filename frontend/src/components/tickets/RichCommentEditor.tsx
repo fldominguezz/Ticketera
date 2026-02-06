@@ -59,6 +59,9 @@ export const RichCommentEditor: React.FC<Props> = ({ onSubmit, isSubmitting, use
     <Card className="bg-black bg-opacity-20 border-white border-opacity-10 overflow-visible mb-4 position-relative">
       <div className="p-0">
         <Form.Control 
+          id="comment-editor-textarea"
+          name="commentContent"
+          aria-label="Contenido del comentario"
           as="textarea"
           ref={textareaRef}
           rows={3}

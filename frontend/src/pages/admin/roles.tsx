@@ -164,11 +164,15 @@ export default function RolesPermissionsPage() {
               <Col md={3} className="bg-surface-muted border-end p-3 d-flex flex-column">
                 <div className="flex-grow-1">
                   <div className="mb-4">
-                    <Form.Label className="x-small fw-black text-muted uppercase mb-2">IDENTIDAD</Form.Label>
-                    <Form.Control size="sm" className="mb-2 shadow-none" value={roleName} onChange={e => setRoleName(e.target.value)} placeholder="Nombre" />
-                    <Form.Control size="sm" as="textarea" rows={2} className="mb-3 shadow-none" value={roleDesc} onChange={e => setRoleDesc(e.target.value)} placeholder="Descripción" />
+                    <h6 className="x-small fw-black text-muted uppercase mb-2">IDENTIDAD</h6>
+                    <Form.Group controlId="role-name" className="mb-2">
+                      <Form.Control id="role-name" name="roleName" size="sm" className="shadow-none" value={roleName} onChange={e => setRoleName(e.target.value)} placeholder="Nombre" />
+                    </Form.Group>
+                    <Form.Group controlId="role-description" className="mb-3">
+                      <Form.Control id="role-description" name="roleDesc" size="sm" as="textarea" rows={2} className="shadow-none" value={roleDesc} onChange={e => setRoleDesc(e.target.value)} placeholder="Descripción" />
+                    </Form.Group>
                     
-                    <Form.Label className="x-small fw-black text-muted uppercase mb-2">RESTRICCIONES UI</Form.Label>
+                    <h6 className="x-small fw-black text-muted uppercase mb-2">RESTRICCIONES UI</h6>
                     <div className="bg-surface p-2 rounded border mb-3" style={{ maxHeight: '150px', overflowY: 'auto' }}>
                       {NAV_ITEMS.map(item => (
                         <div key={item.id} className="d-flex align-items-center gap-2 mb-1 cursor-pointer" onClick={() => setHiddenNavItems(prev => prev.includes(item.id) ? prev.filter(i => i !== item.id) : [...prev, item.id])}>

@@ -333,17 +333,30 @@ async def update_ticket(
         "changes": ticket_in.model_dump(exclude_unset=True)
     }
     
+    # VALIDACIONES DE NEGOCIO PARA ACTUALIZACIÓN
+    is_creator = ticket.created_by_id == current_user.id
+    is_admin = current_user.is_superuser or current_user.has_permission("ticket:assign")
+
+    # 1. Validar Cambio de Asignado (Persona)
     if ticket_in.assigned_to_id and ticket_in.assigned_to_id != ticket.assigned_to_id:
-        # Validar si el usuario tiene permiso para asignar/reasignar
-        if not current_user.is_superuser and not current_user.has_permission("ticket:assign"):
+        if not is_admin and not is_creator:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="No tiene permisos para asignar o cambiar el responsable de los tickets."
+                detail="No tiene permisos para asignar o cambiar el responsable de los tickets (Debe ser Admin o el Creador)."
             )
         
         audit_details["action"] = "reassigned"
         audit_details["old_assignee"] = str(ticket.assigned_to_id)
         audit_details["new_assignee"] = str(ticket_in.assigned_to_id)
+
+    # 2. Validar Cambio de Grupo (Restringido)
+    if ticket_in.group_id and ticket_in.group_id != ticket.group_id:
+        # Solo administradores pueden cambiar el grupo una vez creado el ticket
+        if not current_user.is_superuser and not current_user.has_permission("admin:groups:manage"):
+             raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tiene permisos para cambiar el grupo asignado al ticket."
+            )
 
     updated_ticket = await crud_ticket.ticket.update(db, db_obj=ticket, obj_in=ticket_in)
     

@@ -130,20 +130,30 @@ const AssetDetailPage = () => {
                  {asset.install_records && asset.install_records.length > 0 && (
                    <div className="mt-2 border-top pt-3 border-primary border-opacity-10">
                       <Row className="g-3">
-                         <Col xs={12}>
-                            <label className="x-small fw-bold text-muted uppercase d-block mb-1">Último Instalador (Campo)</label>
-                            <div className="small fw-black text-main d-flex align-items-center">
-                               <div className="p-1 bg-success bg-opacity-10 text-success rounded me-2"><UserCheck size={14}/></div>
-                               {asset.install_records[0].tecnico_instalacion || '---'}
-                            </div>
-                         </Col>
-                         <Col xs={12}>
-                            <label className="x-small fw-bold text-muted uppercase d-block mb-1">Última Carga de Datos</label>
-                            <div className="small fw-black text-main d-flex align-items-center">
-                               <div className="p-1 bg-info bg-opacity-10 text-info rounded me-2"><Activity size={14}/></div>
-                               {asset.install_records[0].tecnico_carga || '---'}
-                            </div>
-                         </Col>
+                         {(() => {
+                            const sortedRecords = [...asset.install_records].sort((a, b) => 
+                               new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                            );
+                            const latestRecord = sortedRecords[0];
+                            return (
+                               <>
+                                 <Col xs={12}>
+                                    <label className="x-small fw-bold text-muted uppercase d-block mb-1">Último Instalador (Campo)</label>
+                                    <div className="small fw-black text-main d-flex align-items-center">
+                                       <div className="p-1 bg-success bg-opacity-10 text-success rounded me-2"><UserCheck size={14}/></div>
+                                       {latestRecord.tecnico_instalacion || '---'}
+                                    </div>
+                                 </Col>
+                                 <Col xs={12}>
+                                    <label className="x-small fw-bold text-muted uppercase d-block mb-1">Última Carga de Datos</label>
+                                    <div className="small fw-black text-main d-flex align-items-center">
+                                       <div className="p-1 bg-info bg-opacity-10 text-info rounded me-2"><Activity size={14}/></div>
+                                       {latestRecord.tecnico_carga || '---'}
+                                    </div>
+                                 </Col>
+                               </>
+                            );
+                         })()}
                       </Row>
                    </div>
                  )}
@@ -173,14 +183,14 @@ const AssetDetailPage = () => {
             <Card className="border-0 shadow-sm mb-4">
               <Card.Body className="p-4">
                 <h6 className="fw-black mb-3 d-flex align-items-center uppercase x-small tracking-widest text-muted">
-                  <Monitor size={16} className="me-2 text-primary" /> Hardare & Network
+                  <Monitor size={16} className="me-2 text-primary" /> Hardware y Red
                 </h6>
                 <div className="small border-bottom py-2 d-flex justify-content-between align-items-center">
-                  <span className="text-muted fw-bold">SERIAL</span>
+                  <span className="text-muted fw-bold">NRO SERIE</span>
                   <span className="fw-black font-monospace">{asset.serial || 'N/A'}</span>
                 </div>
                 <div className="small border-bottom py-2 d-flex justify-content-between align-items-center">
-                  <span className="text-muted fw-bold">MAC ADDRESS</span>
+                  <span className="text-muted fw-bold">DIRECCIÓN MAC</span>
                   <span className="fw-black font-monospace text-primary">{asset.mac_address || '---'}</span>
                 </div>
                 <div className="small py-2 d-flex justify-content-between align-items-center">
@@ -193,7 +203,7 @@ const AssetDetailPage = () => {
             <Card className="border-0 shadow-sm">
               <Card.Body className="p-4">
                 <h6 className="fw-black mb-3 d-flex align-items-center uppercase x-small tracking-widest text-muted">
-                  <Shield size={16} className="me-2 text-success" /> Software & Security
+                  <Shield size={16} className="me-2 text-success" /> Software y Seguridad
                 </h6>
                 <div className="small border-bottom py-2 d-flex justify-content-between">
                   <span className="text-muted fw-bold">PROTECCIÓN</span>
@@ -236,7 +246,7 @@ const AssetDetailPage = () => {
                         ))}
 
                         {/* Mostrar Fichas de Instalación (Legacy/Manual) */}
-                        {asset.install_records?.map((r: any, idx: number) => (
+                        {([...(asset.install_records || [])].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())).map((r: any, idx: number) => (
                             <div key={`install-${idx}`} className="mb-4 p-4 rounded bg-surface-muted border-start border-4 border-primary shadow-sm">
                                <div className="d-flex justify-content-between align-items-start mb-3">
                                   <div>
@@ -368,18 +378,22 @@ const GdeModal = ({ show, onHide, onSave, number, setNumber, title, setTitle, sa
         </Modal.Header>
         <Modal.Body className="p-4">
             <Form>
-                <Form.Group className="mb-3">
+                <Form.Group className="mb-3" controlId="gde-number">
                     <Form.Label className="x-small fw-bold text-muted uppercase">Número de Expediente / GDE</Form.Label>
                     <Form.Control 
+                        id="gde-number"
+                        name="number"
                         placeholder="EX-2026-..." 
                         value={number}
                         onChange={(e) => setNumber(e.target.value)}
                         className="bg-surface text-main border-color fw-bold"
                     />
                 </Form.Group>
-                <Form.Group>
+                <Form.Group controlId="gde-title">
                     <Form.Label className="x-small fw-bold text-muted uppercase">Referencia / Título (Opcional)</Form.Label>
                     <Form.Control 
+                        id="gde-title"
+                        name="title"
                         placeholder="ej: Acta de Instalación Sala 4" 
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}

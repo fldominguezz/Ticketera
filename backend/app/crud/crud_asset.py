@@ -160,26 +160,20 @@ class CRUDAsset:
         return db_obj
 
     async def find_existing_asset(self, db: AsyncSession, serial: str = None, mac: str = None, hostname: str = None, ip: str = None) -> Optional[Asset]:
-        if serial:
-            res = await db.execute(select(Asset).filter(Asset.serial == serial))
+        # 1. Prioridad absoluta: Dirección MAC (Es lo más único en una red)
+        if mac and mac.strip() and mac.upper() not in ["---", "00:00:00:00:00:00"]:
+            res = await db.execute(select(Asset).filter(Asset.mac_address == mac.strip().upper()))
             asset = res.scalar_one_or_none()
             if asset: return asset
         
-        if mac:
-            res = await db.execute(select(Asset).filter(Asset.mac_address == mac))
+        # 2. Segunda prioridad: Número de Serie (Si no es genérico)
+        generic_serials = ["S/N", "SN", "NONE", "UNKNOWN", "000000", "123456", "---", ""]
+        if serial and serial.strip().upper() not in generic_serials:
+            res = await db.execute(select(Asset).filter(Asset.serial == serial.strip().upper()))
             asset = res.scalar_one_or_none()
             if asset: return asset
             
-        if hostname:
-            res = await db.execute(select(Asset).filter(Asset.hostname == hostname))
-            asset = res.scalar_one_or_none()
-            if asset: return asset
-            
-        if ip:
-            res = await db.execute(select(Asset).filter(Asset.ip_address == ip))
-            asset = res.scalar_one_or_none()
-            if asset: return asset
-            
+        # Nota: Hostname e IP ya no se usan para desduplicar porque pueden rotar o repetirse.
         return None
 
     async def process_installation(self, db: AsyncSession, asset_data: AssetCreate, install_data: AssetInstallRecordCreate, user_id: UUID) -> Asset:
@@ -213,6 +207,7 @@ class CRUDAsset:
             # Manejo especial de campos técnicos del registro de instalación
             if details.get("os"): existing_asset.os_name = details.get("os")
             if details.get("av"): existing_asset.av_product = details.get("av")
+            if asset_data.observations: existing_asset.observations = asset_data.observations
             
             existing_asset.last_seen = datetime.now()
             db.add(existing_asset)

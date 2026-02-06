@@ -62,7 +62,7 @@ export default function Dashboard() {
   };
 
   if (loading) return <Layout title="Cargando..."><Spinner animation="border" /></Layout>;
-  if (!stats) return <Layout title="Dashboard"><Alert variant="danger">Error cargando datos.</Alert></Layout>;
+  if (!stats) return <Layout title="Panel de Control"><Alert variant="danger">Error cargando datos.</Alert></Layout>;
 
   // --- WIDGETS ---
 
@@ -76,7 +76,7 @@ export default function Dashboard() {
                 tabIndex={0}
             >
                 <div className="d-flex justify-content-between mb-2">
-                    <span className="small fw-bold text-muted">TOTAL TICKETS</span>
+                    <span className="small fw-bold text-muted text-uppercase">Total de Tickets</span>
                     <Layers size={18} className="text-primary" />
                 </div>
                 <h2 className="fw-black m-0">{stats.tickets.total}</h2>
@@ -90,7 +90,7 @@ export default function Dashboard() {
                 tabIndex={0}
             >
                 <div className="d-flex justify-content-between mb-2">
-                    <span className="small fw-bold text-muted">EN PROCESO</span>
+                    <span className="small fw-bold text-muted text-uppercase">En Gestión</span>
                     <Clock size={18} className="text-warning" />
                 </div>
                 <h2 className="fw-black m-0">{stats.tickets.in_progress}</h2>
@@ -104,7 +104,7 @@ export default function Dashboard() {
                 tabIndex={0}
             >
                 <div className="d-flex justify-content-between mb-2">
-                    <span className="small fw-bold text-muted">RESUELTOS / CERRADOS</span>
+                    <span className="small fw-bold text-muted text-uppercase">Resueltos / Cerrados</span>
                     <CheckCircle2 size={18} className="text-success" />
                 </div>
                 <h2 className="fw-black m-0">{stats.tickets.resolved + stats.tickets.closed}</h2>
@@ -118,7 +118,7 @@ export default function Dashboard() {
                 tabIndex={0}
             >
                 <div className="d-flex justify-content-between mb-2">
-                    <span className="small fw-bold text-muted">PENDIENTES</span>
+                    <span className="small fw-bold text-muted text-uppercase">Pendientes</span>
                     <AlertCircle size={18} className="text-danger" />
                 </div>
                 <h2 className="fw-black m-0">{stats.tickets.open}</h2>
@@ -161,7 +161,7 @@ export default function Dashboard() {
                                 itemStyle={{ color: isDark || isSoc ? '#fff' : '#000' }}
                                 labelStyle={{ color: isDark || isSoc ? '#38bdf8' : '#0d6efd', fontWeight: 'bold', marginBottom: '4px' }}
                             />
-                            <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={20}>
+                            <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={20} name="Cantidad de Alertas">
                             {(stats.siem.categories || []).map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                             <LabelList dataKey="count" position="right" fill={getTickColor()} fontSize={10} fontWeight="bold" offset={10} />
                             </Bar>
@@ -178,7 +178,7 @@ export default function Dashboard() {
             <Col lg={4}>
                 <Card className="p-4 border-0 shadow-sm h-100">
                     <h6 className="fw-bold mb-4 text-uppercase d-flex align-items-center gap-2">
-                    <ShieldAlert size={16} className="text-danger" /> Firewalls Afectados
+                    <ShieldAlert size={16} className="text-danger" /> Dispositivos Afectados (Firewalls)
                     </h6>
                     <div style={{ width: '100%', height: 300 }}>
                     {mounted && stats.siem.affected_devices && stats.siem.affected_devices.length > 0 ? (
@@ -204,7 +204,7 @@ export default function Dashboard() {
                                 itemStyle={{ color: isDark || isSoc ? '#fff' : '#000' }}
                                 labelStyle={{ color: '#ffc107', fontWeight: 'bold', marginBottom: '4px' }}
                             />
-                            <Bar dataKey="count" fill="#ffc107" radius={[0, 4, 4, 0]} barSize={15}>
+                            <Bar dataKey="count" fill="#ffc107" radius={[0, 4, 4, 0]} barSize={15} name="Detecciones">
                                 <LabelList dataKey="count" position="right" fill={getTickColor()} fontSize={10} fontWeight="bold" offset={10} />
                             </Bar>
                         </BarChart>
@@ -220,14 +220,14 @@ export default function Dashboard() {
             <Col lg={4}>
                 <Card className="p-4 border-0 shadow-sm h-100 bg-primary bg-opacity-10">
                     <h6 className="fw-bold mb-4 text-uppercase d-flex align-items-center gap-2 opacity-75">
-                        <ShieldAlert size={16} /> Estado de Seguridad
+                        <ShieldAlert size={16} /> Resumen de Incidentes
                     </h6>
                     <div 
                         className="d-flex justify-content-between align-items-center mb-3 p-3 bg-surface rounded shadow-sm interactive-item"
                         onClick={() => navigateTo('/soc/events?status=all')}
                         role="button"
                     >
-                        <span className={`small fw-bold ${isSoc ? 'text-main' : 'text-muted'}`}>TOTAL ALERTAS</span>
+                        <span className={`small fw-bold ${isSoc ? 'text-main' : 'text-muted'} text-uppercase`}>Total de Alertas</span>
                         <span className="h4 m-0 fw-bold text-primary">{stats.siem.total}</span>
                     </div>
                     <div 
@@ -235,7 +235,7 @@ export default function Dashboard() {
                         onClick={() => navigateTo('/soc/events?status=resolved')}
                         role="button"
                     >
-                        <span className={`small fw-bold ${isSoc ? 'text-success' : 'text-success'}`}>REMEDIADAS</span>
+                        <span className={`small fw-bold ${isSoc ? 'text-success' : 'text-success'} text-uppercase`}>Remediadas</span>
                         <span className="h4 m-0 fw-bold text-success">{stats.siem.remediated}</span>
                     </div>
                     <div 
@@ -243,7 +243,7 @@ export default function Dashboard() {
                         onClick={() => navigateTo('/soc/events?status=in_progress')}
                         role="button"
                     >
-                        <span className={`small fw-bold ${isSoc ? 'text-warning' : 'text-warning'}`}>EN PROCESO</span>
+                        <span className={`small fw-bold ${isSoc ? 'text-warning' : 'text-warning'} text-uppercase`}>En Proceso</span>
                         <span className="h4 m-0 fw-bold text-warning">{stats.siem.in_process}</span>
                     </div>
                     <div 
@@ -251,7 +251,7 @@ export default function Dashboard() {
                         onClick={() => navigateTo('/soc/events?status=pending')}
                         role="button"
                     >
-                        <span className={`small fw-bold ${isSoc ? 'text-danger' : 'text-danger'}`}>ABIERTAS</span>
+                        <span className={`small fw-bold ${isSoc ? 'text-danger' : 'text-danger'} text-uppercase`}>Abiertas</span>
                         <span className="h4 m-0 fw-bold text-danger">{stats.siem.open}</span>
                     </div>
                 </Card>
@@ -288,7 +288,7 @@ export default function Dashboard() {
                 >
                     <div className="text-warning mb-2"><AlertCircle size={24} /></div>
                     <h3 className="fw-bold m-0">{stats.assets!.pending_tagging}</h3>
-                    <small className="text-muted fw-bold x-small text-uppercase">Pendiente Etiquetar</small>
+                    <small className="text-muted fw-bold x-small text-uppercase">Pendiente Etiquetado</small>
                  </Card>
             </Col>
             <Col md={3}>
@@ -299,7 +299,7 @@ export default function Dashboard() {
                 >
                     <div className="text-info mb-2"><HardDrive size={24} /></div>
                     <h3 className="fw-bold m-0">{stats.assets!.installing}</h3>
-                    <small className="text-muted fw-bold x-small text-uppercase">Mantenimiento</small>
+                    <small className="text-muted fw-bold x-small text-uppercase">En Mantenimiento</small>
                  </Card>
             </Col>
             <Col md={3}>
@@ -354,7 +354,7 @@ export default function Dashboard() {
           case 'División Seguridad Informática': return 'Vista Global de Seguridad';
           case 'Área SOC': return 'Centro de Operaciones de Seguridad';
           case 'Área Técnica': return 'Gestión de Activos y Soporte';
-          default: return 'Mi Dashboard';
+          default: return 'Panel de Control';
       }
   };
 

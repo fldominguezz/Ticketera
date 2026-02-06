@@ -73,10 +73,10 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
 
   const navItems = [
     { id: 'dashboard', name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { id: 'tickets', name: 'Incident Cases', path: '/tickets', icon: Ticket },
-    { id: 'siem-alerts', name: 'SIEM Events', path: '/soc/events', icon: ShieldAlert },
-    { id: 'inventory', name: 'Asset Inventory', path: '/inventory', icon: Database },
-    { id: 'forensics', name: 'EML Analytics', path: '/forensics/eml', icon: FileSearch },
+    { id: 'tickets', name: 'Tickets', path: '/tickets', icon: Ticket },
+    { id: 'siem-alerts', name: 'Eventos SIEM', path: '/soc/events', icon: ShieldAlert },
+    { id: 'inventory', name: 'Inventario de Activos', path: '/inventory', icon: Database },
+    { id: 'forensics', name: 'Análisis de EML', path: '/forensics/eml', icon: FileSearch },
     { id: 'daily-report', name: 'Parte Informativo', path: '/reports/daily', icon: FileText },
     { id: 'audit', name: 'Auditoría Global', path: '/audit', icon: Shield },
   ];

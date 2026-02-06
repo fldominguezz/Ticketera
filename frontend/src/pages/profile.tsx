@@ -224,9 +224,11 @@ export default function ProfilePage() {
           <Modal.Body>
             <p className="small text-muted">Por seguridad, confirma tu contraseña para desactivar el segundo factor de autenticación.</p>
             {error && <Alert variant="danger" className="small py-2">{error}</Alert>}
-            <Form.Group>
+            <Form.Group controlId="disable-2fa-password">
               <Form.Label className="small fw-bold">Contraseña Actual</Form.Label>
               <Form.Control 
+                id="disable-2fa-password"
+                name="password"
                 type="password" 
                 required 
                 value={password}

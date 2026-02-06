@@ -132,36 +132,46 @@ export default function TicketsPage() {
             <div className="p-3 bg-surface border-bottom border-color">
                <Row className="g-2 align-items-center">
                   <Col md={4}>
-                    <InputGroup size="sm" className="rounded-pill border border-color overflow-hidden bg-surface-muted px-2">
-                      <InputGroup.Text className="bg-transparent border-0 text-muted"><Search size={14} /></InputGroup.Text>
-                      <Form.Control 
-                        placeholder="Buscar..." 
-                        className="bg-transparent border-0 shadow-none x-small fw-bold"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
-                    </InputGroup>
+                    <Form.Group controlId="ticket-search">
+                      <InputGroup size="sm" className="rounded-pill border border-color overflow-hidden bg-surface-muted px-2">
+                        <InputGroup.Text className="bg-transparent border-0 text-muted"><Search size={14} /></InputGroup.Text>
+                        <Form.Control 
+                          id="ticket-search"
+                          name="searchTerm"
+                          placeholder="Buscar..." 
+                          className="bg-transparent border-0 shadow-none x-small fw-bold"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                      </InputGroup>
+                    </Form.Group>
                   </Col>
                   <Col md={8} className="d-flex justify-content-md-end gap-2 flex-wrap">
-                     <Form.Select size="sm" className="w-auto rounded-pill border-color x-small fw-bold bg-surface text-muted" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-                        <option value="">TODOS LOS ESTADOS</option>
-                        <option value="open">ABIERTOS</option>
-                        <option value="in_progress">EN PROGRESO</option>
-                        <option value="pending">PENDIENTES</option>
-                        <option value="resolved">RESUELTOS</option>
-                        <option value="closed">CERRADOS</option>
-                     </Form.Select>
-                     <Form.Select size="sm" className="w-auto rounded-pill border-color x-small fw-bold bg-surface text-muted" value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}>
-                        <option value="">TODAS LAS PRIORIDADES</option>
-                        <option value="critical">CRÍTICA</option>
-                        <option value="high">ALTA</option>
-                        <option value="medium">MEDIA</option>
-                        <option value="low">BAJA</option>
-                     </Form.Select>
-                     <Form.Select size="sm" className="w-auto rounded-pill border-color x-small fw-bold bg-surface text-muted" value={groupFilter} onChange={e => setGroupFilter(e.target.value)}>
-                        <option value="">TODOS LOS GRUPOS</option>
-                        {groups.map(g => <option key={g.id} value={g.id}>{g.name.toUpperCase()}</option>)}
-                     </Form.Select>
+                     <Form.Group controlId="status-filter">
+                       <Form.Select id="status-filter" name="statusFilter" size="sm" className="w-auto rounded-pill border-color x-small fw-bold bg-surface text-muted" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+                          <option value="">TODOS LOS ESTADOS</option>
+                          <option value="open">ABIERTOS</option>
+                          <option value="in_progress">EN PROGRESO</option>
+                          <option value="pending">PENDIENTES</option>
+                          <option value="resolved">RESUELTOS</option>
+                          <option value="closed">CERRADOS</option>
+                       </Form.Select>
+                     </Form.Group>
+                     <Form.Group controlId="priority-filter">
+                       <Form.Select id="priority-filter" name="priorityFilter" size="sm" className="w-auto rounded-pill border-color x-small fw-bold bg-surface text-muted" value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}>
+                          <option value="">TODAS LAS PRIORIDADES</option>
+                          <option value="critical">CRÍTICA</option>
+                          <option value="high">ALTA</option>
+                          <option value="medium">MEDIA</option>
+                          <option value="low">BAJA</option>
+                       </Form.Select>
+                     </Form.Group>
+                     <Form.Group controlId="group-filter">
+                       <Form.Select id="group-filter" name="groupFilter" size="sm" className="w-auto rounded-pill border-color x-small fw-bold bg-surface text-muted" value={groupFilter} onChange={e => setGroupFilter(e.target.value)}>
+                          <option value="">TODOS LOS GRUPOS</option>
+                          {groups.map(g => <option key={g.id} value={g.id}>{g.name.toUpperCase()}</option>)}
+                       </Form.Select>
+                     </Form.Group>
                      <Button variant="link" size="sm" className="text-muted x-small fw-black text-decoration-none p-0 ms-2 opacity-50" onClick={() => { setStatusFilter(''); setPriorityFilter(''); setGroupFilter(''); setSearchTerm(''); }}>LIMPIAR</Button>
                   </Col>
                </Row>
@@ -172,7 +182,7 @@ export default function TicketsPage() {
                 <thead>
                   <tr className="small text-muted uppercase tracking-widest border-bottom border-color bg-surface">
                     <th className="ps-4 py-3" style={{width: '120px'}}>ID</th>
-                    <th className="py-3" style={{width: '20%'}}>ASUNTO</th>
+                    <th className="py-3" style={{width: '20%'}}>ASUNTO / TÍTULO</th>
                     <th className="py-3">ESTADO</th>
                     <th className="py-3">PRIORIDAD</th>
                     <th className="py-3">SLA RESTANTE</th>
@@ -240,17 +250,21 @@ export default function TicketsPage() {
         <div className="d-flex justify-content-between align-items-center mt-4 bg-surface p-3 rounded-4 shadow-sm border border-color">
             <div className="d-flex align-items-center gap-3">
                 <span className="x-small fw-black text-muted text-uppercase">Mostrar</span>
-                <Form.Select 
-                  size="sm" 
-                  className="rounded-pill border-0 bg-surface-muted px-3 fw-bold" 
-                  style={{width: '80px'}}
-                  value={pageSize}
-                  onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
-                >
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                </Form.Select>
+                <Form.Group controlId="page-size-selector">
+                  <Form.Select 
+                    id="page-size-selector"
+                    name="pageSize"
+                    size="sm" 
+                    className="rounded-pill border-0 bg-surface-muted px-3 fw-bold" 
+                    style={{width: '80px'}}
+                    value={pageSize}
+                    onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
+                  >
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                  </Form.Select>
+                </Form.Group>
                 <span className="x-small text-muted fw-bold">Total: {totalItems}</span>
             </div>
             <div className="d-flex gap-2">

@@ -62,10 +62,10 @@ export default function EMLForensicsPage() {
     if (item.status === 'Redirected (Rate Limit)') {
       return (
         <div className="d-flex align-items-center gap-2">
-          <Badge bg="secondary" className="x-tiny fw-bold opacity-75">LIMITE API</Badge>
+          <Badge bg="secondary" className="x-tiny fw-bold opacity-75">LÍMITE API</Badge>
           {item.link && (
             <a href={item.link} target="_blank" rel="noreferrer" className="btn btn-outline-primary btn-xs py-0 x-tiny fw-bold text-decoration-none">
-              REVISAR MANUAL <ExternalLink size={10} className="ms-1"/>
+              REVISIÓN MANUAL <ExternalLink size={10} className="ms-1"/>
             </a>
           )}
         </div>
@@ -75,7 +75,7 @@ export default function EMLForensicsPage() {
     return (
       <div className="d-flex align-items-center gap-2">
         <Badge bg={item.malicious > 0 ? 'danger' : item.suspicious > 0 ? 'warning' : 'success'} className="x-tiny fw-bold">
-          {item.malicious}/{item.malicious + item.suspicious + item.harmless} engines
+          {item.malicious}/{item.malicious + item.suspicious + item.harmless} motores
         </Badge>
         {item.link && <a href={item.link} target="_blank" rel="noreferrer" className="text-primary"><ExternalLink size={10}/></a>}
       </div>
@@ -83,7 +83,7 @@ export default function EMLForensicsPage() {
   };
 
   return (
-    <Layout title="Laboratorio Forense EML">
+    <Layout title="Laboratorio Forense de EML">
       <div className="mb-4">
         <h4 className="fw-black text-uppercase m-0 d-flex align-items-center gap-2">
           <Mail className="text-primary" size={24}/> Análisis Forense de Correo
@@ -120,7 +120,7 @@ export default function EMLForensicsPage() {
                 <Form.Check 
                   type="switch"
                   id="vt-switch"
-                  label="Integración VirusTotal"
+                  label="Integración con VirusTotal"
                   className="fw-bold small text-uppercase mb-2"
                   checked={checkVT}
                   onChange={(e) => setCheckVT(e.target.checked)}
@@ -177,7 +177,7 @@ export default function EMLForensicsPage() {
                 <Card.Body className="p-4">
                   <div className="d-flex flex-column gap-2">
                     <div className="border-bottom pb-2 mb-2 d-flex justify-content-between align-items-center">
-                      <h6 className="m-0 fw-bold small text-uppercase text-muted">Cabecera de Correo</h6>
+                      <h6 className="m-0 fw-bold small text-uppercase text-muted">Cabeceras del Correo</h6>
                       <Badge bg="info" className="bg-opacity-10 text-info uppercase x-small">Original</Badge>
                     </div>
                     <div><span className="fw-bold text-muted x-small text-uppercase">De:</span> <span className="small fw-bold">{result.summary.From}</span></div>
@@ -192,7 +192,7 @@ export default function EMLForensicsPage() {
               <Card className="border-0 shadow-sm overflow-hidden">
                 <Card.Body className="p-0">
                   <Tabs defaultActiveKey="security" className="custom-tabs px-3 pt-2 bg-light">
-                    <Tab eventKey="security" title="Análisis de Amenaza" className="p-4">
+                    <Tab eventKey="security" title="Análisis de Amenazas" className="p-4">
                       <Row className="g-4">
                         <Col md={12}>
                           <h6 className="fw-bold small text-uppercase text-primary mb-3">VirusTotal: Resultados Detallados</h6>
@@ -209,7 +209,7 @@ export default function EMLForensicsPage() {
                               <tbody>
                                 {[...result.vt_analysis.urls, ...result.vt_analysis.attachments].map((item: any, i: number) => (
                                   <tr key={i}>
-                                    <td><Badge bg="dark" className="uppercase x-tiny">{item.type}</Badge></td>
+                                    <td><Badge bg="dark" className="uppercase x-tiny">{item.type === 'url' ? 'URL' : 'ADJUNTO'}</Badge></td>
                                     <td className="text-truncate" style={{maxWidth: '300px'}} title={item.target}>{item.target}</td>
                                     <td><VTResultSmall item={item}/></td>
                                   </tr>
@@ -273,7 +273,7 @@ export default function EMLForensicsPage() {
                       <div className="table-responsive" style={{ maxHeight: '400px' }}>
                         <Table striped hover size="sm" className="mb-0 x-small font-monospace">
                           <thead className="bg-dark text-white sticky-top">
-                            <tr><th className="ps-3 py-2">Header</th><th className="py-2">Valor</th></tr>
+                            <tr><th className="ps-3 py-2">Encabezado</th><th className="py-2">Valor</th></tr>
                           </thead>
                           <tbody>
                             {result.full_headers.map((h: any, i: number) => (

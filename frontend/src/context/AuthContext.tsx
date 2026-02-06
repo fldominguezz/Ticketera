@@ -5,7 +5,9 @@ interface AuthContextType {
   user: any;
   loading: boolean;
   isSuperuser: boolean;
-  login: (identifier: string, password: string) => Promise<boolean | { needs_2fa: boolean, interim_token: string }>;
+  needs2FA: boolean;
+  interimToken: string | null;
+  login: (identifier: string, password: string) => Promise<any>;
   verify2FA: (code: string, interimToken: string) => Promise<boolean>;
   logout: () => void;
   checkAuth: () => Promise<void>;
@@ -16,11 +18,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(false); // Empezar en false para evitar bloqueo SSR
+  const [loading, setLoading] = useState(false);
+  const [needs2FA, setNeeds2FA] = useState(false);
+  const [interimToken, setInterimToken] = useState<string | null>(null);
   const router = useRouter();
 
   const fetchUser = async (token: string): Promise<boolean> => {
-    setLoading(true); // Solo activamos carga si hay un proceso real
+    setLoading(true);
     if (!token) {
         setUser(null);
         setLoading(false);
@@ -28,6 +32,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     
     try {
+      // Decodificar scope del token para saber si es sesión completa
+      let isFullSession = false;
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const scopes = payload.scope?.split(' ') || [];
+        isFullSession = scopes.includes('session');
+      } catch (e) {
+        console.error("Token decode error", e);
+      }
+
       const res = await fetch('/api/v1/users/me', {
         headers: { 
             'Authorization': `Bearer ${token}`,
@@ -39,7 +53,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (res.ok && contentType && contentType.indexOf("application/json") !== -1) {
         const userData = await res.json();
         if (userData && (userData.id || userData.email)) {
-          setUser(userData);
+          // Inyectamos el estado de la sesión en el objeto user del contexto
+          setUser({ ...userData, isFullSession });
           return true;
         }
       }
@@ -88,23 +103,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (res.ok) {
         const data = await res.json();
+        
         // Caso: Requiere acciones de seguridad (interim token)
         if (data.needs_2fa || data.force_password_change || data.reset_2fa) {
           const token = data.interim_token;
           localStorage.setItem('access_token', token);
-          await fetchUser(token); // Cargamos el usuario YA para que el context tenga los flags
-          return data;
+          setInterimToken(token);
+          
+          await fetchUser(token); 
+          
+          if (data.needs_2fa) {
+            setNeeds2FA(true);
+          }
+          
+          return data; // Devolvemos el objeto con las flags
         }
         
         // Caso: Login completo
+        setNeeds2FA(false);
+        setInterimToken(null);
         localStorage.setItem('access_token', data.access_token);
         const success = await fetchUser(data.access_token);
         return success;
+      } else {
+        const errorData = await res.json();
+        throw new Error(errorData.detail || 'Error de autenticación');
       }
-      return false;
-    } catch (e) {
+    } catch (e: any) {
       console.error("Login error", e);
-      return false;
+      throw e;
     }
   };
 
@@ -143,6 +170,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user, 
       loading, 
       isSuperuser: user?.is_superuser === true, 
+      needs2FA,
+      interimToken,
       login, 
       verify2FA,
       logout,

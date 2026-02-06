@@ -64,13 +64,22 @@ async def healthz():
     """Minimal healthcheck endpoint."""
     return {"status": "ok"}
 
-# Configurar CORS
+# Configurar CORS Hardenizado
+origins = [
+    "https://10.1.9.240",
+    "http://10.1.9.240",
+    "https://localhost",
+    "http://localhost",
+    "http://10.1.78.10",  # SIEM Integration
+    "http://10.1.150.25", # Futuro Mail Policial
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
 )
 
 setup_observability(app)

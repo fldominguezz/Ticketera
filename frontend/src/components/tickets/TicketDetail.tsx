@@ -4,6 +4,7 @@ import { User, Clock, Paperclip, Download as DownloadIcon, Eye, AlertCircle, Mon
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { UserAvatar } from '../UserAvatar';
+import { RichCommentEditor } from './RichCommentEditor';
 import 'react-quill/dist/quill.snow.css';
 
 interface Comment { id: string; content: string; is_internal: boolean; user_id: string; user_name?: string; user_avatar?: string; created_at: string; }
@@ -49,13 +50,44 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  
+  // Justification Modal States
+  const [showJustifyModal, setShowJustifyModal] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const [justification, setJustification] = useState('');
 
   const isGlobalAdmin = currentUser?.is_superuser || currentUser?.group?.name === 'DIVISIÓN SEGURIDAD INFORMÁTICA';
+  
+  // ... rest of the code
+
+  const handleStatusChange = (newStatus: string) => {
+    if (newStatus === 'resolved' || newStatus === 'closed') {
+      setPendingStatus(newStatus);
+      setShowJustifyModal(true);
+    } else {
+      onUpdateTicket({ status: newStatus });
+    }
+  };
+
+  const confirmStatusChange = async () => {
+    if (!justification.trim() || !pendingStatus) return;
+    
+    // Añadimos la justificación como un comentario interno automático
+    await onAddComment(`[JUSTIFICACIÓN DE CIERRE]: ${justification}`, true);
+    
+    // Actualizamos el estado del ticket
+    await onUpdateTicket({ status: pendingStatus });
+    
+    setShowJustifyModal(false);
+    setJustification('');
+    setPendingStatus(null);
+  };
   const hasAssignPermission = currentUser?.is_superuser || currentUser?.permissions?.includes('ticket:assign') || isGlobalAdmin;
   const isCreator = ticket?.created_by_id === currentUser?.id;
   const isResolvedOrClosed = ticket?.status === 'resolved' || ticket?.status === 'closed';
   const canManageState = isGlobalAdmin || (isCreator && !isResolvedOrClosed);
-  const canAssign = (hasAssignPermission || currentUser?.is_superuser) && !isResolvedOrClosed;
+  const canAssignGroup = (hasAssignPermission || currentUser?.is_superuser) && !isResolvedOrClosed;
+  const canAssignUser = (hasAssignPermission || currentUser?.is_superuser || isCreator) && !isResolvedOrClosed;
 
   // --- FILTRADO JERÁRQUICO DE GRUPOS ---
   const getHierarchyGroups = () => {
@@ -214,8 +246,10 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                       <Button variant="outline-danger" size="sm" className="rounded-pill px-3 x-small fw-bold" onClick={() => setShowDeleteModal(true)}>ELIMINAR</Button>
                     )}
                     <Form.Select 
+                      id="ticket-status-select"
+                      name="status"
                       size="sm" value={ticket.status || 'open'} disabled={!canManageState}
-                      onChange={(e) => onUpdateTicket({ status: e.target.value })}
+                      onChange={(e) => handleStatusChange(e.target.value)}
                       className={`w-auto fw-bold border-0 shadow-sm rounded-pill px-3 ${isDark ? 'bg-dark text-success' : 'bg-light text-primary'}`}
                     >
                       <option value="open">OPEN</option><option value="in_progress">IN PROGRESS</option><option value="pending">PENDING</option><option value="resolved">RESOLVED</option><option value="closed">CLOSED</option>
@@ -257,9 +291,9 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                   <div className="d-flex align-items-center gap-2">
                     <span>GROUP:</span>
                     <Form.Select 
-                      size="sm" value={ticket.group_id || ''} disabled={!canAssign}
+                      size="sm" value={ticket.group_id || ''} disabled={!canAssignGroup}
                       onChange={(e) => onUpdateTicket({ group_id: e.target.value || null })}
-                      className={`w-auto border-0 bg-transparent p-0 text-primary fw-black ${!canAssign ? 'opacity-75 cursor-not-allowed' : ''}`} style={{ fontSize: 'inherit' }}
+                      className={`w-auto border-0 bg-transparent p-0 text-primary fw-black ${!canAssignGroup ? 'opacity-75 cursor-not-allowed' : ''}`} style={{ fontSize: 'inherit' }}
                     >
                       <option value="">No Group</option>
                       {displayGroups.map(g => (<option key={g.id} value={g.id}>{g.name}</option>))}
@@ -272,9 +306,9 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                     <Form.Select 
                       size="sm" 
                       value={ticket.assigned_to_id || ticket.assigned_to?.id || ''} 
-                      disabled={!canAssign}
+                      disabled={!canAssignUser}
                       onChange={(e) => onUpdateTicket({ assigned_to_id: e.target.value || null })}
-                      className={`w-auto border-0 bg-transparent p-0 text-primary fw-black ${!canAssign ? 'opacity-75 cursor-not-allowed' : ''}`} style={{ fontSize: 'inherit' }}
+                      className={`w-auto border-0 bg-transparent p-0 text-primary fw-black ${!canAssignUser ? 'opacity-75 cursor-not-allowed' : ''}`} style={{ fontSize: 'inherit' }}
                     >
                       <option value="">Unassigned</option>
                       {displayUsers.map(u => (<option key={u.id} value={u.id}>{u.username}</option>))}
@@ -285,7 +319,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
             </Card>
 
             <Tabs defaultActiveKey="comments" className="custom-tabs mb-4 border-0">
-              <Tab eventKey="comments" title={`Activity (${comments.length})`}>
+              <Tab eventKey="comments" title={`Actividad (${comments.length})`}>
                 <Card className="border-0 shadow-sm bg-surface">
                   <Card.Body className="p-4">
                     <RichCommentEditor 
@@ -302,7 +336,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                           fontSize="16px"
                         />
                         <div className="flex-grow-1">
-                          <div className="d-flex justify-content-between mb-1"><span className="fw-black text-main small">{c.user_name || 'User'}</span><span className="text-muted x-small">{new Date(c.created_at).toLocaleString()}</span></div>
+                          <div className="d-flex justify-content-between mb-1"><span className="fw-black text-main small">{c.user_name || 'Usuario'}</span><span className="text-muted x-small">{new Date(c.created_at).toLocaleString()}</span></div>
                           <div className="small text-main opacity-90" style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
                         </div>
                       </div>
@@ -310,12 +344,12 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
                   </Card.Body>
                 </Card>
               </Tab>
-              <Tab eventKey="history" title="Audit Log">
+              <Tab eventKey="history" title="Registro de Auditoría">
                 <Card className="border-0 shadow-sm bg-surface overflow-hidden">
                   <Table hover responsive className="m-0 small">
-                    <thead className="bg-surface-muted"><tr className="x-small fw-black text-muted uppercase"><th className="ps-4">Timestamp</th><th>Analyst</th><th>Action</th><th>Details</th></tr></thead>
+                    <thead className="bg-surface-muted"><tr className="x-small fw-black text-muted uppercase"><th className="ps-4">Timestamp</th><th>Analista</th><th>Acción</th><th>Detalles</th></tr></thead>
                     <tbody>
-                      {history.map(h => (<tr key={h.id}><td className="ps-4 text-muted">{new Date(h.created_at).toLocaleString()}</td><td className="fw-bold">{h.user?.username || 'System'}</td><td><Badge bg="info" className="bg-opacity-10 text-info border border-info border-opacity-10">{h.event_type.toUpperCase()}</Badge></td><td className="text-main">{formatAuditDetail(h)}</td></tr>))}
+                      {history.map(h => (<tr key={h.id}><td className="ps-4 text-muted">{new Date(h.created_at).toLocaleString()}</td><td className="fw-bold">{h.user?.username || 'Sistema'}</td><td><Badge bg="info" className="bg-opacity-10 text-info border border-info border-opacity-10">{h.event_type.toUpperCase()}</Badge></td><td className="text-main">{formatAuditDetail(h)}</td></tr>))}
                     </tbody>
                   </Table>
                 </Card>
@@ -325,14 +359,14 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
 
           <Col lg={4}>
             <Card className="shadow-sm border-0 mb-4 bg-surface overflow-hidden">
-              <Card.Header className="py-3 d-flex justify-content-between align-items-center bg-surface-muted border-bottom border-color"><h6 className="mb-0 fw-black x-small uppercase"><Paperclip size={14} className="me-2" /> Evidencia</h6><Form.Label htmlFor="file-up" className="btn btn-primary btn-sm mb-0 rounded-circle p-1">+</Form.Label><Form.Control id="file-up" type="file" multiple className="d-none" onChange={(e: any) => setPendingFiles(Array.from(e.target.files))} /></Card.Header>
+              <Card.Header className="py-3 d-flex justify-content-between align-items-center bg-surface-muted border-bottom border-color"><h6 className="mb-0 fw-black x-small uppercase"><Paperclip size={14} className="me-2" /> Evidencia Adjunta</h6><Form.Label htmlFor="file-up" className="btn btn-primary btn-sm mb-0 rounded-circle p-1">+</Form.Label><Form.Control id="file-up" type="file" multiple className="d-none" onChange={(e: any) => setPendingFiles(Array.from(e.target.files))} /></Card.Header>
               <Card.Body className="p-0">
                 {pendingFiles.length > 0 && <div className="p-3 bg-primary bg-opacity-5"><Button variant="primary" size="sm" className="w-100 fw-black x-small" onClick={async () => { setUploadingFiles(true); for (const f of pendingFiles) await onUploadFile(f); setPendingFiles([]); setUploadingFiles(false); }}>SUBIR {pendingFiles.length} ARCHIVOS</Button></div>}
                 {attachments.map(a => (<div key={a.id} className="d-flex justify-content-between align-items-center p-3 border-bottom border-color hover-bg-surface-muted transition-all"><span className="small text-truncate text-main">{a.filename}</span><Button variant="link" size="sm" onClick={() => onDownloadFile(a.id, a.filename)}><DownloadIcon size={14} /></Button></div>))}
               </Card.Body>
             </Card>
             <Card className="shadow-sm border-0 mb-4 bg-surface overflow-hidden">
-              <Card.Header className="py-3 d-flex justify-content-between align-items-center bg-surface-muted border-bottom border-color"><h6 className="mb-0 fw-black x-small uppercase"><Eye size={14} className="me-2" /> Observadores</h6><Button variant="link" size="sm" className="p-0 x-small fw-black" onClick={onToggleWatch}>{watchers.some(w => w.user_id === currentUser?.id) ? 'UNWATCH' : 'WATCH'}</Button></Card.Header>
+              <Card.Header className="py-3 d-flex justify-content-between align-items-center bg-surface-muted border-bottom border-color"><h6 className="mb-0 fw-black x-small uppercase"><Eye size={14} className="me-2" /> Observadores</h6><Button variant="link" size="sm" className="p-0 x-small fw-black" onClick={onToggleWatch}>{watchers.some(w => w.user_id === currentUser?.id) ? 'DEJAR DE SEGUIR' : 'SEGUIR TICKET'}</Button></Card.Header>
               <Card.Body><div className="d-flex flex-wrap gap-2">{watchers.map(w => (<Badge key={w.id} bg="primary" className="bg-opacity-10 text-primary border border-primary border-opacity-10 fw-normal rounded-pill px-3">{w.username}</Badge>))}</div></Card.Body>
             </Card>
           </Col>
@@ -349,6 +383,44 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
             <Button variant="danger" className="fw-black px-4 rounded-pill shadow-sm" onClick={() => { setShowDeleteModal(false); if (onDeleteTicket) onDeleteTicket(); }}>BORRAR PERMANENTEMENTE</Button>
           </div>
         </Modal.Body>
+      </Modal>
+
+      <Modal show={showJustifyModal} onHide={() => { setShowJustifyModal(false); setJustification(''); }} centered contentClassName="bg-surface rounded-4 shadow-2xl border-primary border-opacity-25">
+        <Modal.Header closeButton className="border-0">
+          <Modal.Title className="x-small fw-black text-primary uppercase tracking-widest">Justificación de Resolución</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-4">
+          <div className="mb-3 d-flex align-items-center gap-2 text-warning">
+             <AlertCircle size={18}/>
+             <span className="x-small fw-bold uppercase">Esta acción detendrá el SLA y requiere una explicación técnica.</span>
+          </div>
+          <Form.Group controlId="closure-justification">
+            <Form.Label className="small fw-bold text-muted mb-2">Detalle de la solución o motivo del cierre *</Form.Label>
+            <Form.Control 
+              id="closure-justification"
+              name="justification"
+              as="textarea" 
+              rows={4} 
+              placeholder="Indique los pasos realizados para resolver el incidente..."
+              value={justification}
+              onChange={(e) => setJustification(e.target.value)}
+              className="bg-surface-muted border-color shadow-none small fw-bold"
+              required
+              autoFocus
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer className="border-0 px-4 pb-4">
+          <Button variant="link" className="text-muted text-decoration-none x-small fw-black" onClick={() => { setShowJustifyModal(false); setJustification(''); }}>CANCELAR</Button>
+          <Button 
+            variant="primary" 
+            className="fw-black px-4 rounded-pill shadow"
+            disabled={!justification.trim() || submitting}
+            onClick={confirmStatusChange}
+          >
+            {submitting ? <Spinner size="sm" /> : `CONFIRMAR ${pendingStatus?.toUpperCase()}`}
+          </Button>
+        </Modal.Footer>
       </Modal>
 
       <style jsx global>{`

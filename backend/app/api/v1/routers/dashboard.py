@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any, List, Annotated, Dict
 from uuid import UUID
 
-from app.api.deps import get_db, require_permission, require_role
+from app.api.deps import get_db, require_permission, require_role, get_current_active_user
 from app.db.models.user import User
 from app.db.models.group import Group
 from app.db.models.ticket import Ticket, TicketType
@@ -29,7 +29,7 @@ async def get_siem_type_ids(db: AsyncSession):
 @router.get("/config", response_model=DashboardConfig)
 async def get_my_dashboard_config(
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(require_permission("dashboard:view"))]
+    current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     """
     Get the active dashboard config for the current user.

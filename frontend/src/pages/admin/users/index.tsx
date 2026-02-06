@@ -130,15 +130,19 @@ export default function AdminUsersPage() {
 
         <Card className="border-0 shadow-2xl rounded-xl overflow-hidden">
           <div className="p-3 bg-surface-muted border-bottom">
-             <InputGroup style={{ maxWidth: '400px' }}>
-                <InputGroup.Text className="bg-transparent border-0 text-muted ps-0"><Search size={18}/></InputGroup.Text>
-                <Form.Control 
-                    className="bg-transparent border-0 shadow-none small" 
-                    placeholder="Filtrar por nombre, usuario o email..." 
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                />
-             </InputGroup>
+             <Form.Group controlId="user-search">
+               <InputGroup style={{ maxWidth: '400px' }}>
+                  <InputGroup.Text className="bg-transparent border-0 text-muted ps-0"><Search size={18}/></InputGroup.Text>
+                  <Form.Control 
+                      id="user-search"
+                      name="searchTerm"
+                      className="bg-transparent border-0 shadow-none small" 
+                      placeholder="Filtrar por nombre, usuario o email..." 
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
+                  />
+               </InputGroup>
+             </Form.Group>
           </div>
           <Table hover responsive className="align-middle mb-0 custom-user-table">
             <thead>
@@ -205,21 +209,51 @@ export default function AdminUsersPage() {
           <Form>
             <h6 className="fw-black mb-3 x-small text-primary uppercase tracking-tighter d-flex align-items-center gap-2"><UserIcon size={14}/> Información Personal</h6>
             <Row className="g-3 mb-4 bg-surface-muted p-3 rounded-lg border">
-              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Nombre</Form.Label><Form.Control className="shadow-none" value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} /></Col>
-              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Apellido</Form.Label><Form.Control className="shadow-none" value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} /></Col>
-              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Email Institucional</Form.Label><Form.Control className="shadow-none" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></Col>
-              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Área / Grupo</Form.Label><Form.Select className="shadow-none" value={formData.group_id} onChange={e => setFormData({...formData, group_id: e.target.value})}><option value="">Seleccionar...</option>{groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</Form.Select></Col>
+              <Col md={6}>
+                <Form.Group controlId="user-first-name">
+                  <Form.Label className="x-small fw-black text-muted uppercase">Nombre</Form.Label>
+                  <Form.Control id="user-first-name" name="first_name" className="shadow-none" value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group controlId="user-last-name">
+                  <Form.Label className="x-small fw-black text-muted uppercase">Apellido</Form.Label>
+                  <Form.Control id="user-last-name" name="last_name" className="shadow-none" value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group controlId="user-email">
+                  <Form.Label className="x-small fw-black text-muted uppercase">Email Institucional</Form.Label>
+                  <Form.Control id="user-email" name="email" className="shadow-none" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group controlId="user-group">
+                  <Form.Label className="x-small fw-black text-muted uppercase">Área / Grupo</Form.Label>
+                  <Form.Select id="user-group" name="group_id" className="shadow-none" value={formData.group_id} onChange={e => setFormData({...formData, group_id: e.target.value})}>
+                    <option value="">Seleccionar...</option>
+                    {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
             </Row>
 
             <h6 className="fw-black mb-3 x-small text-primary uppercase tracking-tighter d-flex align-items-center gap-2"><LockIcon size={14}/> Credenciales y Seguridad</h6>
             <Row className="g-3 mb-4 bg-surface-muted p-3 rounded-lg border">
-              <Col md={6}><Form.Label className="x-small fw-black text-muted uppercase">Username</Form.Label><Form.Control className="shadow-none" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} /></Col>
               <Col md={6}>
-                <Form.Label className="x-small fw-black text-muted uppercase">Contraseña {editingUserId && '(opcional)'}</Form.Label>
-                <InputGroup>
-                    <Form.Control className="shadow-none" type={showPass ? "text" : "password"} value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
-                    <Button variant="outline-secondary" className="border-opacity-10" onClick={() => setShowPass(!showPass)}>{showPass ? <EyeOff size={14}/> : <Eye size={14}/>}</Button>
-                </InputGroup>
+                <Form.Group controlId="user-username">
+                  <Form.Label className="x-small fw-black text-muted uppercase">Username</Form.Label>
+                  <Form.Control id="user-username" name="username" className="shadow-none" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group controlId="user-password">
+                  <Form.Label className="x-small fw-black text-muted uppercase">Contraseña {editingUserId && '(opcional)'}</Form.Label>
+                  <InputGroup>
+                      <Form.Control id="user-password" name="password" className="shadow-none" type={showPass ? "text" : "password"} value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+                      <Button variant="outline-secondary" className="border-opacity-10" onClick={() => setShowPass(!showPass)}>{showPass ? <EyeOff size={14}/> : <Eye size={14}/>}</Button>
+                  </InputGroup>
+                </Form.Group>
               </Col>
               <Col md={4}>
                 <Form.Check type="switch" id="active-switch" label={<span className="x-small fw-bold uppercase">Cuenta Activa</span>} checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} />

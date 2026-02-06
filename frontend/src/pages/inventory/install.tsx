@@ -322,7 +322,7 @@ const AssetInstallPage = () => {
                             <option value="FortiClient EMS">FortiClient EMS</option>
                             <option value="Windows Defender">Windows Defender</option>
                             <option value="FortiEDR">FortiEDR</option>
-                            <option value="Sin Protección">Sin Protección</option>
+                            <option value="AV FREE">AV FREE</option>
                           </Form.Select>
                         </Form.Group>
                       </Col>

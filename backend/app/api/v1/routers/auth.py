@@ -140,16 +140,20 @@ async def login(
     )
 
     if not user:
+        # Investigar razón exacta para el log de auditoría
+        existing_user = await crud_user.get_by_username_or_email(db, identifier=login_data.identifier)
+        error_detail = "Contraseña incorrecta" if existing_user else "El usuario no existe"
+        
         await crud_audit.audit_log.create_log(
             db,
             user_id=None,
             event_type="login_failed",
             ip_address=request.client.host,
-            details={"identifier": login_data.identifier, "reason": "invalid_credentials"},
+            details={"identifier": login_data.identifier, "reason": error_detail},
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail=error_detail,
         )
 
     if not user.is_active:
@@ -186,7 +190,7 @@ async def login(
             interim_token=interim_token
         )
 
-    if user.is_2fa_enabled:
+    if user.is_2fa_enabled and not is_exempt:
         await crud_audit.audit_log.create_log(
             db, user_id=user.id, event_type="login_success_needs_2fa", ip_address=request.client.host
         )
@@ -197,7 +201,7 @@ async def login(
             claims={"scope": "2fa:verify"},
         )
         return LoginResponse(needs_2fa=True, interim_token=interim_token)
-    elif user.enroll_2fa_mandatory:
+    elif user.enroll_2fa_mandatory and not is_exempt:
         interim_token = create_access_token(
             subject=user.id,
             expires_delta=timedelta(minutes=15),

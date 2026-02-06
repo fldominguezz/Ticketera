@@ -16,11 +16,15 @@ export default function Login() {
   const [interimToken, setInterimToken] = useState('');
   const [mounted, setMounted] = useState(false);
   
-  const { login, verify2FA } = useAuth();
-  const themeContext = useTheme(); // Acceso seguro
+  const { login, verify2FA, needs2FA: globalNeeds2FA, interimToken: globalInterimToken } = useAuth();
+  const themeContext = useTheme(); 
   const theme = themeContext?.theme || 'dark';
   const toggleTheme = themeContext?.toggleTheme || (() => {});
   const router = useRouter();
+
+  // Usamos el estado global si está disponible para mantener la persistencia
+  const is2FAPhase = needs2FA || globalNeeds2FA;
+  const currentInterimToken = interimToken || globalInterimToken;
 
   useEffect(() => {
     setMounted(true);
@@ -32,21 +36,27 @@ export default function Login() {
     setError(null);
     try {
       const result = await login(username, password);
+      
+      if (result === true) {
+        // Login completo y directo (admin, fortisiem, etc.)
+        router.push('/');
+        return;
+      }
+
       if (typeof result === 'object') {
-        if (result.needs_2fa && !result.force_password_change && !result.reset_2fa) {
-          setNeeds2FA(true);
-          setInterimToken(result.interim_token);
-        } else if (result.force_password_change || result.reset_2fa) {
-          // REDIRECCIÓN INMEDIATA para evitar que otros componentes carguen y lancen 401
+        const { needs_2fa, force_password_change, reset_2fa } = result;
+        
+        if (needs_2fa) {
+          // El estado global ya se encargará de mostrar el formulario
+          setLoading(false);
+        } else if (force_password_change || reset_2fa) {
           router.replace('/security/onboarding');
         }
+      } else if (result === false) {
+          setError('ERROR: Credenciales inválidas o acceso denegado.');
       }
-      // If result === true, AuthGuard will handle redirect to '/'
-      if (result === false) {
-        setError('ACCESS DENIED: Invalid operator credentials.');
-      }
-    } catch (err) {
-      setError('CONNECTION ERROR: Security core unreachable.');
+    } catch (err: any) {
+      setError(err.message || 'CONNECTION ERROR: Security core unreachable.');
     } finally {
       setLoading(false);
     }
@@ -57,7 +67,7 @@ export default function Login() {
     setLoading(true);
     setError(null);
     try {
-      const success = await verify2FA(totpCode, interimToken);
+      const success = await verify2FA(totpCode, currentInterimToken || '');
       if (success) {
         router.push('/');
       } else {
@@ -104,16 +114,17 @@ export default function Login() {
             </Alert>
           )}
 
-          {!needs2FA ? (
+          {!is2FAPhase ? (
             <Form onSubmit={handleLoginSubmit}>
-              <Form.Group className="mb-3">
-                <Form.Label className="x-small fw-black text-muted uppercase opacity-75">Operator ID</Form.Label>
+              <Form.Group className="mb-3" controlId="login-username">
+                <Form.Label className="x-small fw-black text-muted uppercase opacity-75" htmlFor="login-username">ID de Operador</Form.Label>
                 <div className="position-relative">
                   <User size={16} className="position-absolute" style={{ left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
                   <Form.Control 
+                    id="login-username"
                     type="text"
                     name="username"
-                    placeholder="Username"
+                    placeholder="Nombre de usuario"
                     autoComplete="username"
                     style={{ paddingLeft: 40, height: 45 }}
                     value={username}
@@ -123,14 +134,15 @@ export default function Login() {
                 </div>
               </Form.Group>
 
-              <Form.Group className="mb-4">
-                <Form.Label className="x-small fw-black text-muted uppercase opacity-75">Security Token</Form.Label>
+              <Form.Group className="mb-4" controlId="login-password">
+                <Form.Label className="x-small fw-black text-muted uppercase opacity-75" htmlFor="login-password">Token de Seguridad</Form.Label>
                 <div className="position-relative">
                   <Lock size={16} className="position-absolute" style={{ left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
                   <Form.Control 
+                    id="login-password"
                     type="password"
                     name="password"
-                    placeholder="Password"
+                    placeholder="Contraseña"
                     autoComplete="current-password"
                     style={{ paddingLeft: 40, height: 45 }}
                     value={password}
@@ -147,23 +159,25 @@ export default function Login() {
                 disabled={loading}
               >
                 {loading ? <Spinner animation="border" size="sm" /> : (
-                  <>AUTHENTICATE <ArrowRight size={16} className="ms-2" /></>
+                  <>AUTENTICAR ACCESO <ArrowRight size={16} className="ms-2" /></>
                 )}
               </Button>
             </Form>
           ) : (
             <Form onSubmit={handle2FASubmit}>
               <div className="text-center mb-4">
-                <div className="text-primary x-small fw-black uppercase mb-2">Multi-Factor Authentication Required</div>
-                <p className="text-muted x-small m-0 opacity-75">Enter the 6-digit verification code from your security device.</p>
+                <div className="text-primary x-small fw-black uppercase mb-2">Autenticación Multifactor Requerida</div>
+                <p className="text-muted x-small m-0 opacity-75">Ingrese el código de verificación de 6 dígitos de su aplicación de seguridad.</p>
               </div>
               
-              <Form.Group className="mb-4">
-                <Form.Label className="x-small fw-black text-muted uppercase opacity-75">Verification Code</Form.Label>
+              <Form.Group className="mb-4" controlId="login-totp">
+                <Form.Label className="x-small fw-black text-muted uppercase opacity-75" htmlFor="login-totp">Código de Verificación</Form.Label>
                 <div className="position-relative">
                   <Key size={16} className="position-absolute" style={{ left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
                   <Form.Control 
+                    id="login-totp"
                     type="text"
+                    name="totpCode"
                     placeholder="000000"
                     className="text-center fw-black tracking-widest"
                     style={{ paddingLeft: 40, height: 45 }}
@@ -182,7 +196,7 @@ export default function Login() {
                 className="w-100 fw-black uppercase tracking-widest py-2"
                 disabled={loading || totpCode.length < 6}
               >
-                {loading ? <Spinner animation="border" size="sm" /> : 'VERIFY IDENTITY'}
+                {loading ? <Spinner animation="border" size="sm" /> : 'VERIFICAR IDENTIDAD'}
               </Button>
               
               <Button 
@@ -190,7 +204,7 @@ export default function Login() {
                 className="w-100 text-muted x-small mt-3 text-decoration-none fw-bold uppercase opacity-75"
                 onClick={() => setNeeds2FA(false)}
               >
-                Back to credentials
+                Volver a credenciales
               </Button>
             </Form>
           )}

@@ -154,17 +154,21 @@ export default function SecurityOnboardingPage() {
                   {error && <Alert variant="danger" className="py-2 small">{error}</Alert>}
 
                   <Form onSubmit={handlePasswordChange}>
-                    <Form.Group className="mb-3">
+                    <Form.Group className="mb-3" controlId="onboarding-current-password">
                       <Form.Label className="x-small fw-bold text-muted uppercase">Contraseña Actual</Form.Label>
                       <Form.Control 
+                        id="onboarding-current-password"
+                        name="current"
                         type="password" required 
                         value={passwords.current}
                         onChange={e => setPasswords({...passwords, current: e.target.value})}
                       />
                     </Form.Group>
-                    <Form.Group className="mb-3">
+                    <Form.Group className="mb-3" controlId="onboarding-new-password">
                       <Form.Label className="x-small fw-bold text-muted uppercase">Nueva Contraseña</Form.Label>
                       <Form.Control 
+                        id="onboarding-new-password"
+                        name="new"
                         type="password" required
                         value={passwords.new}
                         onChange={e => setPasswords({...passwords, new: e.target.value})}
@@ -178,9 +182,11 @@ export default function SecurityOnboardingPage() {
                         </ul>
                       </div>
                     </Form.Group>
-                    <Form.Group className="mb-4">
+                    <Form.Group className="mb-4" controlId="onboarding-confirm-password">
                       <Form.Label className="x-small fw-bold text-muted uppercase">Confirmar Nueva Contraseña</Form.Label>
                       <Form.Control 
+                        id="onboarding-confirm-password"
+                        name="confirm"
                         type="password" required
                         value={passwords.confirm}
                         onChange={e => setPasswords({...passwords, confirm: e.target.value})}
@@ -226,9 +232,11 @@ export default function SecurityOnboardingPage() {
 
                   {setupStep === 3 && (
                     <Form onSubmit={verify2FA}>
-                      <Form.Group className="mb-4 text-center">
+                      <Form.Group className="mb-4 text-center" controlId="onboarding-totp-code">
                         <Form.Label className="x-small fw-bold text-muted uppercase mb-3">Ingrese el código de 6 dígitos</Form.Label>
                         <Form.Control 
+                          id="onboarding-totp-code"
+                          name="totpCode"
                           type="text" className="text-center h2 fw-black tracking-widest" 
                           maxLength={6} required autoFocus
                           value={totpCode} onChange={e => setTotpCode(e.target.value)}
