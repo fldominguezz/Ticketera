@@ -248,6 +248,8 @@ services:
 
 volumes:
   db_data:
+    external: true
+    name: ticketing-app_dev_db_data
   redis_data:
   uploads_data:
   meili_data:

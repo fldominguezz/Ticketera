@@ -257,25 +257,23 @@ const SIEMIntegration = () => {
                 </Col>
 
                 <Col lg={5}>
-                    <Card className="border-0 shadow-sm mb-4 p-4 text-center">
-                        <h6 className="fw-black mb-4 uppercase text-muted small text-start">Health Check</h6>
-                        {config?.last_test_status === 'success' ? (
-                            <div className="text-success"><Shield size={48} className="mb-2"/><h5 className="fw-black">OPERATIONAL</h5></div>
-                        ) : (
-                            <div className="text-danger"><AlertCircle size={48} className="mb-2"/><h5 className="fw-black">ACTION REQUIRED</h5></div>
-                        )}
-                        <Button variant="outline-primary" className="w-100 mt-4 fw-black" onClick={handleTest} disabled={testing}>
-                            {testing ? <Spinner size="sm" /> : <Zap size={18} className="me-2"/>} RUN DIAGNOSTIC
-                        </Button>
-                    </Card>
-
-                    <Card className="border-0 shadow-sm p-4 bg-light">
+                    <Card className="border-0 shadow-sm p-4 bg-light h-100">
                         <h6 className="fw-black mb-3 small uppercase text-muted">Quick Guide</h6>
                         <div className="x-small fw-bold text-muted">
-                            <p>1. Create Target in FortiSIEM.</p>
-                            <p>2. Set URL to this server's endpoint.</p>
-                            <p>3. Use Basic Auth with the username shown here.</p>
+                            <p className="mb-2">1. Crear el Target en el FortiSIEM apuntando a este servidor.</p>
+                            <p className="mb-2">2. Configurar la URL del Webhook: <code className="text-primary">/api/v1/fortisiem-incident</code></p>
+                            <p className="mb-2">3. Usar Autenticación Básica con el API Username mostrado a la izquierda.</p>
+                            <p className="mb-0">4. Asegurarse de que el puerto UDP 514 esté abierto en el firewall si se usa Syslog.</p>
                         </div>
+                        <hr />
+                        <Button variant="outline-primary" className="w-100 mt-2 fw-black x-small uppercase" onClick={handleTest} disabled={testing}>
+                            {testing ? <Spinner size="sm" /> : <RefreshCw size={14} className="me-2"/>} EJECUTAR DIAGNÓSTICO DE CONEXIÓN
+                        </Button>
+                        {testResult && (
+                            <Alert variant={testResult.status === 'success' ? 'success' : 'danger'} className="mt-3 x-small fw-bold border-0 bg-opacity-10 py-2">
+                                {testResult.message}
+                            </Alert>
+                        )}
                     </Card>
                 </Col>
             </Row>

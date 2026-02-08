@@ -65,7 +65,7 @@ async def validate_siem_auth(
 @router.get("/siem/config", response_model=SIEMConfiguration)
 async def get_config(
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(require_permission("admin:settings"))],
+    current_user: Annotated[User, Depends(require_permission("admin:settings:read"))],
 ):
     return await get_siem_config(db)
 
@@ -73,7 +73,7 @@ async def get_config(
 async def update_config(
     config_in: SIEMConfigurationUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(require_permission("admin:settings"))],
+    current_user: Annotated[User, Depends(require_permission("admin:settings:manage"))],
 ):
     config = await get_siem_config(db)
     
@@ -124,7 +124,7 @@ async def get_integrations_status(
 @router.post("/siem/test", response_model=SIEMTestResult)
 async def test_siem_connection(
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(require_permission("admin:settings"))],
+    current_user: Annotated[User, Depends(require_permission("admin:settings:manage"))],
 ):
     """Ejecuta un diagnóstico completo de la integración SIEM."""
     config = await get_siem_config(db)

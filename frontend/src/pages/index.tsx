@@ -328,8 +328,8 @@ export default function Dashboard() {
                             </tr>
                         </thead>
                         <tbody>
-                            {(stats.assets!.by_location || []).map((loc, idx) => (
-                                <tr key={idx} className="border-bottom border-opacity-10">
+                            {(stats.assets!.by_location || []).map((loc) => (
+                                <tr key={`loc-${loc.name}`} className="border-bottom border-opacity-10">
                                     <td className="ps-4 fw-bold text-primary">{loc.name}</td>
                                     <td className="text-end pe-4">
                                         <Badge bg="primary" className="bg-opacity-10 text-primary border border-primary border-opacity-10">
