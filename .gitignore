@@ -43,3 +43,4 @@ backend/uploads/*
 # OS
 .DS_Store
 Thumbs.dbuploads/
+uploads/

@@ -62,6 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (res.status === 401) {
           // Si estamos en onboarding, NO borrar el token, es un token interino válido
           const isInterimPage = router.pathname.includes('security/onboarding');
+          const isLoginPage = router.pathname.includes('/login');
           
           // También verificamos si el token guardado es interino (no tiene el prefijo de sesión real)
           // En este sistema, los tokens interinos suelen ser detectados por el backend.
@@ -69,6 +70,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!isInterimPage && !user?.force_password_change && !user?.reset_2fa_next_login) {
               localStorage.removeItem('access_token');
               setUser(null);
+              
+              if (!isLoginPage) {
+                router.push('/login?expired=true');
+              }
           }
       }
       return false;

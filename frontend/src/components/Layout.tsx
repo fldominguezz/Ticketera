@@ -196,8 +196,17 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
             <h6 className="m-0 text-uppercase fw-bold opacity-75">{title}</h6>
           </div>
           <div className="d-flex align-items-center gap-3">
-            <Button variant="link" className="text-muted p-1" onClick={toggleTheme}>
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            <Button 
+              variant="link" 
+              className="text-muted p-2 hover-bg-surface-muted rounded-circle d-flex align-items-center justify-content-center transition-all shadow-sm border border-color border-opacity-10" 
+              onClick={(e) => {
+                e.preventDefault();
+                toggleTheme();
+              }}
+              style={{ width: '38px', height: '38px', position: 'relative', zIndex: 1100 }}
+              title={`Tema actual: ${theme}`}
+            >
+              {theme === 'dark' ? <Sun size={18} /> : theme === 'light' ? <Moon size={18} /> : <Activity size={18} className="text-primary" />}
             </Button>
             {!isSecurityOnboarding && <NotificationBell />}
             <Dropdown align="end">

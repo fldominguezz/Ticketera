@@ -223,6 +223,11 @@ h1, h2, h3, h4, h5, h6, p, span, div, label, li, td, th, b, strong, small {
   color: var(--primary) !important;
 }
 
+/* Close button visibility for Dark/SOC */
+[data-theme='dark'] .btn-close, [data-theme='soc'] .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
 /* Scrollbar styling for Dark/SOC */
 [data-theme='dark'] ::-webkit-scrollbar, [data-theme='soc'] ::-webkit-scrollbar {
   width: 10px;

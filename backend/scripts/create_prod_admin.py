@@ -53,15 +53,12 @@ async def create_prod_admin():
             )
             db.add(admin)
         else:
-            logger.info("Admin account exists. Ensuring settings match...")
-            # Solo actualizamos si el email cambió o si queremos forzar el password de settings
+            logger.info("Admin account exists. Ensuring roles and state match...")
+            # Actualizamos metadatos pero NO el password para permitir que el cambio manual persista
             user_obj.email = admin_email
             user_obj.is_superuser = True
             user_obj.group_id = group.id
-            # Opcional: ¿Resetear password en cada reinicio? 
-            # El usuario pidió que el login funcione igual para todos.
-            # Si dejamos que se resetee, garantizamos que las credenciales de .env mandan.
-            user_obj.hashed_password = hashed_pw
+            user_obj.is_active = True
             db.add(user_obj)
             
         await db.commit()
