@@ -49,7 +49,7 @@ jobs:
           docker compose --profile test build
           
           # Start all background services
-          docker compose --project-name ticketera up -d db redis meilisearch backend frontend nginx soc-module
+          docker compose --project-name ticketera up -d db redis backend frontend nginx soc-module
           
           # Wait for backend to be healthy before starting validator
           echo "Waiting for backend healthcheck..."
