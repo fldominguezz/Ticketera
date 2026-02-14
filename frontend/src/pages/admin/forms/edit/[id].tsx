@@ -11,6 +11,7 @@ import api from '../../../../lib/api';
 export default function FormBuilder() {
   const router = useRouter();
   const { id } = router.query;
+  if (!id || typeof id !== "string" || !/^[a-zA-Z0-9-]+$/.test(id)) return null;
   const { theme } = useTheme();
   
   const [formName, setFormName] = useState('');

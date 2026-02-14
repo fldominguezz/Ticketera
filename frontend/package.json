@@ -42,5 +42,15 @@
     "prettier": "3.2.5",
     "typescript": "5.3.3",
     "glob": "^11.0.0"
+  },
+  "overrides": {
+    "lodash": "^4.17.21",
+    "glob": "^11.0.0",
+    "cross-spawn": "^7.0.6"
+  },
+  "resolutions": {
+    "lodash": "^4.17.21",
+    "glob": "^11.0.0",
+    "cross-spawn": "^7.0.6"
   }
 }
