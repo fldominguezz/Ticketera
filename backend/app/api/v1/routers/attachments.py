@@ -119,7 +119,7 @@ async def get_daily_report_pdf(
     # But here UPLOAD_DIR is "/app/uploads".
     # Let's ensure consistency.
     
-    file_path = os.path.join("uploads/daily_reports", file_name)
+    file_path = safe_join(UPLOAD_DIR, "daily_reports", sanitize_filename(file_name))
     if not os.path.exists(file_path):
         # Fallback to absolute if relative fails
         file_path = os.path.join(UPLOAD_DIR, "daily_reports", file_name)

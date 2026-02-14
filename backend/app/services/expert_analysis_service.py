@@ -1,3 +1,4 @@
+from app.utils.security import validate_external_url
 from typing import Dict, Any
 import re
 import requests
@@ -50,6 +51,7 @@ class ExpertAnalysisService:
         """
         
         try:
+            validate_external_url(url)
             res = requests.post(
                 f"{self.ollama_url}/api/generate",
                 json={
