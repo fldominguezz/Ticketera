@@ -1,0 +1,15 @@
+{
+  "name": "validator-e2e",
+  "version": "1.0.0",
+  "description": "Playwright tests for the Total Validation Agent",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "1.49.1"
+  }
+}

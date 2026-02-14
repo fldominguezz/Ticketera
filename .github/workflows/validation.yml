@@ -1,0 +1,102 @@
+name: Total Validation Agent
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed, 
+          # if set to "true" but usually safe for Docker builds
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Start Services
+        run: |
+          echo "POSTGRES_USER=postgres" > .env
+          echo "POSTGRES_PASSWORD=postgres" >> .env
+          echo "POSTGRES_DB=ticketera_db" >> .env
+          echo "POSTGRES_HOST=db" >> .env
+          echo "POSTGRES_PORT=5432" >> .env
+          echo "DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/ticketera_db" >> .env
+          echo "SECRET_KEY=supersecret" >> .env
+          echo "ALGORITHM=HS256" >> .env
+          echo "ACCESS_TOKEN_EXPIRE_MINUTES=60" >> .env
+          echo "REFRESH_TOKEN_EXPIRE_DAYS=7" >> .env
+          echo "FIRST_SUPERUSER=admin@example.com" >> .env
+          echo "FIRST_SUPERUSER_PASSWORD=admin123" >> .env
+          echo "MEILI_MASTER_KEY=masterKeyTicketeraSOC" >> .env
+          
+          # Build all services including test profile
+          docker compose --profile test build
+          
+          # Start all background services
+          docker compose --project-name ticketera up -d db redis meilisearch backend frontend nginx soc-module
+          
+          # Wait for backend to be healthy before starting validator
+          echo "Waiting for backend healthcheck..."
+          MAX_RETRIES=20
+          COUNT=0
+          until [ "$(docker inspect -f '{{.State.Health.Status}}' ticketera-backend-1)" == "healthy" ]; do
+              COUNT=$((COUNT+1))
+              if [ $COUNT -ge $MAX_RETRIES ]; then
+                  echo "Backend healthcheck timeout"
+                  docker compose --project-name ticketera logs backend
+                  exit 1
+              fi
+              echo "Backend is $(docker inspect -f '{{.State.Health.Status}}' ticketera-backend-1)... ($COUNT/$MAX_RETRIES)"
+              sleep 10
+          done
+          
+          # Wait for Nginx to be healthy
+          echo "Waiting for nginx healthcheck..."
+          COUNT=0
+          until [ "$(docker inspect -f '{{.State.Health.Status}}' ticketera-nginx-1)" == "healthy" ]; do
+              COUNT=$((COUNT+1))
+              if [ $COUNT -ge $MAX_RETRIES ]; then
+                  echo "Nginx healthcheck timeout"
+                  docker compose --project-name ticketera logs nginx
+                  exit 1
+              fi
+              echo "Nginx is $(docker inspect -f '{{.State.Health.Status}}' ticketera-nginx-1)... ($COUNT/$MAX_RETRIES)"
+              sleep 10
+          done
+
+      - name: Run Total Validation Agent
+        run: |
+          # Use up --abort-on-container-exit to get the exit code from validator
+          docker compose --project-name ticketera --profile test up --abort-on-container-exit --exit-code-from validator validator
+
+      - name: Extract Validation Report
+        if: always()
+        run: |
+          # Copy report out of container (if using volume mapping might not be needed, but explicit cp is safer in CI)
+          # Since container might be stopped, we use `docker cp`.
+          # Note: The container name is 'validator' from docker-compose.
+          mkdir -p validation_artifacts
+          docker cp validator:/app/validation_artifacts/ . || echo "Failed to copy artifacts, maybe container didn't start?"
+
+      - name: Upload Validation Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-report
+          path: validation_artifacts/

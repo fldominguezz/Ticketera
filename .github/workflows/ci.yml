@@ -1,0 +1,34 @@
+name: CI Ticketera SOC
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    - name: Syntax Check
+      run: python -m py_compile backend/app/**/*.py
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    - name: Install dependencies
+      run: cd frontend && npm install --frozen-lockfile || npm install
+    - name: Build Check
+      run: cd frontend && npm run build
+      env:
+        NEXT_PUBLIC_API_URL: http://localhost/api/v1

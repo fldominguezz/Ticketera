@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.pytest_cache/
+*.log
+tests/
+# alembic/versions/*.py (DO NOT IGNORE MIGRATIONS)
+!alembic/versions/.gitkeep
+Dockerfile
+docker-compose.yml
+.git
+.env
+debug_*.py
+check_*.py
+inspect_*.py
+utils/
+uploads/*
