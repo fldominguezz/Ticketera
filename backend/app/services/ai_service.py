@@ -65,12 +65,15 @@ class AIService:
         
         Título: {title}
         Descripción Detallada (incluye logs):
+            pass
         {description}
         
         Comentarios adicionales:
+            pass
         {comments}
         
         Resumen del incidente:
+            pass
         """
         try:
             # Corremos en thread para no bloquear el loop asíncrono si usamos requests
@@ -85,9 +88,11 @@ class AIService:
         Sé breve, profesional y usa un tono de autoridad técnica.
         
         DATOS ACTUALES:
+            pass
         {json.dumps(stats_data)}
         
         ANÁLISIS ESTRATÉGICO:
+            pass
         """
         try:
             import asyncio

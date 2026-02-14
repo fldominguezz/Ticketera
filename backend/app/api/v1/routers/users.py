@@ -235,6 +235,7 @@ async def change_my_password(
     try:
         await crud_user.user.sync_to_wiki(current_user, action="update", plain_password=password_data.new_password)
     except Exception as e:
+        pass
     pass
     return {"message": "Success"}
 
@@ -442,6 +443,7 @@ async def reset_password_admin(
     try:
         await crud_user.user.sync_to_wiki(db_user, action="update", plain_password=new_password)
     except Exception as e:
+        pass
     pass
     await crud_audit.audit_log.create_log(
         db,

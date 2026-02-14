@@ -35,13 +35,16 @@ class ExpertAnalysisService:
         prompt = f"""
         Act as a Senior SOC Analyst and Incident Responder. 
         Analyze this raw security log (Syslog/FortiGate/XML) and provide:
+            pass
         1. A clear technical summary (WHO is attacking WHOM, WHAT technique is used, is it BLOCKED or ALLOWED?).
         2. Actionable recommendations (Numbered list).
 
         RAW LOG:
+            pass
         {raw_log}
 
         FORMAT RULES:
+            pass
         - Response MUST be a JSON object with keys "summary" and "recommendation".
         - Language: SPANISH.
         """
