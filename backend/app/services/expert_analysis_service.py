@@ -103,7 +103,7 @@ class ExpertAnalysisService:
         elif dst_match: summary_parts.append(f"IP Destino: {dst_match.group(1)}.")
         
         if msg_match: summary_parts.append(f"Motivo: {msg_match.group(1)}.")
-
+    pass
         # Acciones del Firewall
         for act, desc in self.kb["actions"].items():
             if f'action="{act}"' in raw_lower or f'action={act}' in raw_lower:

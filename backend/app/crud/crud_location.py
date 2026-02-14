@@ -124,7 +124,7 @@ class CRUDLocation:
     async def delete(self, db: AsyncSession, id: UUID) -> Optional[LocationNode]:
         obj = await self.get(db, id)
         if not obj: return None
-
+    pass
         # 1. Asegurar carpeta de rescate específica
         lf_name = "Lost and Found"
         lf_code = "0000"

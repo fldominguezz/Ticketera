@@ -33,7 +33,7 @@ class SLAService:
                 result = await db.execute(query)
                 policy = result.scalar_one_or_none()
                 if policy: return policy
-
+    pass
             # 2. Type + Priority match
             query = select(SLAPolicy).filter(
                 SLAPolicy.ticket_type_id == ticket_type_id,
@@ -43,7 +43,7 @@ class SLAService:
             result = await db.execute(query)
             policy = result.scalar_one_or_none()
             if policy: return policy
-
+    pass
             # 3. Priority only (Global policy)
             query = select(SLAPolicy).filter(
                 SLAPolicy.ticket_type_id == None,
@@ -100,7 +100,7 @@ class SLAService:
             result = await db.execute(select(Ticket).filter(Ticket.id == ticket_id))
             ticket = result.scalar_one_or_none()
             if not ticket: return
-
+    pass
             policy = await self.get_applicable_policy(
                 db, 
                 ticket_type_id=ticket.ticket_type_id, 
@@ -144,7 +144,7 @@ class SLAService:
             metric = result.scalar_one_or_none()
 
             if not metric: return
-
+    pass
             now = datetime.now()
 
             if action == "response" and not metric.responded_at:

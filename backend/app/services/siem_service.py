@@ -86,16 +86,16 @@ class SIEMService:
 
                 name_match = re.search(r'<name>(.*?)</name>', xml_string, re.DOTALL)
                 if name_match: rule_name = name_match.group(1).strip()
-
+    pass
                 desc_match = re.search(r'<description>(.*?)</description>', xml_string, re.DOTALL)
                 if desc_match: description = desc_match.group(1).strip()
-
+    pass
                 mitre_match = re.search(r'<mitreTactic>(.*?)</mitreTactic>', xml_string)
                 if mitre_match: mitre_tactic = mitre_match.group(1)
-
+    pass
                 inc_match = re.search(r'incidentId="(.*?)"', xml_string)
                 if inc_match: incident_id = inc_match.group(1)
-
+    pass
                 # Fallback Regex IP
                 source_ip = "N/A"
                 ip_match = re.search(r'src="?([\d\.]+)"?|srcip="?([\d\.]+)"?', xml_string)
