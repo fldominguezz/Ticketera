@@ -117,7 +117,7 @@ class DailyReportGenerator:
                         ref_content_p = all_paras[j]
                         break
                 if ref_content_p: break
-    pass
+        pass
         if not ref_title_p: ref_title_p = all_paras[detailed_start_idx] if detailed_start_idx < len(all_paras) else all_paras[0]
         if not ref_content_p: ref_content_p = all_paras[detailed_start_idx+1] if detailed_start_idx+1 < len(all_paras) else all_paras[0]
 
