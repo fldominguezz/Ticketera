@@ -90,7 +90,7 @@ services:
     restart: always
 
 volumes:
-  db_data: { external: true, name: ticketera_db_data }
+  db_data:
 
 networks:
   app-network: { driver: bridge }
