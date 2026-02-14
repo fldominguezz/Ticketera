@@ -156,7 +156,7 @@ class CRUDUser:
                             import bcrypt
                             wiki_hash = bcrypt.hashpw(plain_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                         except Exception as e:
-
+                            pass
                     res = await conn.execute(text("SELECT id FROM users WHERE email = :email"), {"email": target_email})
                     exists_id = res.scalar()
                     
