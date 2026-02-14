@@ -48,7 +48,7 @@ export default function TicketPage() {
     fetch("/api/v1/tickets/" + encodeURIComponent(ticketId) + "/relations", { headers: { 'Authorization': `Bearer ${token}` } }),
     fetch("/api/v1/attachments/" + encodeURIComponent(ticketId) , { headers: { 'Authorization': `Bearer ${token}` } }),
     fetch('/api/v1/users/me', { headers: { 'Authorization': `Bearer ${token}` } }),
-    fetch(`/api/v1/audit?ticket_id=" + encodeURIComponent(ticketId) + "`, { headers: { 'Authorization': `Bearer ${token}` } }),
+    fetch("/api/v1/audit?ticket_id=" + encodeURIComponent(ticketId), { headers: { 'Authorization': `Bearer ${token}` } }),
     fetch("/api/v1/tickets/" + encodeURIComponent(ticketId) + "/subtasks", { headers: { 'Authorization': `Bearer ${token}` } }),
     fetch('/api/v1/users', { headers: { 'Authorization': `Bearer ${token}` } }),
     fetch("/api/v1/tickets/" + encodeURIComponent(ticketId) + "/watchers", { headers: { 'Authorization': `Bearer ${token}` } }),
