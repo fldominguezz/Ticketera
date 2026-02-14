@@ -43,15 +43,15 @@ export default function TicketPage() {
   try {
    setLoading(true);
    const [ticketRes, commentsRes, relationsRes, attachmentsRes, userRes, auditRes, subtasksRes, usersRes, watchersRes, groupsRes] = await Promise.all([
-    fetch(`/api/v1/tickets/${ticketId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
-    fetch(`/api/v1/tickets/${ticketId}/comments`, { headers: { 'Authorization': `Bearer ${token}` } }),
-    fetch(`/api/v1/tickets/${ticketId}/relations`, { headers: { 'Authorization': `Bearer ${token}` } }),
-    fetch(`/api/v1/attachments/${ticketId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
+    fetch("/api/v1/tickets/" + encodeURIComponent(ticketId) , { headers: { 'Authorization': `Bearer ${token}` } }),
+    fetch("/api/v1/tickets/" + encodeURIComponent(ticketId) + "/comments", { headers: { 'Authorization': `Bearer ${token}` } }),
+    fetch("/api/v1/tickets/" + encodeURIComponent(ticketId) + "/relations", { headers: { 'Authorization': `Bearer ${token}` } }),
+    fetch("/api/v1/attachments/" + encodeURIComponent(ticketId) , { headers: { 'Authorization': `Bearer ${token}` } }),
     fetch('/api/v1/users/me', { headers: { 'Authorization': `Bearer ${token}` } }),
-    fetch(`/api/v1/audit?ticket_id=${ticketId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
-    fetch(`/api/v1/tickets/${ticketId}/subtasks`, { headers: { 'Authorization': `Bearer ${token}` } }),
+    fetch(`/api/v1/audit?ticket_id=" + encodeURIComponent(ticketId) + "`, { headers: { 'Authorization': `Bearer ${token}` } }),
+    fetch("/api/v1/tickets/" + encodeURIComponent(ticketId) + "/subtasks", { headers: { 'Authorization': `Bearer ${token}` } }),
     fetch('/api/v1/users', { headers: { 'Authorization': `Bearer ${token}` } }),
-    fetch(`/api/v1/tickets/${ticketId}/watchers`, { headers: { 'Authorization': `Bearer ${token}` } }),
+    fetch("/api/v1/tickets/" + encodeURIComponent(ticketId) + "/watchers", { headers: { 'Authorization': `Bearer ${token}` } }),
     fetch('/api/v1/groups', { headers: { 'Authorization': `Bearer ${token}` } })
    ]);
 
