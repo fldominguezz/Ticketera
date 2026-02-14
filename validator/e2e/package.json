@@ -14,8 +14,7 @@
   },
   "overrides": {
     "lodash": "^4.17.21",
-    "glob": "^11.0.0",
-    "cross-spawn": "^7.0.6"
+    "glob": "^10.3.10"
   },
   "dependencies": {
     "glob": "^11.0.1",
