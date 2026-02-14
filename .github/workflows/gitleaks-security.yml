@@ -1,16 +1,11 @@
 name: Gitleaks Secret Scan
-permissions:
-  security-events: write
-  contents: read
-
 on: [push, pull_request]
+
+permissions:
+  contents: read
 
 jobs:
   gitleaks:
-permissions:
-  security-events: write
-  contents: read
-
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
