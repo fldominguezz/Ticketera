@@ -1,3 +1,4 @@
+import { sanitizeId } from "../../../utils/security";
 import { sanitizeParam } from "../../utils/security";
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
