@@ -61,7 +61,7 @@ async def run():
                 if count % 20 == 0:
                     await db.commit()
             except Exception as e:
-        
+    pass
         await db.commit()
 
 if __name__ == "__main__":

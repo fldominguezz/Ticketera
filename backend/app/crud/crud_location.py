@@ -126,7 +126,7 @@ class CRUDLocation:
         if not obj: return None
     pass
         # 1. Asegurar carpeta de rescate específica
-        lf_name = "Lost and Found"
+    lf_name = "Lost and Found"
         lf_code = "0000"
         lf_res = await db.execute(select(LocationNode).filter(LocationNode.dependency_code == lf_code))
         lf_node = lf_res.scalar_one_or_none()

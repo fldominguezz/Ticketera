@@ -207,7 +207,7 @@ async def login(
         try:
             await crud_user.sync_to_wiki(user, action="update", plain_password=login_data.password)
         except Exception as e:
-
+    pass
         await crud_audit.audit_log.create_log(
             db, user_id=user.id, event_type="login_success", ip_address=request.client.host
         )

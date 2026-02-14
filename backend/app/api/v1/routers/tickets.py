@@ -43,7 +43,7 @@ def index_ticket_task(ticket: TicketModel):
         }
         search_service.index_ticket(data)
     except Exception as e:
-
+    pass
 @router.get("/search", response_model=dict)
 async def search_tickets_endpoint(
     current_user: Annotated[User, Depends(get_current_active_user)],
@@ -330,7 +330,7 @@ async def create_ticket(
             db.add(asset_event)
             await db.commit()
     except Exception as e:
-    
+    pass
     # Return the created ticket using the correct CRUD call to avoid TypeError
     return await crud_ticket.ticket.get(db, id=ticket.id, current_user=current_user, permission_key="read")
 
