@@ -1,3 +1,4 @@
+import ldap.filter
 import ldap
 import os
 import logging

@@ -1,3 +1,5 @@
 nginx/ssl/nginx.key
-/nginx/ssl/nginx.key
 **/nginx.key
+GHSA-v3m3-f69x-jf25
+CVE-2024-33663
+CVE-2024-33664

@@ -204,8 +204,8 @@ async def login(
         # Enviar el Token y configurar las cookies para la Wiki
         from fastapi.responses import JSONResponse
         response = JSONResponse(content=Token(access_token=access_token, token_type="bearer").model_dump())
-        response.set_cookie(key="wiki_user", value=user.email, path="/", secure=True, samesite="lax")
-        response.set_cookie(key="wiki_p", value=login_data.password, path="/", secure=True, samesite="lax")
+        response.set_cookie(key="wiki_user", value=user.email, path="/", secure=True, httponly=True, secure=True, samesite="strict")
+        response.set_cookie(key="wiki_p", value=login_data.password, path="/", secure=True, httponly=True, secure=True, samesite="strict")
         return response
 from pydantic import BaseModel, Field
 class ResetPasswordRequest(BaseModel):

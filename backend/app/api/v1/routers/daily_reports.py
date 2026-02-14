@@ -300,6 +300,7 @@ async def upload_group_template(
     current_user: User = Depends(require_permission("admin:settings:manage"))
 ):
     os.makedirs(TEMPLATE_DIR, exist_ok=True)
+    if ".." in report_name or "/" in report_name: raise HTTPException(400, "Path invalido")
     path = os.path.join(TEMPLATE_DIR, f"template_{str(group_id)}.docx")
     with open(path, "wb") as buffer: shutil.copyfileobj(file.file, buffer)
     from app.db.session import AsyncSessionLocal
