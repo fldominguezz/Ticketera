@@ -1,3 +1,4 @@
+from app.utils.security import safe_join, sanitize_filename
 from typing import Annotated, List
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
@@ -22,7 +23,7 @@ async def upload_temp_attachment(
     file: UploadFile = File(...),
 ):
     file_id = uuid.uuid4()
-    file_path = os.path.join(UPLOAD_DIR, f"temp_{file_id}_{file.filename}")
+    file_path = safe_join(UPLOAD_DIR, f"temp_{file_id}_{sanitize_filename(file.filename)}")
     
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
@@ -49,7 +50,7 @@ async def upload_attachment(
     file: UploadFile = File(...),
 ):
     file_id = uuid.uuid4()
-    file_path = os.path.join(UPLOAD_DIR, f"{file_id}_{file.filename}")
+    file_path = safe_join(UPLOAD_DIR, f"{file_id}_{sanitize_filename(file.filename)}")
     
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)

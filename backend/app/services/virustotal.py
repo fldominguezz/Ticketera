@@ -1,3 +1,4 @@
+from app.utils.security import validate_external_url
 import requests
 import base64
 import time
@@ -27,6 +28,7 @@ class VirusTotalService:
 
         endpoint = f"{self.BASE_URL}/urls/{url_id}"
         try:
+            validate_external_url(endpoint)
             response = requests.get(endpoint, headers=self.headers, timeout=5)
             if response.status_code == 200:
                 data = response.json().get("data", {}).get("attributes", {})
@@ -54,6 +56,7 @@ class VirusTotalService:
 
         endpoint = f"{self.BASE_URL}/files/{file_hash}"
         try:
+            validate_external_url(endpoint)
             response = requests.get(endpoint, headers=self.headers, timeout=5)
             if response.status_code == 200:
                 data = response.json().get("data", {}).get("attributes", {})

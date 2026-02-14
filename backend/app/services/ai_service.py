@@ -1,3 +1,4 @@
+from app.utils.security import validate_external_url
 import logging
 import os
 import requests
@@ -44,6 +45,7 @@ class AIService:
         
         try:
             logger.info(f"AI REQUEST: Sending to {self.model} at {url}")
+            validate_external_url(url)
             response = requests.post(url, json=payload, timeout=120.0)
             response.raise_for_status()
             data = response.json()

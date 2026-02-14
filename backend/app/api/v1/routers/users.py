@@ -1,3 +1,4 @@
+from app.utils.security import safe_join, sanitize_filename
 from typing import Annotated, List, Any
 import string
 from uuid import UUID
@@ -49,7 +50,7 @@ async def update_user_avatar(
         os.makedirs(upload_dir, exist_ok=True)
         
     filename = f"{current_user.id}{ext}"
-    file_path = os.path.join(upload_dir, filename)
+    file_path = safe_join(upload_dir, sanitize_filename(filename))
     
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
