@@ -1,5 +1,5 @@
 from app.utils.security import validate_external_url
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import re
 import requests
 import json
@@ -13,7 +13,6 @@ class ExpertAnalysisService:
         self.ollama_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
         self.model = os.getenv("OLLAMA_MODEL", "llama3.2") 
         
-        # Heurística de respaldo (KB local)
         self.kb = {
             "actions": {
                 "alert": "Modo OBSERVACIÓN: Tráfico detectado pero NO bloqueado.",
@@ -25,8 +24,7 @@ class ExpertAnalysisService:
             }
         }
 
-    def _call_ollama(self, raw_log: str) -> Dict[str, str]:
-        # Detección preventiva de ruido
+    def _call_ollama(self, raw_log: str) -> Optional[Dict[str, str]]:
         log_clean = raw_log.strip().lower()
         if len(log_clean) < 10 or log_clean in ["test", "test test", "prueba", "ping"]:
             return {
@@ -46,14 +44,14 @@ class ExpertAnalysisService:
         FORMAT RULES:
         - Response MUST be a JSON object with keys "summary" and "recommendation".
         - Language: SPANISH.
-        - Be precise. If it's a web violation (blocked URL), mention the source IP and the target domain.
-        - If it's a FortiGate log, extract 'srcip', 'dstip', 'hostname' and 'msg'.
         """
         
         try:
-            validate_external_url(url)
+            target_url = f"{self.ollama_url}/api/generate"
+            validate_external_url(target_url)
+            
             res = requests.post(
-                f"{self.ollama_url}/api/generate",
+                target_url,
                 json={
                     "model": self.model,
                     "prompt": prompt,
@@ -92,19 +90,21 @@ class ExpertAnalysisService:
         summary_parts = []
         recs = ["1. Investigar manualmente los detalles en el Raw Log."]
 
-        # Detección de IPs y Dominios (Básica)
         src_match = re.search(r'srcip="?([\d\.]+)"?', raw_lower)
         dst_match = re.search(r'dstip="?([\d\.]+)"?', raw_lower)
         host_match = re.search(r'hostname="?([^"\s]+)"?', raw_lower)
         msg_match = re.search(r'msg="?([^"]+)"?', raw_lower)
 
-        if src_match: summary_parts.append(f"Origen: {src_match.group(1)}.")
-        if host_match: summary_parts.append(f"Objetivo: {host_match.group(1)}.")
-        elif dst_match: summary_parts.append(f"IP Destino: {dst_match.group(1)}.")
+        if src_match:
+            summary_parts.append(f"Origen: {src_match.group(1)}.")
+        if host_match:
+            summary_parts.append(f"Objetivo: {host_match.group(1)}.")
+        elif dst_match:
+            summary_parts.append(f"IP Destino: {dst_match.group(1)}.")
         
-        if msg_match: summary_parts.append(f"Motivo: {msg_match.group(1)}.")
-    pass
-        # Acciones del Firewall
+        if msg_match:
+            summary_parts.append(f"Motivo: {msg_match.group(1)}.")
+
         for act, desc in self.kb["actions"].items():
             if f'action="{act}"' in raw_lower or f'action={act}' in raw_lower:
                 summary_parts.append(desc)
@@ -126,12 +126,10 @@ class ExpertAnalysisService:
         if not raw_log:
             return {"summary": "Sin datos.", "recommendation": "N/A"}
 
-        # 1. Intentar IA (Ollama)
         ai_result = self._call_ollama(raw_log)
         if ai_result:
             return ai_result
 
-        # 2. Fallback a Heurística
         return self._heuristic_analysis(raw_log)
 
 expert_analysis_service = ExpertAnalysisService()
