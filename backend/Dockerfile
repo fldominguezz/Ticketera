@@ -37,7 +37,7 @@ ENV PYTHONPATH=/app
 
 COPY alembic.ini .
 COPY alembic alembic
-COPY scripts/ /app/scripts/
+# COPY scripts/ /app/scripts/
 COPY . .
 
 COPY entrypoint.sh /app/entrypoint.sh
