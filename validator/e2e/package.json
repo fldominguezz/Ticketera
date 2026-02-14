@@ -11,5 +11,9 @@
   "license": "ISC",
   "devDependencies": {
     "@playwright/test": "1.49.1"
+  },
+  "overrides": {
+    "lodash": "4.17.21",
+    "next": "14.2.15"
   }
 }

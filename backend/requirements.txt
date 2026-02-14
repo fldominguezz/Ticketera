@@ -8,9 +8,9 @@ pydantic-settings==2.1.0
 slowapi==0.1.9
 passlib[bcrypt,argon2]==1.7.4
 argon2-cffi==23.1.0
-python-jose[cryptography]==3.3.0
+python-jose[cryptography]==3.3.4
 pyotp==2.9.0
-python-multipart==0.0.12
+python-multipart==0.0.19
 emails==0.6
 redis==5.0.1
 tenacity==8.2.3
@@ -37,7 +37,7 @@ python-ldap==3.4.4
 
 # 1. IA / Analista Virtual
 langchain==0.1.9
-langchain-community==0.0.38
+langchain-community==0.2.10
 httpx==0.27.0
 psutil==5.9.5
 pytest
