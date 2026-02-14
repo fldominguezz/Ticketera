@@ -10,7 +10,7 @@ passlib[bcrypt,argon2]==1.7.4
 argon2-cffi==23.1.0
 python-jose[cryptography]==3.3.4
 pyotp==2.9.0
-python-multipart==0.0.20
+python-multipart==0.0.22
 emails==0.6
 redis==5.0.1
 tenacity==8.2.3
@@ -33,11 +33,11 @@ sentry-sdk==2.10.0
 meilisearch==0.31.0
 
 # 3. LDAP / Active Directory
-python-ldap==3.4.4
+python-ldap==3.4.5
 
 # 1. IA / Analista Virtual
 langchain==0.3.7
-langchain-community==0.3.7
+langchain-community==0.3.27
 httpx==0.27.0
 psutil==5.9.5
 pytest
