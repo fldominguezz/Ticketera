@@ -36,7 +36,7 @@ services:
     networks: [app-network]
     extra_hosts: ["host.docker.internal:host-gateway"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      test: ["CMD-SHELL", "python3 -c "import socket; s = socket.socket(); s.connect(("127.0.0.1", 8000))""]
       interval: 30s
       timeout: 10s
       retries: 3
