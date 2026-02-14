@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 const FormDetail = () => {
   const router = useRouter();
   const { id } = router.query;
+  const safeId = String(id).replace(/[^a-zA-Z0-9-]/g, "");
   const [form, setForm] = useState(null);
 
   useEffect(() => {
@@ -12,7 +13,7 @@ const FormDetail = () => {
 
     const fetchForm = async () => {
       try {
-        const response = await fetch("/api/v1/forms/" + id);
+        const response = await fetch("/api/v1/forms/" + safeId);
         if (response.ok) {
           const data = await response.json();
           setForm(data);

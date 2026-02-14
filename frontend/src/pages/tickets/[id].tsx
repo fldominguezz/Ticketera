@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 const TicketDetail = () => {
   const router = useRouter();
   const { id } = router.query;
+  const safeId = String(id).replace(/[^a-zA-Z0-9-]/g, "");
   const [ticket, setTicket] = useState(null);
 
   useEffect(() => {
@@ -15,7 +16,7 @@ const TicketDetail = () => {
     const fetchTicket = async () => {
       try {
         // Concatenacion segura con prefijo estatico duro
-        const response = await fetch("/api/v1/tickets/" + id);
+        const response = await fetch("/api/v1/tickets/" + safeId);
         if (response.ok) {
           const data = await response.json();
           setTicket(data);

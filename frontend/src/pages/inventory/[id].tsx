@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 const InventoryDetail = () => {
   const router = useRouter();
   const { id } = router.query;
+  const safeId = String(id).replace(/[^a-zA-Z0-9-]/g, "");
   const [item, setItem] = useState(null);
 
   useEffect(() => {
@@ -12,7 +13,7 @@ const InventoryDetail = () => {
 
     const fetchItem = async () => {
       try {
-        const response = await fetch("/api/v1/inventory/" + id);
+        const response = await fetch("/api/v1/inventory/" + safeId);
         if (response.ok) {
           const data = await response.json();
           setItem(data);

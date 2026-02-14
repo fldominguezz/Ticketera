@@ -11,6 +11,7 @@ import api from '../../../../lib/api';
 export default function FormBuilder() {
   const router = useRouter();
   const { id } = router.query;
+  const safeId = String(id).replace(/[^a-zA-Z0-9-]/g, "");
   if (!id || typeof id !== "string" || !/^[a-zA-Z0-9-]+$/.test(id)) return null;
   const { theme } = useTheme();
   
