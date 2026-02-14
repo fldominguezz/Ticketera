@@ -1,3 +1,4 @@
+import { sanitizeParam } from "../../utils/security";
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
@@ -99,7 +100,7 @@ export default function TicketPage() {
  const handleAddComment = async (content: string, isInternal: boolean) => {
   const token = localStorage.getItem('access_token');
   try {
-   const res = await fetch(`/api/v1/tickets/${id}/comments`, {
+   const res = await fetch(`/api/v1/tickets/${(id)}/comments`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ content, is_internal: isInternal })
@@ -121,7 +122,7 @@ export default function TicketPage() {
   const formData = new FormData();
   formData.append('file', file);
   try {
-   const res = await fetch(`/api/v1/attachments/${id}`, {
+   const res = await fetch(`/api/v1/attachments/${(id)}`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}` },
     body: formData
@@ -139,7 +140,7 @@ export default function TicketPage() {
   if (!confirm('¿Está seguro de que desea eliminar este ticket de forma permanente?')) return;
   const token = localStorage.getItem('access_token');
   try {
-   const res = await fetch(`/api/v1/tickets/${id}`, {
+   const res = await fetch(`/api/v1/tickets/${(id)}`, {
     method: 'DELETE',
     headers: { 'Authorization': `Bearer ${token}` }
    });
@@ -187,7 +188,7 @@ export default function TicketPage() {
  const handleAddSubtask = async (title: string) => {
   const token = localStorage.getItem('access_token');
   try {
-   const res = await fetch(`/api/v1/tickets/${id}/subtasks`, {
+   const res = await fetch(`/api/v1/tickets/${(id)}/subtasks`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ title, is_completed: false })
@@ -219,13 +220,13 @@ export default function TicketPage() {
   const method = isWatching ? 'DELETE' : 'POST';
   
   try {
-   const res = await fetch(`/api/v1/tickets/${id}/watchers`, {
+   const res = await fetch(`/api/v1/tickets/${(id)}/watchers`, {
     method: method,
     headers: { 'Authorization': `Bearer ${token}` }
    });
    if (res.ok) {
     // Refresh watchers
-    const watchersRes = await fetch(`/api/v1/tickets/${id}/watchers`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const watchersRes = await fetch(`/api/v1/tickets/${(id)}/watchers`, { headers: { 'Authorization': `Bearer ${token}` } });
     if (watchersRes.ok) setWatchers(await watchersRes.json());
    }
   } catch (e) { console.error(e); }
@@ -234,7 +235,7 @@ export default function TicketPage() {
  const handleUpdateTicket = async (data: any) => {
   const token = localStorage.getItem('access_token');
   try {
-   const res = await fetch(`/api/v1/tickets/${id}`, {
+   const res = await fetch(`/api/v1/tickets/${(id)}`, {
     method: 'PUT',
     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(data)

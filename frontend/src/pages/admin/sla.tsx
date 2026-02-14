@@ -48,7 +48,7 @@ export default function SLAManagementPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('¿Está seguro de eliminar esta política de SLA?')) return;
     try {
-      await api.delete(`/admin/sla/${id}`);
+      await api.delete(`/admin/sla/${(id)}`);
       fetchPolicies();
     } catch (e) { alert('Error al eliminar'); }
   };

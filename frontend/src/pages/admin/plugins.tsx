@@ -39,7 +39,7 @@ export default function PluginsAdminPage() {
  const togglePlugin = async (id: string, currentStatus: boolean) => {
   const token = localStorage.getItem('access_token');
   try {
-   const res = await fetch(`/api/v1/plugins/${id}`, {
+   const res = await fetch(`/api/v1/plugins/${(id)}`, {
     method: 'PATCH',
     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ is_active: !currentStatus })

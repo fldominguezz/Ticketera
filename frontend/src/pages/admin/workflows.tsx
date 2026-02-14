@@ -45,7 +45,7 @@ export default function AdminWorkflowsPage() {
 
  const handleDeleteTransition = async (id: string) => {
   if (!confirm('¿Eliminar esta regla de flujo?')) return;
-  await api.delete(`/admin/workflows/transitions/${id}`);
+  await api.delete(`/admin/workflows/transitions/${(id)}`);
   fetchData();
  };
 

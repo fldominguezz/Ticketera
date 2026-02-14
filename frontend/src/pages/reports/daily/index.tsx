@@ -170,7 +170,7 @@ export default function DailyReportsList() {
 
  const handleDownload = async (id: string, date: string, shift: string) => {
   try {
-   const response = await api.get(`/reports/daily/${id}/download`, { responseType: 'blob' });
+   const response = await api.get(`/reports/daily/${(id)}/download`, { responseType: 'blob' });
    const url = window.URL.createObjectURL(new Blob([response.data]));
    const link = document.createElement('a');
    link.href = url;

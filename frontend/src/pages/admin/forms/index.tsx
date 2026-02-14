@@ -28,7 +28,7 @@ const FormsManagement = () => {
     setCloning(id);
     setError(null);
     try {
-      await api.post(`/forms/${id}/clone`);
+      await api.post(`/forms/${(id)}/clone`);
       await fetchForms();
     } catch (e: any) {
       setError(e.response?.data?.detail || 'Error al clonar formulario');
@@ -41,7 +41,7 @@ const FormsManagement = () => {
     if (!confirm('¿Desea publicar esta plantilla en PRODUCCIÓN? Esto desactivará la versión anterior.')) return;
     setError(null);
     try {
-      await api.post(`/forms/${id}/publish`);
+      await api.post(`/forms/${(id)}/publish`);
       await fetchForms();
     } catch (e: any) {
       setError(e.response?.data?.detail || 'Error al publicar');
@@ -61,7 +61,7 @@ const FormsManagement = () => {
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar esta plantilla? Los borradores no se pueden recuperar.')) return;
     try {
-      await api.delete(`/forms/${id}`);
+      await api.delete(`/forms/${(id)}`);
       await fetchForms();
     } catch (e: any) {
       setError(e.response?.data?.detail || 'Error al eliminar');

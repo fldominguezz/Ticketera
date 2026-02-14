@@ -108,7 +108,7 @@ export default function PermissionsRegistryPage() {
  const handleDelete = async (id: string) => {
   if (!window.confirm('¿Eliminar este permiso? Esto puede afectar a los roles que lo utilizan.')) return;
   try {
-   await api.delete(`/permissions/${id}`);
+   await api.delete(`/permissions/${(id)}`);
    fetchPermissions();
   } catch (err) {
    alert('Error al eliminar');

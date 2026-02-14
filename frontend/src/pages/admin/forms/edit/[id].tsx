@@ -1,3 +1,4 @@
+import { sanitizeParam } from "../../utils/security";
 import React, { useState, useEffect } from 'react';
 import Layout from '../../../../components/Layout';
 import { Card, Row, Col, Form, Button, Badge, Spinner } from 'react-bootstrap';
@@ -31,7 +32,7 @@ export default function FormBuilder() {
 
   const fetchForm = async () => {
     try {
-      const res = await api.get(encodeURI(`/forms/${id}`));
+      const res = await api.get(encodeURI(`/forms/${(id)}`));
       setFormName(res.data.name);
       setCategory(res.data.category || 'general');
       setAutomationRules(res.data.automation_rules || { type: 'none' });
@@ -73,7 +74,7 @@ export default function FormBuilder() {
       if (id === 'new') {
         await api.post('/admin/forms', payload);
       } else {
-        await api.patch(`/forms/${id}`, payload);
+        await api.patch(`/forms/${(id)}`, payload);
       }
       router.push('/admin/forms');
     } catch (e) {

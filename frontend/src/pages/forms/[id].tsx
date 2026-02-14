@@ -1,3 +1,4 @@
+import { sanitizeParam } from "../../utils/security";
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
@@ -45,7 +46,7 @@ export default function FormRenderPage() {
   setSubmitting(true);
   const token = localStorage.getItem('access_token');
   try {
-   const res = await fetch(`/api/v1/forms/${id}/submit`, {
+   const res = await fetch(`/api/v1/forms/${(id)}/submit`, {
     method: 'POST',
     headers: {
      'Authorization': `Bearer ${token}`,

@@ -1,3 +1,4 @@
+import { sanitizeParam } from "../../utils/security";
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../../components/Layout';
@@ -22,7 +23,7 @@ const Endpoint360 = () => {
       const headers = { 'Authorization': `Bearer ${token}` };
       
       const [epRes, tRes] = await Promise.all([
-        axios.get(`/api/v1/endpoints/${id}`, { headers }),
+        axios.get(`/api/v1/endpoints/${(id)}`, { headers }),
         axios.get('/api/v1/tickets', { headers }) // En prod filtrar por endpoint_id en backend
       ]);
       

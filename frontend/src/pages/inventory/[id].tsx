@@ -1,3 +1,4 @@
+import { sanitizeParam } from "../../utils/security";
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
@@ -34,7 +35,7 @@ const AssetDetailPage = () => {
   setSavingGde(true);
   try {
     const token = localStorage.getItem('access_token');
-    const res = await fetch(`/api/v1/assets/${id}/expedientes`, {
+    const res = await fetch(`/api/v1/assets/${(id)}/expedientes`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ number: gdeNumber, title: gdeTitle || 'Vinculación Manual' })
@@ -52,7 +53,7 @@ const AssetDetailPage = () => {
   setLoadingTickets(true);
   try {
    const token = localStorage.getItem('access_token');
-   const res = await fetch(`/api/v1/tickets?asset_id=${id}`, {
+   const res = await fetch(`/api/v1/tickets?asset_id=${(id)}`, {
     headers: { 'Authorization': `Bearer ${token}` }
    });
    if (res.ok) {
@@ -70,7 +71,7 @@ const AssetDetailPage = () => {
  const fetchAssetDetails = async () => {
   try {
    const token = localStorage.getItem('access_token');
-   const res = await fetch(`/api/v1/assets/${id}`, {
+   const res = await fetch(`/api/v1/assets/${(id)}`, {
     headers: { 'Authorization': `Bearer ${token}` }
    });
    if (!res.ok) throw new Error('Equipo no encontrado');
