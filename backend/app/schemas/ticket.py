@@ -161,7 +161,7 @@ class Ticket(TicketInDBBase):
             has_attachments = len(attachments) > 0 if attachments else False
             
             if has_attachments:
-
+                pass
             return {
                 "id": data.id,
                 "title": data.title,
