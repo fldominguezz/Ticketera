@@ -1,14 +1,26 @@
 name: Bandit Security Scan
+permissions:
+  security-events: write
+  contents: read
+
 on: [push, pull_request]
 
 jobs:
   bandit:
+permissions:
+  security-events: write
+  contents: read
+
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
+permissions:
+  security-events: write
+  contents: read
+
           python-version: "3.12"
       - name: Install Bandit
         run: pip install bandit

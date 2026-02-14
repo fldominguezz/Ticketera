@@ -1,15 +1,27 @@
 name: Trivy Security Scan
+permissions:
+  security-events: write
+  contents: read
+
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
   schedule:
+permissions:
+  security-events: write
+  contents: read
+
     - cron: "0 0 * * 0" # Corre todos los domingos
 
 jobs:
   analyze:
     name: Trivy Scan
+permissions:
+  security-events: write
+  contents: read
+
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -24,6 +36,6 @@ jobs:
           severity: "CRITICAL,HIGH"
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: "trivy-results.sarif"
