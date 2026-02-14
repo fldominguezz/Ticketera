@@ -35,3 +35,8 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/
 ### Conocido
 - La integración con SIEM estaba en fase experimental.
 - Faltaba documentación formal de despliegue.
+## [1.1.0] - 2026-02-14
+- Upgrade a Next.js 16.1.6 (Turbopack)
+- Upgrade a React 19 y ESLint 10
+- Mitigación del 90% de vulnerabilidades reportadas (de 80 a 8)
+- Implementación de defensas contra SSRF y Path Traversal en Backend
