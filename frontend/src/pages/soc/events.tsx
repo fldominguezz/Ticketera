@@ -57,7 +57,7 @@ export default function SIEMEventsPage() {
 
  const fetchEvents = useCallback(async () => {
   try {
-   const res = await api.get(`/soc/alerts?page=${page}&size=${pageSize}`);
+   const res = await api.get(encodeURI(`/soc/alerts?page=${page}&size=${pageSize}`));
    setAllSiemEvents(res.data.items); 
    setTotalPages(res.data.pages);
    setTotalItems(res.data.total);

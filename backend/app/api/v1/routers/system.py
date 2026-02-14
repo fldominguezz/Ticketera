@@ -1,3 +1,4 @@
+from app.utils.security import safe_join, sanitize_filename
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
 import psutil
@@ -56,7 +57,7 @@ async def create_backup(
         
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"backup_{timestamp}.sql"
-    filepath = os.path.join(BACKUP_DIR, filename)
+    filepath = safe_join(BACKUP_DIR, sanitize_filename(filename))
     
     db_user = os.getenv("POSTGRES_USER", "postgres")
     db_name = os.getenv("POSTGRES_DB", "ticketera")
@@ -88,7 +89,7 @@ async def list_backups(
     backups = []
     for f in os.listdir(BACKUP_DIR):
         if f.endswith(".sql"):
-            path = os.path.join(BACKUP_DIR, f)
+            path = safe_join(BACKUP_DIR, sanitize_filename(f))
             stats = os.stat(path)
             backups.append({
                 "filename": f,
@@ -103,7 +104,7 @@ async def download_backup(
     filename: str,
     current_user: Annotated[Any, Depends(require_role(['owner', 'admin']))]
 ):
-    filepath = os.path.join(BACKUP_DIR, filename)
+    filepath = safe_join(BACKUP_DIR, sanitize_filename(filename))
     if not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail="Backup file not found")
     
@@ -114,7 +115,7 @@ async def delete_backup(
     filename: str,
     current_user: Annotated[Any, Depends(require_role(['owner', 'admin']))]
 ):
-    filepath = os.path.join(BACKUP_DIR, filename)
+    filepath = safe_join(BACKUP_DIR, sanitize_filename(filename))
     if not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail="Backup file not found")
     

@@ -50,7 +50,7 @@ def validate_external_url(url: str):
             )
     except (socket.gaierror, ValueError):
         # Si no se puede resolver la IP pero es un dominio legitimo de integracion (ej: virustotal), permitir
-        if "virustotal.com" in hostname:
+        if hostname == "virustotal.com" or hostname.endswith(".virustotal.com"):
             return True
         raise HTTPException(status_code=400, detail="No se pudo verificar la seguridad del destino")
     return True

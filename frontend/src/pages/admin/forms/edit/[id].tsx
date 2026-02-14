@@ -31,7 +31,7 @@ export default function FormBuilder() {
 
   const fetchForm = async () => {
     try {
-      const res = await api.get(`/forms/${id}`);
+      const res = await api.get(encodeURI(`/forms/${id}`));
       setFormName(res.data.name);
       setCategory(res.data.category || 'general');
       setAutomationRules(res.data.automation_rules || { type: 'none' });
