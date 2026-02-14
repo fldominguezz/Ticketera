@@ -41,7 +41,7 @@ async def test_asset_detail_integrity():
             data = res.json()
             assert "hostname" in data, "Integridad fallida: Falta hostname"
             assert "mac_address" in data, "Integridad fallida: Falta mac_address"
-        else:
+        else: pass
 
 @pytest.mark.asyncio
 async def test_orphan_endpoints_check():

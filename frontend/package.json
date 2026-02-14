@@ -43,7 +43,6 @@
   },
   "overrides": {
     "glob": "11.0.1",
-    "lodash": "4.17.21",
     "quill": "2.0.2",
     "rimraf": "5.0.5"
   }
