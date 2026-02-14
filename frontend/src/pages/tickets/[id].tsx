@@ -1,3 +1,4 @@
+import api from "../../../lib/api";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
@@ -16,7 +17,7 @@ const TicketDetail = () => {
     const fetchTicket = async () => {
       try {
         // Concatenacion segura con prefijo estatico duro
-        const response = await fetch("/api/v1/tickets/" + safeId);
+        const response = await api.getById(String(id));
         if (response.ok) {
           const data = await response.json();
           setTicket(data);

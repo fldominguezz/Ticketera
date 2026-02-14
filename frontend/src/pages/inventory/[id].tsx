@@ -1,3 +1,4 @@
+import api from "../../../lib/api";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
@@ -13,7 +14,7 @@ const InventoryDetail = () => {
 
     const fetchItem = async () => {
       try {
-        const response = await fetch("/api/v1/inventory/" + safeId);
+        const response = await api.getById(String(id));
         if (response.ok) {
           const data = await response.json();
           setItem(data);
