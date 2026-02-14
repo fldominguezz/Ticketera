@@ -1,5 +1,5 @@
 # Etapa 1: Dependencias
-FROM node:20-alpine AS deps
+FROM node:20-alpine
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
@@ -8,10 +8,10 @@ COPY package.json ./
 ENV CYPRESS_INSTALL_BINARY=0
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-RUN npm install --no-audit
+RUN npm install --legacy-peer-deps --no-audit
 
 # Etapa 2: Builder
-FROM node:20-alpine AS builder
+FROM node:20-alpine
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -22,7 +22,7 @@ ENV NEXT_TELEMETRY_DISABLED 1
 RUN npm run build
 
 # Etapa 3: Runner (Producción)
-FROM node:20-alpine AS runner
+FROM node:20-alpine
 WORKDIR /app
 
 RUN apk add --no-cache curl
