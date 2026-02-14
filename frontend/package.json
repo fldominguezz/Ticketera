@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@hello-pangea/dnd": "16.5.0",
-    "axios": "^1.13.5",
+    "axios": "1.7.4",
     "bootstrap": "5.3.2",
     "clsx": "2.1.0",
     "i18next": "23.8.2",
@@ -43,14 +43,12 @@
   "overrides": {
     "lodash": "4.17.21",
     "glob": "11.0.1",
-    "axios": "1.7.4",
     "quill": "2.0.2",
     "next": "14.2.15"
   },
   "resolutions": {
     "lodash": "4.17.21",
     "glob": "11.0.1",
-    "axios": "1.7.4",
     "quill": "2.0.2",
     "next": "14.2.15"
   }
