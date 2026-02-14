@@ -39,5 +39,19 @@
     "eslint-config-next": "14.2.15",
     "prettier": "3.2.5",
     "typescript": "5.3.3"
+  },
+  "overrides": {
+    "lodash": "4.17.21",
+    "glob": "11.0.1",
+    "axios": "1.7.4",
+    "quill": "2.0.2",
+    "next": "14.2.15"
+  },
+  "resolutions": {
+    "lodash": "4.17.21",
+    "glob": "11.0.1",
+    "axios": "1.7.4",
+    "quill": "2.0.2",
+    "next": "14.2.15"
   }
 }
