@@ -36,10 +36,10 @@ services:
     networks: [app-network]
     extra_hosts: ["host.docker.internal:host-gateway"]
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c "import socket; s = socket.socket(); s.connect(("127.0.0.1", 8000))""]
+      test: ["CMD", "python3", "healthcheck.py"]
       interval: 30s
-      timeout: 10s
-      retries: 3
+      timeout: 5s
+      retries: 5
 
   frontend:
     container_name: ticketera-frontend
@@ -57,6 +57,11 @@ services:
     depends_on: [backend, frontend, docmost]
     volumes: [./uploads:/app/uploads, ./nginx/conf.d:/etc/nginx/conf.d]
     networks: [app-network]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   docmost:
     container_name: ticketera-docmost
