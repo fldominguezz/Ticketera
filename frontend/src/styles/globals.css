@@ -1,3 +1,4 @@
+@import './soc-theme.css';
 :root {
   /* --- LIGHT MODE --- */
   --bg-app: #f1f5f9;

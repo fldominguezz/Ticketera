@@ -1,0 +1,85 @@
+:root {
+  --soc-bg: #0a0e17;
+  --soc-card-bg: rgba(22, 28, 45, 0.7);
+  --soc-border: rgba(255, 255, 255, 0.1);
+  --soc-accent: #00d2ff;
+  --soc-critical: #ff4b5c;
+  --soc-high: #ff9f43;
+  --soc-medium: #feca57;
+  --soc-low: #1dd1a1;
+  --soc-text: #e1e8ed;
+  --soc-text-muted: #8899a6;
+  --glass-blur: blur(12px);
+}
+
+body {
+  background-color: var(--soc-bg) !important;
+  color: var(--soc-text) !important;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.card {
+  background: var(--soc-card-bg) !important;
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--soc-border) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.card:hover {
+  border-color: var(--soc-accent) !important;
+}
+
+.ticket-id {
+  font-family: 'Fira Code', monospace;
+  font-weight: 600;
+  color: var(--soc-accent);
+}
+
+/* Animación de pulso para tickets críticos */
+@keyframes pulse-critical {
+  0% { box-shadow: 0 0 0 0 rgba(255, 75, 92, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(255, 75, 92, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 75, 92, 0); }
+}
+
+.status-critical {
+  animation: pulse-critical 2s infinite;
+}
+
+.table {
+  color: var(--soc-text) !important;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+}
+
+.table thead th {
+  border-bottom: 2px solid var(--soc-accent);
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+}
+
+.table tbody tr {
+  background-color: var(--soc-card-bg);
+  transition: transform 0.1s ease;
+}
+
+.table tbody tr:hover {
+  transform: scale(1.01);
+  background-color: rgba(0, 210, 255, 0.1) !important;
+}
+
+.btn-primary {
+  background: linear-gradient(45deg, #00d2ff, #3a7bd5) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3) !important;
+}
+
+.btn-critical {
+  background: linear-gradient(45deg, #ff4b2b, #ff416c) !important;
+  color: white;
+}
