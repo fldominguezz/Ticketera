@@ -3,11 +3,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from uuid import UUID
 from datetime import datetime
-
 from app.db.models.notifications import Notification
 from app.core.ws_manager import manager
 import json
-
 class NotificationService:
     async def notify_user(
         self, 
@@ -29,7 +27,6 @@ class NotificationService:
         )
         db.add(notification)
         await db.flush() # Para obtener el ID sin commitear todo aún
-        
         # Enviar por WebSocket
         await manager.send_to_user({
             "type": "notification",
@@ -41,9 +38,7 @@ class NotificationService:
                 "created_at": notification.created_at.isoformat()
             }
         }, str(user_id))
-        
         return notification
-
     async def get_unread(self, db: AsyncSession, user_id: UUID):
         result = await db.execute(
             select(Notification)
@@ -51,7 +46,6 @@ class NotificationService:
             .order_by(Notification.created_at.desc())
         )
         return result.scalars().all()
-
     async def mark_as_read(self, db: AsyncSession, notification_id: UUID):
         result = await db.execute(select(Notification).where(Notification.id == notification_id))
         notification = result.scalar_one_or_none()
@@ -59,7 +53,6 @@ class NotificationService:
             notification.is_read = True
             await db.commit()
         return notification
-
     async def notify_group(self, db: AsyncSession, group_id: UUID, title: str, message: str, link: Optional[str] = None):
         """Envía una notificación a todos los miembros de un grupo específico."""
         from app.db.models.user import User
@@ -67,7 +60,6 @@ class NotificationService:
         users = res.scalars().all()
         for u in users:
             await self.notify_user(db, u.id, title, message, link)
-
     async def notify_admins(self, db: AsyncSession, title: str, message: str, link: Optional[str] = None):
         """Envía una notificación a todos los superusuarios."""
         from app.db.models.user import User
@@ -75,7 +67,6 @@ class NotificationService:
         users = res.scalars().all()
         for u in users:
             await self.notify_user(db, u.id, title, message, link)
-
     async def notify_all_active(self, db: AsyncSession, title: str, message: str, link: Optional[str] = None):
         """
         Envía una notificación a todos los usuarios activos del sistema.
@@ -83,7 +74,6 @@ class NotificationService:
         from app.db.models.user import User
         res = await db.execute(select(User).where(User.is_active == True))
         users = res.scalars().all()
-        
         notifications = []
         for u in users:
             # Reutilizamos notify_user pero sin el flush individual para ser más eficientes si hay muchos usuarios
@@ -96,9 +86,7 @@ class NotificationService:
             )
             db.add(notif)
             notifications.append((str(u.id), notif))
-        
         await db.flush()
-        
         # Enviar vía WebSocket a todos
         for user_id_str, notification in notifications:
             await manager.send_to_user({
@@ -111,5 +99,4 @@ class NotificationService:
                     "created_at": notification.created_at.isoformat()
                 }
             }, user_id_str)
-
 notification_service = NotificationService()

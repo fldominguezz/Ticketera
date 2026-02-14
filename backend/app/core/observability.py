@@ -3,14 +3,11 @@ import os
 import sentry_sdk
 from prometheus_fastapi_instrumentator import Instrumentator
 from fastapi import FastAPI
-
 logger = logging.getLogger(__name__)
-
 def setup_observability(app: FastAPI):
     """
     Configura Sentry (si está disponible) y Prometheus.
     """
-    
     # 1. Configuración de Sentry
     sentry_dsn = os.getenv("SENTRY_DSN")
     if sentry_dsn:
@@ -27,7 +24,6 @@ def setup_observability(app: FastAPI):
         )
     else:
         logger.info("Sentry DSN not found. Skipping Sentry initialization.")
-
     # 2. Configuración de Prometheus
     # Expone métricas en /metrics
     logger.info("Initializing Prometheus Instrumentator...")
@@ -41,5 +37,4 @@ def setup_observability(app: FastAPI):
         inprogress_name="inprogress",
         inprogress_labels=True,
     )
-    
     instrumentator.instrument(app).expose(app)

@@ -3,16 +3,13 @@ from uuid import UUID
 from typing import Optional, List, Any
 from .iam import Role
 from .group import Group as GroupSchema # Import GroupSchema
-
 import enum
-
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
     USER = "user"
     GUEST = "guest"
     ANALYST = "analyst"
     MANAGER = "manager"
-
 class UserBase(BaseModel):
     username: str
     email: EmailStr
@@ -29,11 +26,9 @@ class UserBase(BaseModel):
     preferred_language: Optional[str] = "es"
     avatar_url: Optional[str] = None
     dashboard_layout: Optional[List[dict]] = []
-
 class UserCreate(UserBase):
     password: str
     role_ids: Optional[List[UUID]] = []
-
 class UserUpdate(BaseModel):
     username: Optional[str] = None
     email: Optional[EmailStr] = None
@@ -47,37 +42,31 @@ class UserUpdate(BaseModel):
     group_id: Optional[UUID] = None
     role_ids: Optional[List[UUID]] = None
     dashboard_layout: Optional[List[dict]] = None
-
 class UserInDBBase(UserBase):
     id: UUID
     model_config = ConfigDict(from_attributes=True)
-
 class User(UserInDBBase):
     roles: List[Role] = []
     permissions: List[str] = [] # Flat list of permission keys for frontend validation
     group: Optional[GroupSchema] = None # Add group field
-
     @model_validator(mode='before')
     @classmethod
     def flatten_roles(cls, data: Any) -> Any:
         # Si ya es un dict (ej. del endpoint /me modificado), lo dejamos pasar o lo ajustamos
         if isinstance(data, dict):
             return data
-            
         if hasattr(data, "roles"):
             roles = []
             permissions_set = set()
             for ur in data.roles:
                 role_obj = getattr(ur, "role", ur)
                 roles.append(role_obj)
-                
                 # Extraer permisos del rol
                 if hasattr(role_obj, "permissions"):
                     for rp in role_obj.permissions:
                         perm_obj = getattr(rp, "permission", rp)
                         if hasattr(perm_obj, "key"):
                             permissions_set.add(perm_obj.key)
-            
             # Construct a dictionary to return, including group details
             return_data = {
                 "id": data.id,
@@ -103,6 +92,5 @@ class User(UserInDBBase):
                 return_data["group"] = data.group
             else:
                 return_data["group"] = None
-
             return return_data
         return data

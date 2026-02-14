@@ -5,9 +5,7 @@ from app.api.deps import get_db, get_current_active_user
 from app.db.models import User
 from app.services.search_service import search_service
 from app.schemas.search import SearchResponse, SearchHit
-
 router = APIRouter()
-
 @router.get("/", response_model=SearchResponse)
 async def global_search(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -20,7 +18,6 @@ async def global_search(
     """
     # Por ahora solo tickets en Meilisearch
     results = search_service.search_tickets(q, limit=limit)
-    
     hits = []
     for h in results.get("hits", []):
         hits.append(SearchHit(
@@ -34,7 +31,6 @@ async def global_search(
                 "priority": h.get("priority")
             }
         ))
-    
     return SearchResponse(
         hits=hits,
         total=results.get("estimatedTotalHits", 0),

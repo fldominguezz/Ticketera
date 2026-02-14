@@ -2,13 +2,10 @@ from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-
 from app.api.deps import get_db, require_permission
 from app.db import models
 from app.schemas.admin_configs import PasswordPolicy, PasswordPolicyUpdate, TicketType, TicketTypeCreate
-
 router = APIRouter()
-
 # --- PASSWORD POLICY ---
 @router.get("/password-policy", response_model=PasswordPolicy)
 async def get_password_policy(
@@ -17,7 +14,6 @@ async def get_password_policy(
 ):
     res = await db.execute(select(models.PasswordPolicy).limit(1))
     policy = res.scalar_one_or_none()
-    
     if not policy:
         # Create a default policy if none exists
         policy = models.PasswordPolicy(
@@ -31,9 +27,7 @@ async def get_password_policy(
         db.add(policy)
         await db.commit()
         await db.refresh(policy)
-        
     return policy
-
 @router.put("/password-policy", response_model=PasswordPolicy)
 async def update_password_policy(
     policy_in: PasswordPolicyUpdate,
@@ -45,14 +39,11 @@ async def update_password_policy(
     if not policy:
         policy = models.PasswordPolicy()
         db.add(policy)
-    
     for field, value in policy_in.model_dump().items():
         setattr(policy, field, value)
-    
     await db.commit()
     await db.refresh(policy)
     return policy
-
 # --- TICKET TYPES ---
 @router.get("/ticket-types", response_model=List[TicketType])
 async def list_ticket_types(
@@ -61,7 +52,6 @@ async def list_ticket_types(
 ):
     res = await db.execute(select(models.TicketType))
     return res.scalars().all()
-
 @router.post("/ticket-types", response_model=TicketType)
 async def create_ticket_type(
     type_in: TicketTypeCreate,

@@ -4,7 +4,6 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
 from app.db.base_class import Base
-
 class AssetLocationHistory(Base):
     __tablename__ = "asset_location_history"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -14,12 +13,10 @@ class AssetLocationHistory(Base):
     changed_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     reason = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
     asset = relationship("Asset", back_populates="location_history")
     previous_location = relationship("LocationNode", foreign_keys=[previous_location_id])
     new_location = relationship("LocationNode", foreign_keys=[new_location_id])
     changed_by = relationship("User")
-
 class AssetIPHistory(Base):
     __tablename__ = "asset_ip_history"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -28,7 +25,6 @@ class AssetIPHistory(Base):
     assigned_at = Column(DateTime(timezone=True), server_default=func.now())
     source = Column(String(50), nullable=True)
     asset = relationship("Asset", back_populates="ip_history")
-
 class AssetInstallRecord(Base):
     __tablename__ = "asset_install_records"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -43,7 +39,6 @@ class AssetInstallRecord(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     asset = relationship("Asset", back_populates="install_records")
     created_by = relationship("User")
-
 class AssetEventLog(Base):
     __tablename__ = "asset_event_logs"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -53,7 +48,6 @@ class AssetEventLog(Base):
     details = Column(JSON, nullable=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
     asset = relationship("Asset", back_populates="event_logs")
     user = relationship("User")
 

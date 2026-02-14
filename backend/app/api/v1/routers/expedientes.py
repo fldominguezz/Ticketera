@@ -2,14 +2,11 @@ from typing import Annotated, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
-
 from app.api.deps import get_db, require_permission
 from app.crud import crud_expediente
 from app.db import models
 from app.schemas.expediente import Expediente, ExpedienteCreate, ExpedienteUpdate
-
 router = APIRouter()
-
 @router.get("/", response_model=List[Expediente])
 async def read_expedientes(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -21,7 +18,6 @@ async def read_expedientes(
     if q:
         return await crud_expediente.expediente.search(db, query=q, limit=limit)
     return await crud_expediente.expediente.get_multi(db, skip=skip, limit=limit)
-
 @router.post("/", response_model=Expediente, status_code=status.HTTP_201_CREATED)
 async def create_expediente(
     *,
@@ -33,7 +29,6 @@ async def create_expediente(
     if existing:
         raise HTTPException(status_code=400, detail="Expediente with this number already exists")
     return await crud_expediente.expediente.create(db, obj_in=expediente_in)
-
 @router.get("/{expediente_id}", response_model=Expediente)
 async def read_expediente(
     expediente_id: UUID,
@@ -44,7 +39,6 @@ async def read_expediente(
     if not expediente:
         raise HTTPException(status_code=404, detail="Expediente not found")
     return expediente
-
 @router.put("/{expediente_id}", response_model=Expediente)
 async def update_expediente(
     expediente_id: UUID,

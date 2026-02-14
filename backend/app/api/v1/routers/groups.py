@@ -4,14 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from uuid import UUID
-
 from app.api.deps import get_db, require_permission, get_current_active_user
 from sqlalchemy import func, case
 from app.db.models import Group, User, Ticket, SLAMetric
 from app.schemas.group import Group as GroupSchema, GroupCreate, GroupUpdate
-
 router = APIRouter()
-
 def build_tree(items: List[Any], stats_map: Dict[UUID, Dict[str, Any]], parent_id: Optional[UUID] = None) -> List[Dict[str, Any]]:
     """
     Utilidad recursiva para construir el árbol con estadísticas.
@@ -20,13 +17,11 @@ def build_tree(items: List[Any], stats_map: Dict[UUID, Dict[str, Any]], parent_i
     for item in items:
         if item.parent_id == parent_id:
             children = build_tree(items, stats_map, item.id)
-            
             # Obtener estadísticas del mapa
             group_stats = stats_map.get(item.id, {"total": 0, "sla_ok": 0, "with_sla": 0})
             sla_ok_pct = 100
             if group_stats["with_sla"] > 0:
                 sla_ok_pct = int((group_stats["sla_ok"] / group_stats["with_sla"]) * 100)
-
             node = {
                 "id": item.id,
                 "name": item.name,
@@ -43,7 +38,6 @@ def build_tree(items: List[Any], stats_map: Dict[UUID, Dict[str, Any]], parent_i
                 node["dependency_code"] = item.dependency_code
             tree.append(node)
     return tree
-
 @router.get(
     "/tree"
 )
@@ -58,7 +52,6 @@ async def read_groups_tree(
     query = select(Group).filter(Group.deleted_at == None)
     result = await db.execute(query)
     all_groups = result.scalars().all()
-
     # 2. Obtener estadísticas de tickets por grupo
     # Contamos total de tickets, tickets con SLA y tickets con SLA cumplido (no brecheado)
     stats_query = (
@@ -80,9 +73,7 @@ async def read_groups_tree(
             "sla_ok": row.sla_ok
         } for row in stats_res if row.group_id
     }
-
     return build_tree(all_groups, stats_map)
-
 @router.get(
     "",
     response_model=List[GroupSchema]
@@ -98,7 +89,6 @@ async def read_groups(
        not current_user.has_permission("admin:groups:read") and \
        not current_user.has_permission("ticket:create"):
         raise HTTPException(status_code=403, detail="Not enough permissions")
-
     query = (
         select(Group)
         .options(selectinload(Group.parent_group))
@@ -108,7 +98,6 @@ async def read_groups(
     )
     result = await db.execute(query)
     return result.scalars().all()
-
 @router.post(
     "",
     response_model=GroupSchema,
@@ -124,7 +113,6 @@ async def create_group(
     await db.commit()
     await db.refresh(db_group)
     return db_group
-
 @router.put(
     "/{group_id}",
     response_model=GroupSchema
@@ -138,18 +126,14 @@ async def update_group(
     query = select(Group).filter(Group.id == group_id)
     result = await db.execute(query)
     group = result.scalar_one_or_none()
-    
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
-
     for var, value in group_in.model_dump(exclude_unset=True).items():
         setattr(group, var, value)
-
     db.add(group)
     await db.commit()
     await db.refresh(group)
     return group
-
 @router.delete(
     "/{group_id}",
     status_code=status.HTTP_204_NO_CONTENT
@@ -162,10 +146,8 @@ async def delete_group(
     query = select(Group).filter(Group.id == group_id)
     result = await db.execute(query)
     group = result.scalar_one_or_none()
-    
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
-
     # Soft delete
     from datetime import datetime
     group.deleted_at = datetime.utcnow()

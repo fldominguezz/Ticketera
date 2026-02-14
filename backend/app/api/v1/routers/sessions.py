@@ -2,17 +2,13 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
-
 from app.api.deps import get_db, get_current_active_user
 from app.crud import crud_session, crud_audit
 from app.db.models import User
 from app.schemas.auth import ActiveSessionsResponse
 from jose import jwt
-
 from app.core.config import settings
-
 router = APIRouter()
-
 @router.get("/me", response_model=ActiveSessionsResponse)
 async def get_my_sessions(
     request: Request,
@@ -25,9 +21,7 @@ async def get_my_sessions(
     token = request.headers['authorization'].split(' ')[1]
     payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM], options={"verify_aud": False})
     current_session_id = UUID(payload.get("sid"))
-
     sessions = await crud_session.session.get_active_sessions(db, user_id=current_user.id)
-    
     current_session = None
     other_sessions = []
     for s in sessions:
@@ -35,10 +29,8 @@ async def get_my_sessions(
             current_session = s
         else:
             other_sessions.append(s)
-            
     if not current_session:
         raise HTTPException(status_code=404, detail="Current session not found")
-
     return ActiveSessionsResponse(
         current_session={
             "id": str(current_session.id),
@@ -58,7 +50,6 @@ async def get_my_sessions(
             for s in other_sessions
         ]
     )
-
 @router.post("/me/logout")
 async def logout_my_session(
     request: Request,
@@ -71,11 +62,9 @@ async def logout_my_session(
     token = request.headers['authorization'].split(' ')[1]
     payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM], options={"verify_aud": False})
     current_session_id = UUID(payload.get("sid"))
-    
     deactivated_session = await crud_session.session.deactivate_session(db, session_id=current_session_id)
     if not deactivated_session:
         raise HTTPException(status_code=404, detail="Session not found")
-        
     await crud_audit.audit_log.create_log(
         db, 
         user_id=current_user.id, 
@@ -84,7 +73,6 @@ async def logout_my_session(
         details={"session_id": str(current_session_id)}
     )
     return {"status": "success", "detail": "Session logged out"}
-
 @router.post("/me/logout-others")
 async def logout_other_sessions(
     request: Request,
@@ -97,11 +85,9 @@ async def logout_other_sessions(
     token = request.headers['authorization'].split(' ')[1]
     payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM], options={"verify_aud": False})
     current_session_id = UUID(payload.get("sid"))
-
     count = await crud_session.session.deactivate_other_sessions(
         db, user_id=current_user.id, current_session_id=current_session_id
     )
-    
     await crud_audit.audit_log.create_log(
         db,
         user_id=current_user.id,

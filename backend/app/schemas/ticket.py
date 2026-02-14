@@ -2,7 +2,6 @@ from pydantic import BaseModel, ConfigDict, model_validator
 from uuid import UUID
 from typing import Optional, Any, List, Dict
 from datetime import datetime
-
 class TicketBase(BaseModel):
     title: str
     description: Optional[str] = None
@@ -18,10 +17,8 @@ class TicketBase(BaseModel):
     sla_deadline: Optional[datetime] = None
     is_private: Optional[bool] = False
     extra_data: Optional[Dict[str, Any]] = None
-
 class TicketCreate(TicketBase):
     attachment_ids: Optional[List[UUID]] = []
-
 class TicketUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
@@ -32,7 +29,6 @@ class TicketUpdate(BaseModel):
     group_id: Optional[UUID] = None
     is_private: Optional[bool] = None
     extra_data: Optional[Any] = None
-
 class TicketInDBBase(TicketBase):
     id: UUID
     created_by_id: UUID
@@ -40,21 +36,17 @@ class TicketInDBBase(TicketBase):
     updated_at: Optional[datetime] = None
     closed_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
-
     model_config = ConfigDict(from_attributes=True)
-
 class TicketTypeSchema(BaseModel):
     id: UUID
     name: str
     color: Optional[str] = None
     icon: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
-
 class GroupSchema(BaseModel):
     id: UUID
     name: str
     model_config = ConfigDict(from_attributes=True)
-
 class UserSchemaMinimal(BaseModel):
     id: UUID
     username: str
@@ -62,20 +54,17 @@ class UserSchemaMinimal(BaseModel):
     last_name: str
     avatar_url: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
-
 class AssetSchemaMinimal(BaseModel):
     id: UUID
     hostname: str
     ip_address: Optional[str] = None
     asset_tag: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
-
 class LocationSchemaMinimal(BaseModel):
     id: UUID
     name: str
     path: str
     model_config = ConfigDict(from_attributes=True)
-
 class SLAMetricSchema(BaseModel):
     id: UUID
     response_deadline: Optional[datetime] = None
@@ -85,14 +74,12 @@ class SLAMetricSchema(BaseModel):
     is_response_breached: bool = False
     is_resolution_breached: bool = False
     model_config = ConfigDict(from_attributes=True)
-
 class Ticket(TicketInDBBase):
     ticket_type_name: Optional[str] = None
     group_name: Optional[str] = None
     assigned_to_name: Optional[str] = None
     created_by_name: Optional[str] = None
     has_attachments: bool = False
-    
     # Objetos anidados para compatibilidad con frontend
     ticket_type: Optional[TicketTypeSchema] = None
     group: Optional[GroupSchema] = None
@@ -100,7 +87,6 @@ class Ticket(TicketInDBBase):
     asset: Optional[AssetSchemaMinimal] = None
     location: Optional[LocationSchemaMinimal] = None
     sla_metric: Optional[SLAMetricSchema] = None
-
     @model_validator(mode='before')
     @classmethod
     def flatten_relations(cls, data: Any) -> Any:
@@ -110,35 +96,28 @@ class Ticket(TicketInDBBase):
                 return getattr(obj, attr)
             except Exception:
                 return default
-
         if isinstance(data, dict):
             # Caso DICT (procesar datos ya serializados o model_dump)
             ticket_type = data.get("ticket_type")
             if ticket_type and not data.get("ticket_type_name"):
                 data["ticket_type_name"] = getattr(ticket_type, "name", ticket_type.get("name") if isinstance(ticket_type, dict) else None)
-            
             group = data.get("group")
             if group and not data.get("group_name"):
                 data["group_name"] = getattr(group, "name", group.get("name") if isinstance(group, dict) else None)
-                
             created_by = data.get("created_by")
             if created_by and not data.get("created_by_name"):
                 c_first = getattr(created_by, "first_name", created_by.get("first_name") if isinstance(created_by, dict) else "")
                 c_last = getattr(created_by, "last_name", created_by.get("last_name") if isinstance(created_by, dict) else "")
                 name = f"{c_first} {c_last}".strip()
                 data["created_by_name"] = name or getattr(created_by, "username", created_by.get("username") if isinstance(created_by, dict) else "Sistema")
-
             assigned_to = data.get("assigned_to")
             if assigned_to and not data.get("assigned_to_name"):
                 first = getattr(assigned_to, "first_name", assigned_to.get("first_name") if isinstance(assigned_to, dict) else "")
                 last = getattr(assigned_to, "last_name", assigned_to.get("last_name") if isinstance(assigned_to, dict) else "")
                 data["assigned_to_name"] = f"{first} {last}".strip() or getattr(assigned_to, "username", assigned_to.get("username") if isinstance(assigned_to, dict) else None)
-            
             if not data.get("assigned_to_id") and assigned_to:
                 data["assigned_to_id"] = getattr(assigned_to, "id", assigned_to.get("id") if isinstance(assigned_to, dict) else None)
-
             return data
-
         if hasattr(data, "id"):
             # Caso OBJETO SQLAlchemy
             ticket_type = safe_getattr(data, "ticket_type")
@@ -148,7 +127,6 @@ class Ticket(TicketInDBBase):
             asset = safe_getattr(data, "asset")
             location = safe_getattr(data, "location")
             sla_metric = safe_getattr(data, "sla_metric")
-
             # LÓGICA ULTRA-ROBUSTA: Priorizar Nombre Real > Username > Sistema
             res_created_by_name = "Sistema"
             if created_by:
@@ -156,10 +134,8 @@ class Ticket(TicketInDBBase):
                 last = getattr(created_by, "last_name", "") or ""
                 full_name = f"{first} {last}".strip()
                 res_created_by_name = full_name or getattr(created_by, "username", "Sistema")
-
             attachments = safe_getattr(data, "attachments")
             has_attachments = len(attachments) > 0 if attachments else False
-            
             if has_attachments:
                 pass
             return {
@@ -196,14 +172,11 @@ class Ticket(TicketInDBBase):
                 "deleted_at": data.deleted_at
             }
         return data
-
 class TicketCommentBase(BaseModel):
     content: str
     is_internal: bool = False
-
 class TicketCommentCreate(TicketCommentBase):
     pass
-
 class TicketComment(TicketCommentBase):
     id: UUID
     ticket_id: UUID
@@ -212,40 +185,30 @@ class TicketComment(TicketCommentBase):
     user_avatar: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
-
     model_config = ConfigDict(from_attributes=True)
-
 class TicketRelationCreate(BaseModel):
     target_ticket_id: UUID
     relation_type: str # relates_to, blocks, blocked_by, duplicate_of
-
 class TicketRelation(TicketRelationCreate):
     id: UUID
     source_ticket_id: UUID
     created_at: datetime
-
     model_config = ConfigDict(from_attributes=True)
-
 class TicketBulkUpdate(BaseModel):
     ticket_ids: List[UUID]
     status: Optional[str] = None
     priority: Optional[str] = None
     assigned_to_id: Optional[UUID] = None
-
 class TicketSubtaskBase(BaseModel):
     title: str
     is_completed: bool = False
-
 class TicketSubtaskCreate(TicketSubtaskBase):
     pass
-
 class TicketSubtaskUpdate(BaseModel):
     title: Optional[str] = None
     is_completed: Optional[bool] = None
-
 class TicketSubtask(TicketSubtaskBase):
     id: UUID
     ticket_id: UUID
     created_at: datetime
-
     model_config = ConfigDict(from_attributes=True)

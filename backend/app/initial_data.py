@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import text
 import uuid
-
 from app.db.session import AsyncSessionLocal
 from app.crud.crud_user import user
 from app.schemas.user import UserCreate
@@ -14,26 +13,20 @@ from app.db.models import Group, User, SLAPolicy, WorkflowTransition, Workflow, 
 from app.db.models.iam import Role, Permission, UserRole, RolePermission
 from app.core.config import settings
 from app.core.permissions import PermissionEnum, ALL_PERMISSIONS
-
 from app.db.models.ticket import Ticket as TicketModel, TicketType
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 async def init_siem_config(session: AsyncSession, siem_user: User, group_objs: dict, default_workflow_id: uuid.UUID) -> None:
     """Asegura la configuración de integración del SIEM."""
     # Buscar el tipo de ticket ALERTA SIEM
     res_tt = await session.execute(select(TicketType).filter(TicketType.name == "ALERTA SIEM"))
     ttype = res_tt.scalar_one_or_none()
-    
     if not ttype:
         ttype = TicketType(id=uuid.uuid4(), name="ALERTA SIEM", description="Alerta automática", icon="shield", color="warning", workflow_id=default_workflow_id)
         session.add(ttype)
         await session.flush()
-
     res_config = await session.execute(select(SIEMConfiguration).limit(1))
     config = res_config.scalar_one_or_none()
-    
     if not config:
         config = SIEMConfiguration(
             id=uuid.uuid4(),
@@ -57,24 +50,19 @@ async def init_siem_config(session: AsyncSession, siem_user: User, group_objs: d
         config.allowed_ips = "10.1.78.10"
         session.add(config)
         logger.info("SIEM integration configuration updated/verified")
-    
     await session.commit()
-
 async def init_locations(session: AsyncSession) -> None:
     """Importa las 769 dependencias desde el CSV."""
     csv_path = "/app/dependencias.csv"
     if not os.path.exists(csv_path):
         logger.warning(f"CSV de dependencias no encontrado en {csv_path}")
         return
-
     # Mapeo de ID del CSV -> UUID de la DB
     id_to_uuid = {}
-    
     rows = []
     with open(csv_path, mode='r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         rows = list(reader)
-
     # 1. Superintendencias (Raíces)
     for row in rows:
         csv_id, super_id = row['id'], row['superintendencia']
@@ -90,16 +78,13 @@ async def init_locations(session: AsyncSession) -> None:
                 # Si ya existe, guardamos su UUID para los hijos
                 res = await session.execute(select(LocationNode.id).filter(LocationNode.dependency_code == code))
                 id_to_uuid[csv_id] = res.scalar()
-
     await session.flush()
-
     # 2. Dependencias (Hijos)
     for row in rows:
         csv_id, super_id = row['id'], row['superintendencia']
         if csv_id != super_id:
             parent_uuid = id_to_uuid.get(super_id)
             if not parent_uuid: continue
-            
             name, code = row['nombre_dependencia'].strip(), row['codigo'].strip()
             res = await session.execute(select(LocationNode).filter(LocationNode.dependency_code == code))
             if not res.scalar_one_or_none():
@@ -108,10 +93,8 @@ async def init_locations(session: AsyncSession) -> None:
                 parent_path = res_p.scalar()
                 loc = LocationNode(id=uuid.uuid4(), parent_id=parent_uuid, name=name, dependency_code=code, path=f"{parent_path} / {name}")
                 session.add(loc)
-    
     await session.commit()
     logger.info("Locations synchronized from CSV")
-
 async def init_db() -> None:
     async with AsyncSessionLocal() as session:
         # 1. Create Hierarchical Groups
@@ -122,7 +105,6 @@ async def init_db() -> None:
             g_admin = Group(id=uuid.uuid4(), name="Administración", description="Grupo Raíz de Administración")
             session.add(g_admin)
             await session.flush()
-
         # Level 2 (under Administración)
         res_dsin = await session.execute(select(Group).filter(Group.name == "Div Seguridad Informatica"))
         g_dsin = res_dsin.scalar_one_or_none()
@@ -132,7 +114,6 @@ async def init_db() -> None:
             await session.flush()
         else:
             g_dsin.parent_id = g_admin.id # Asegurar jerarquía
-
         # Level 3 (under Div Seguridad Informatica)
         subgroups = [
             {"name": "Area SOC", "desc": "Centro de Operaciones de Seguridad"},
@@ -140,9 +121,7 @@ async def init_db() -> None:
             {"name": "Area Concientizacion", "desc": "Capacitación y Concientización"},
             {"name": "Area Administrativa", "desc": "Gestión Administrativa Interna"}
         ]
-        
         group_objs = {"Admin": g_admin, "División Seguridad Informática": g_dsin} # Mapeo para compatibilidad con el resto del script
-
         for sg in subgroups:
             res_sg = await session.execute(select(Group).filter(Group.name == sg["name"]))
             g_sg = res_sg.scalar_one_or_none()
@@ -153,15 +132,12 @@ async def init_db() -> None:
             else:
                 g_sg.parent_id = g_dsin.id # Asegurar jerarquía
             group_objs[sg["name"]] = g_sg
-        
         await session.commit()
-
         # 2. Create Permissions from Registry
         permission_map = {}
         for perm_key in ALL_PERMISSIONS:
             result = await session.execute(select(Permission).filter(Permission.key == perm_key))
             permission = result.scalar_one_or_none()
-            
             if not permission:
                 module = perm_key.split(":")[0]
                 permission = Permission(
@@ -174,9 +150,7 @@ async def init_db() -> None:
                 session.add(permission)
                 await session.flush()
             permission_map[perm_key] = permission
-        
         await session.commit()
-
         # 3. Create Roles with Specific Permission Counts
         roles_to_create = [
             {
@@ -235,7 +209,6 @@ async def init_db() -> None:
                 ] # 12 Permisos
             }
         ]
-
         role_map = {}
         for r_data in roles_to_create:
             result = await session.execute(select(Role).filter(Role.name == r_data["name"]))
@@ -250,9 +223,7 @@ async def init_db() -> None:
                         session.add(RolePermission(role_id=role.id, permission_id=p_obj.id))
                 logger.info(f"Created role: {r_data['name']}")
             role_map[r_data["name"]] = role
-        
         await session.commit()
-
         # 4. Create/Ensure Superuser
         superuser_user = await user.get_by_email(session, email=settings.FIRST_SUPERUSER)
         if not superuser_user:
@@ -267,7 +238,6 @@ async def init_db() -> None:
             )
             superuser_user = await user.create(session, obj_in=user_in)
             logger.info(f"Superuser created: {settings.FIRST_SUPERUSER}")
-
         # 4.1 Create FortiSIEM Service Account
         siem_email = "fortisiem@example.com"
         siem_user = await user.get_by_email(session, email=siem_email)
@@ -290,10 +260,8 @@ async def init_db() -> None:
             session.add(siem_user)
             await session.commit()
             logger.info(f"FortiSIEM password updated/verified")
-
         # 5. Sincronizar Ubicaciones (769 dependencias)
         await init_locations(session)
-
         # 6. Ensure Workflow
         result = await session.execute(select(Workflow).filter(Workflow.name == "Default Ticket Workflow"))
         default_workflow = result.scalar_one_or_none()
@@ -301,14 +269,12 @@ async def init_db() -> None:
             default_workflow = Workflow(id=uuid.uuid4(), name="Default Ticket Workflow", description="Workflow estándar.")
             session.add(default_workflow)
             await session.flush()
-
         states_data = [
             {"name": "Abierto", "status_key": "open", "color": "primary", "is_initial": True},
             {"name": "En Progreso", "status_key": "in_progress", "color": "info"},
             {"name": "Resuelto", "status_key": "resolved", "color": "success"},
             {"name": "Cerrado", "status_key": "closed", "color": "dark", "is_final": True},
         ]
-
         state_map = {} 
         for sd in states_data:
             result = await session.execute(select(WorkflowState).filter(
@@ -321,27 +287,20 @@ async def init_db() -> None:
                 session.add(state)
                 await session.flush()
             state_map[sd["status_key"]] = state
-
         # 7. Create Default Ticket Types
         ticket_types_data = [
             {"name": "Incidente", "description": "Fallo en servicio", "icon": "alert-triangle", "color": "danger"},
             {"name": "ALERTA SIEM", "description": "Alerta automática", "icon": "shield", "color": "warning"},
             {"name": "Soporte Técnico", "description": "Asistencia técnica", "icon": "tool", "color": "primary"},
         ]
-
         for tt_data in ticket_types_data:
             result = await session.execute(select(TicketType).filter(TicketType.name == tt_data["name"]))
             if not result.scalar_one_or_none():
                 session.add(TicketType(id=uuid.uuid4(), workflow_id=default_workflow.id, **tt_data))
-        
         await session.commit()
-
         # 8. Sincronizar Configuración SIEM
         await init_siem_config(session, siem_user, group_objs, default_workflow.id)
-
         logger.info("Database initialization completed successfully")
-
-
 if __name__ == "__main__":
     import sys
     try:

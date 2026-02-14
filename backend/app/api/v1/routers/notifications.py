@@ -7,9 +7,7 @@ from app.api.deps import get_db, get_current_active_user
 from app.db.models import User, Notification as NotificationModel
 from app.schemas.notification import Notification, NotificationUpdate
 import uuid
-
 router = APIRouter()
-
 @router.get("/me", response_model=List[Notification])
 async def get_my_notifications(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -23,7 +21,6 @@ async def get_my_notifications(
         .limit(limit)
     )
     return result.scalars().all()
-
 @router.get("/unread-count")
 async def get_unread_count(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -34,7 +31,6 @@ async def get_unread_count(
         .filter(NotificationModel.user_id == current_user.id, NotificationModel.is_read == False)
     )
     return {"count": result.scalar() or 0}
-
 @router.post("/read-all")
 async def mark_all_as_read(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -47,7 +43,6 @@ async def mark_all_as_read(
     )
     await db.commit()
     return {"status": "success"}
-
 @router.patch("/{notification_id}/read")
 async def mark_as_read(
     notification_id: uuid.UUID,
@@ -60,7 +55,6 @@ async def mark_as_read(
     notif = result.scalar_one_or_none()
     if not notif:
         raise HTTPException(status_code=404, detail="Notificación no encontrada")
-    
     notif.is_read = True
     await db.commit()
     return {"status": "success"}

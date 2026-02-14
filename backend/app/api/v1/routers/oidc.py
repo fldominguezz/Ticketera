@@ -6,12 +6,9 @@ from app.core.config import settings
 from app.db.models import User
 import uuid
 import time
-
 router = APIRouter()
-
 # Almacenamiento temporal de códigos de autorización (En memoria para simplicidad)
 auth_codes = {}
-
 @router.get("/authorize")
 async def authorize(
     request: Request,
@@ -28,14 +25,11 @@ async def authorize(
     if not token:
         # Si no hay token, redirigimos al login de la Ticketera
         return RedirectResponse(url=f"https://10.1.9.240/login?redirect={redirect_uri}")
-
     # Generar un código temporal
     code = str(uuid.uuid4())
     auth_codes[code] = {"token": token, "created_at": time.time()}
-    
     # Redirigir de vuelta a Docmost con el código
     return RedirectResponse(url=f"{redirect_uri}?code={code}&state={state}")
-
 @router.post("/token")
 async def get_token(request: Request):
     """
@@ -43,12 +37,9 @@ async def get_token(request: Request):
     """
     form_data = await request.form()
     code = form_data.get("code")
-    
     if code not in auth_codes:
         raise HTTPException(status_code=400, detail="Código inválido o expirado")
-    
     data = auth_codes.pop(code)
-    
     # Retornamos el token de la Ticketera como si fuera el de OIDC
     return {
         "access_token": data["token"],
@@ -56,7 +47,6 @@ async def get_token(request: Request):
         "expires_in": 3600,
         "id_token": data["token"] # Simplificado
     }
-
 @router.get("/userinfo")
 async def userinfo(request: Request, db: AsyncSession = Depends(deps.get_db)):
     """
@@ -65,9 +55,7 @@ async def userinfo(request: Request, db: AsyncSession = Depends(deps.get_db)):
     auth_header = request.headers.get("Authorization")
     if not auth_header:
         raise HTTPException(status_code=401)
-    
     token = auth_header.replace("Bearer ", "")
-    
     # Decodificar token para obtener el usuario
     from jose import jwt
     try:
@@ -75,14 +63,11 @@ async def userinfo(request: Request, db: AsyncSession = Depends(deps.get_db)):
         user_id = payload.get("sub")
     except Exception:
         raise HTTPException(status_code=401, detail="Token inválido")
-
     from sqlalchemy.future import select
     res = await db.execute(select(User).filter(User.id == uuid.UUID(user_id)))
     user = res.scalar_one_or_none()
-    
     if not user:
         raise HTTPException(status_code=404)
-
     return {
         "sub": str(user.id),
         "name": f"{user.first_name} {user.last_name}",
@@ -90,7 +75,6 @@ async def userinfo(request: Request, db: AsyncSession = Depends(deps.get_db)):
         "email_verified": True,
         "preferred_username": user.username
     }
-
 @router.get("/access")
 async def access_wiki(token: str = Query(...)):
     """

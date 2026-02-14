@@ -1,5 +1,4 @@
 from enum import Enum
-
 class Scopes(str, Enum):
     """
     Define los alcances (scopes) para permisos granularizados.

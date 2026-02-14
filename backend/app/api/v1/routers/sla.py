@@ -3,13 +3,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from uuid import UUID
-
 from app.api.deps import get_db, require_permission, require_role
 from app.db.models import User, SLAPolicy
 from app.schemas.sla import SLAPolicy as SLAPolicySchema, SLAPolicyCreate, SLAPolicyUpdate
-
 router = APIRouter()
-
 @router.get(
     "/",
     response_model=List[SLAPolicySchema],
@@ -24,7 +21,6 @@ async def read_sla_policies(
     """
     result = await db.execute(select(SLAPolicy))
     return result.scalars().all()
-
 @router.post(
     "/",
     response_model=SLAPolicySchema,
@@ -45,7 +41,6 @@ async def create_sla_policy(
     await db.commit()
     await db.refresh(db_obj)
     return db_obj
-
 @router.put(
     "/{policy_id}",
     response_model=SLAPolicySchema,
@@ -64,15 +59,12 @@ async def update_sla_policy(
     db_obj = result.scalar_one_or_none()
     if not db_obj:
         raise HTTPException(status_code=404, detail="Policy not found")
-        
     for var, value in policy_in.model_dump(exclude_unset=True).items():
         setattr(db_obj, var, value)
-        
     db.add(db_obj)
     await db.commit()
     await db.refresh(db_obj)
     return db_obj
-
 @router.delete(
     "/{policy_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -90,7 +82,6 @@ async def delete_sla_policy(
     db_obj = result.scalar_one_or_none()
     if not db_obj:
         raise HTTPException(status_code=404, detail="Policy not found")
-        
     await db.delete(db_obj)
     await db.commit()
     return None

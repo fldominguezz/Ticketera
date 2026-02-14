@@ -1,5 +1,4 @@
 from enum import Enum
-
 class PermissionEnum(str, Enum):
     # --- TICKETS ---
     TICKET_READ_GLOBAL = "ticket:read:global"
@@ -16,13 +15,11 @@ class PermissionEnum(str, Enum):
     TICKET_WATCH_GLOBAL = "ticket:watch:global"
     TICKET_WATCH_GROUP = "ticket:watch:group"
     TICKET_WATCH_OWN = "ticket:watch:own"
-    
     # --- PARTES ---
     PARTES_READ_GLOBAL = "partes:read:global"
     PARTES_READ_GROUP = "partes:read:group"
     PARTES_CREATE = "partes:create"
     PARTES_UPDATE_OWN = "partes:update:own"
-
     # --- ADMIN PANEL ---
     ADMIN_ACCESS = "admin:access"
     ADMIN_USERS_READ = "admin:users:read"
@@ -35,23 +32,18 @@ class PermissionEnum(str, Enum):
     ADMIN_CATALOGS_MANAGE = "admin:catalogs:manage"
     ADMIN_SETTINGS_READ = "admin:settings:read"
     ADMIN_SETTINGS_MANAGE = "admin:settings:manage"
-    
     # --- UBICACIONES ---
     ADMIN_LOCATIONS_READ = "admin:locations:read"
     ADMIN_LOCATIONS_MANAGE = "admin:locations:manage"
-
     # --- FORENSICS (EML) ---
     FORENSICS_EML_SCAN = "forensics:eml:scan"
-
     # --- DASHBOARD & REPORTS (Extras) ---
     DASHBOARD_VIEW = "dashboard:view"
     REPORT_VIEW = "report:view"
     AUDIT_READ = "audit:read"
-
     # --- SIEM ---
     SIEM_VIEW = "siem:view"
     SIEM_MANAGE = "siem:manage" # Gestión total (ack, promote, settings)
-    
     # --- ASSETS ---
     ASSETS_READ_GLOBAL = "assets:read:global"
     ASSETS_READ_GROUP = "assets:read:group"
@@ -60,8 +52,6 @@ class PermissionEnum(str, Enum):
     ASSETS_IMPORT = "assets:import"
     ASSETS_INSTALL = "assets:install"
     ASSETS_DELETE = "assets:delete"
-    
     # --- PARTES (Gestión Avanzada) ---
     PARTES_MANAGE = "partes:manage" # Eliminar, editar cualquiera, etc.
-
 ALL_PERMISSIONS = [p.value for p in PermissionEnum]

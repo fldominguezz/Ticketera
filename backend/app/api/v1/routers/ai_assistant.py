@@ -2,24 +2,18 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from uuid import UUID
-
 from app.api.deps import require_permission, get_db
 from app.services.expert_analysis_service import expert_analysis_service
 from app.crud import crud_ticket
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import User
-
 router = APIRouter()
-
 class AISummaryRequest(BaseModel):
     ticket_id: UUID
-
 class AISummaryResponse(BaseModel):
     summary: str
-
 class AIRemediationResponse(BaseModel):
     remediation_steps: str
-
 @router.post("/summarize", response_model=AISummaryResponse)
 async def summarize_ticket(
     req: AISummaryRequest,
@@ -34,11 +28,9 @@ async def summarize_ticket(
     from sqlalchemy.future import select
     res = await db.execute(select(Alert).where(Alert.id == req.ticket_id))
     alert = res.scalar_one_or_none()
-    
     # 1. Check if we already have it in the alert
     if alert and alert.ai_summary:
         return {"summary": alert.ai_summary}
-
     # 2. Otherwise, perform a new analysis
     raw_content = ""
     if alert:
@@ -49,10 +41,8 @@ async def summarize_ticket(
         if not ticket:
             raise HTTPException(status_code=404, detail="Entity not found")
         raw_content = ticket.description
-
     analysis = expert_analysis_service.analyze_raw_log(raw_content)
     return {"summary": analysis["summary"]}
-
 @router.post("/remediation", response_model=AIRemediationResponse)
 async def suggest_remediation(
     req: AISummaryRequest,
@@ -66,11 +56,9 @@ async def suggest_remediation(
     from sqlalchemy.future import select
     res = await db.execute(select(Alert).where(Alert.id == req.ticket_id))
     alert = res.scalar_one_or_none()
-    
     # 1. Check if we already have it
     if alert and alert.ai_remediation:
         return {"remediation_steps": alert.ai_remediation}
-
     # 2. Otherwise, perform new analysis
     raw_content = ""
     if alert:
@@ -80,6 +68,5 @@ async def suggest_remediation(
         if not ticket:
             raise HTTPException(status_code=404, detail="Entity not found")
         raw_content = ticket.description
-
     analysis = expert_analysis_service.analyze_raw_log(raw_content)
     return {"remediation_steps": analysis.get("remediation", analysis.get("recommendation", "N/A"))}

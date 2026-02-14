@@ -1,10 +1,8 @@
 from datetime import timedelta, datetime
 from typing import Annotated, Union, Optional, List
-
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-
 from app.core.limiter import limiter
 from app.api.deps import get_db, get_current_user, get_crud_user, reusable_oauth2, get_current_user_with_scope, get_current_2fa_user_dep
 from app.crud import crud_audit, crud_session
@@ -24,9 +22,7 @@ from app.core.security import (
 from app.core.config import settings
 from app.db.models import User
 from app.services.auth.ldap_service import ldap_service # Added LDAP Service
-
 router = APIRouter()
-
 async def authenticate_user_local(
     db: AsyncSession, crud_user_dep: crud_user_instance.__class__, identifier: str, password: str
 ) -> Optional[User]:
@@ -34,13 +30,10 @@ async def authenticate_user_local(
     Authenticates a user by username/email and password with account lockout.
     """
     user = await crud_user_dep.get_by_username_or_email(db, identifier=identifier)
-
     if not user:
         return None
-    
     if not user.is_active:
         return None
-
     # Check if locked
     if user.locked_until and user.locked_until > datetime.now(user.locked_until.tzinfo):
         remaining = user.locked_until - datetime.now(user.locked_until.tzinfo)
@@ -57,16 +50,13 @@ async def authenticate_user_local(
         db.add(user)
         await db.commit()
         return None
-
     # Success: reset failed attempts
     if user.failed_login_attempts > 0:
         user.failed_login_attempts = 0
         user.locked_until = None
         db.add(user)
         await db.commit()
-        
     return user
-
 async def authenticate_user_unified(
     db: AsyncSession, crud_user_dep: crud_user_instance.__class__, identifier: str, password: str
 ) -> Optional[User]:
@@ -77,19 +67,15 @@ async def authenticate_user_unified(
     local_user = await authenticate_user_local(db, crud_user_dep, identifier, password)
     if local_user:
         return local_user
-        
     # 2. Try LDAP (only if not found locally or local auth failed? 
     # Usually: if found locally but password failed, we might stop. 
     # But for migration/hybrid, we might try LDAP if local fails.
     # Strategy: If local user exists and is NOT flagged as LDAP-managed, trust local result.
     # If local user doesn't exist OR is LDAP-managed, try LDAP.)
-    
     existing_user = await crud_user_dep.get_by_username_or_email(db, identifier=identifier)
-    
     # If user exists locally and is NOT ldap, and local auth failed -> fail.
     # We assume 'is_ldap' field or similar logic. 
     # For now, let's keep it simple: If local failed, try LDAP.
-    
     ldap_info = ldap_service.authenticate(identifier, password)
     if ldap_info:
         # LDAP Success. Sync/Create user.
@@ -101,7 +87,6 @@ async def authenticate_user_unified(
             # Create a random password for local storage (they won't use it)
             import secrets
             random_pw = secrets.token_urlsafe(16)
-            
             user_in = UserCreate(
                 username=ldap_info["username"],
                 email=ldap_info["email"],
@@ -113,9 +98,7 @@ async def authenticate_user_unified(
             # We need to handle the creation carefully to mark it as LDAP sourced if we had that field.
             new_user = await crud_user_dep.create(db, obj_in=user_in)
             return new_user
-
     return None
-
 @router.post("/login", response_model=Union[LoginResponse, Token])
 @limiter.limit("100/minute")
 async def login(
@@ -128,16 +111,13 @@ async def login(
     First step of the login process.
     Validates credentials. Handles mandatory changes (password/2FA).
     """
-    
     user = await authenticate_user_unified( # Use the new unified function
         db, crud_user, identifier=login_data.identifier, password=login_data.password
     )
-
     if not user:
         # Investigar razón exacta para el log de auditoría
         existing_user = await crud_user.get_by_username_or_email(db, identifier=login_data.identifier)
         error_detail = "Contraseña incorrecta" if existing_user else "El usuario no existe"
-        
         await crud_audit.audit_log.create_log(
             db,
             user_id=None,
@@ -149,7 +129,6 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=error_detail,
         )
-
     if not user.is_active:
         await crud_audit.audit_log.create_log(
             db,
@@ -161,17 +140,14 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
         )
-
     # Check for mandatory changes (Exempting admin and fortisiem)
     pending_scopes = []
     is_exempt = user.username in ['admin', 'fortisiem', 'test_admin'] or getattr(user, 'policy_exempt', False)
-    
     if not is_exempt:
         if user.reset_2fa_next_login or user.enroll_2fa_mandatory:
             pending_scopes.append("2fa:reset")
         if user.force_password_change:
             pending_scopes.append("password:change")
-
     if pending_scopes:
         interim_token = create_access_token(
             subject=user.id,
@@ -183,7 +159,6 @@ async def login(
             reset_2fa=bool(user.reset_2fa_next_login or user.enroll_2fa_mandatory),
             interim_token=interim_token
         )
-
     if user.is_2fa_enabled and not is_exempt:
         await crud_audit.audit_log.create_log(
             db, user_id=user.id, event_type="login_success_needs_2fa", ip_address=request.client.host
@@ -222,25 +197,20 @@ async def login(
         scopes = "session"
         if user.is_superuser:
             scopes += " superuser"
-            
         access_token = create_access_token(
             subject=user.id,
             expires_delta=access_token_expires,
             claims={"scope": scopes, "sid": str(session.id)},
         )
-        
         # Enviar el Token y configurar las cookies para la Wiki
         from fastapi.responses import JSONResponse
         response = JSONResponse(content=Token(access_token=access_token, token_type="bearer").model_dump())
         response.set_cookie(key="wiki_user", value=user.email, path="/", secure=True, samesite="lax")
         response.set_cookie(key="wiki_p", value=login_data.password, path="/", secure=True, samesite="lax")
         return response
-
 from pydantic import BaseModel, Field
-
 class ResetPasswordRequest(BaseModel):
     new_password: str
-
 @router.post("/reset-password-forced", response_model=Token)
 async def reset_password_forced(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -260,14 +230,11 @@ async def reset_password_forced(
     if policy:
         if len(new_password) < policy.min_length:
             raise HTTPException(status_code=400, detail=f"Password too short (min {policy.min_length})")
-
     current_user.hashed_password = get_password_hash(new_password)
     current_user.force_password_change = False
     db.add(current_user)
     await db.commit()
-    
     needs_2fa_setup = current_user.enroll_2fa_mandatory or current_user.reset_2fa_next_login
-    
     if current_user.is_2fa_enabled:
         interim_token = create_access_token(
             subject=current_user.id,
@@ -275,7 +242,6 @@ async def reset_password_forced(
             claims={"scope": "2fa:verify"},
         )
         return Token(access_token=interim_token, token_type="interim")
-    
     if needs_2fa_setup:
         interim_token = create_access_token(
             subject=current_user.id,
@@ -283,7 +249,6 @@ async def reset_password_forced(
             claims={"scope": "2fa:reset"},
         )
         return Token(access_token=interim_token, token_type="interim")
-    
     session = await crud_session.session.create_session(
         db, user_id=current_user.id, ip_address=request.client.host if request else None, user_agent=request.headers.get("user-agent") if request else None
     )
@@ -294,7 +259,6 @@ async def reset_password_forced(
     )
     await db.commit()
     return Token(access_token=access_token, token_type="bearer")
-
 @router.post("/setup-2fa-forced", response_model=TotpSetupResponse)
 async def setup_2fa_forced(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -306,18 +270,15 @@ async def setup_2fa_forced(
     secret = generate_totp_secret()
     provisioning_uri = get_totp_provisioning_uri(current_user.email, secret)
     recovery_codes = generate_recovery_codes()
-    
     current_user.totp_secret = secret
     current_user.is_2fa_enabled = False 
     db.add(current_user)
     await db.commit()
-    
     return TotpSetupResponse(
         secret=secret,
         provisioning_uri=provisioning_uri,
         recovery_codes=recovery_codes
     )
-
 @router.post("/verify-2fa-forced", response_model=Token)
 async def verify_2fa_forced(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -327,15 +288,12 @@ async def verify_2fa_forced(
 ):
     if not current_user.totp_secret:
         raise HTTPException(status_code=400, detail="2FA setup not initiated")
-        
     if not verify_totp(current_user.totp_secret, totp_code):
         raise HTTPException(status_code=401, detail="Invalid code")
-        
     current_user.is_2fa_enabled = True
     current_user.reset_2fa_next_login = False
     current_user.enroll_2fa_mandatory = False 
     db.add(current_user)
-    
     if current_user.force_password_change:
         interim_token = create_access_token(
             subject=current_user.id,
@@ -344,7 +302,6 @@ async def verify_2fa_forced(
         )
         await db.commit()
         return Token(access_token=interim_token, token_type="interim")
-
     session = await crud_session.session.create_session(
         db, user_id=current_user.id, ip_address=request.client.host if request else None, user_agent=request.headers.get("user-agent") if request else None
     )
@@ -355,7 +312,6 @@ async def verify_2fa_forced(
     )
     await db.commit()
     return Token(access_token=access_token, token_type="bearer")
-
 @router.post("/login/2fa", response_model=Token)
 @limiter.limit("100/minute")
 async def login_2fa(
@@ -370,7 +326,6 @@ async def login_2fa(
     """
     if not current_user.totp_secret:
          raise HTTPException(status_code=400, detail="2FA not configured")
-
     if not verify_totp(secret=current_user.totp_secret, code=totp_data.totp_code):
         await crud_audit.audit_log.create_log(
             db,
@@ -383,23 +338,19 @@ async def login_2fa(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid 2FA code",
         )
-
     await crud_audit.audit_log.create_log(
         db, user_id=current_user.id, event_type="login_2fa_success", ip_address=request.client.host
     )
-    
     session = await crud_session.session.create_session(
         db, 
         user_id=current_user.id, 
         ip_address=request.client.host, 
         user_agent=request.headers.get("user-agent")
     )
-
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     scopes = "session"
     if current_user.is_superuser:
         scopes += " superuser"
-
     access_token = create_access_token(
         subject=current_user.id,
         expires_delta=access_token_expires,

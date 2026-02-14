@@ -2,7 +2,6 @@ from typing import Optional, List, Any
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
-
 # --- HISTORIAL ---
 class AssetInstallRecord(BaseModel):
     id: UUID
@@ -13,20 +12,17 @@ class AssetInstallRecord(BaseModel):
     observations: Optional[str] = None
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
-
 class AssetLocationHistory(BaseModel):
     id: UUID
     new_location_id: UUID
     reason: Optional[str] = None
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
-
 class AssetIPHistory(BaseModel):
     id: UUID
     ip_address: str
     assigned_at: datetime
     model_config = ConfigDict(from_attributes=True)
-
 # --- ACTIVO ---
 class Asset(BaseModel):
     id: UUID
@@ -45,13 +41,11 @@ class Asset(BaseModel):
     os_version: Optional[str] = None
     last_seen: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
-
 class AssetWithDetails(Asset):
     location_history: List[AssetLocationHistory] = []
     install_records: List[AssetInstallRecord] = []
     ip_history: List[AssetIPHistory] = []
     model_config = ConfigDict(from_attributes=True)
-
 # --- REQUESTS ---
 class AssetCreate(BaseModel):
     hostname: str
@@ -67,7 +61,6 @@ class AssetCreate(BaseModel):
     observations: Optional[str] = None
     responsible_user_id: Optional[UUID] = None
     location_node_id: Optional[UUID] = None
-
 class AssetUpdate(BaseModel):
     hostname: Optional[str] = None
     serial: Optional[str] = None
@@ -86,13 +79,11 @@ class AssetUpdate(BaseModel):
     location_node_id: Optional[UUID] = None
     owner_group_id: Optional[UUID] = None
     responsible_user_id: Optional[UUID] = None
-
 class AssetInstallRecordCreate(BaseModel):
     gde_number: Optional[str] = None
     tecnico_instalacion: Optional[str] = None
     tecnico_carga: Optional[str] = None
     observations: Optional[str] = None
-
 class AssetInstallRequest(BaseModel):
     asset_data: AssetCreate
     install_data: AssetInstallRecordCreate

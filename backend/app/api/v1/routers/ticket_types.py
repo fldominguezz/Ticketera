@@ -4,12 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict
-
 from app.api.deps import get_db, require_permission, get_current_active_user
 from app.db.models import TicketType, User
-
 router = APIRouter()
-
 class TicketTypeSchema(BaseModel):
     id: UUID
     name: str
@@ -17,13 +14,11 @@ class TicketTypeSchema(BaseModel):
     icon: Optional[str] = None
     color: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
-
 class TicketTypeCreate(BaseModel):
     name: str
     description: Optional[str] = None
     icon: Optional[str] = None
     color: Optional[str] = None
-
 @router.get(
     "",
     response_model=List[TicketTypeSchema]
@@ -34,7 +29,6 @@ async def read_ticket_types(
 ):
     result = await db.execute(select(TicketType))
     return result.scalars().all()
-
 @router.post(
     "",
     response_model=TicketTypeSchema,
@@ -51,7 +45,6 @@ async def create_ticket_type(
     await db.commit()
     await db.refresh(db_obj)
     return db_obj
-
 @router.put(
     "/{type_id}",
     response_model=TicketTypeSchema
@@ -66,15 +59,12 @@ async def update_ticket_type(
     db_obj = result.scalar_one_or_none()
     if not db_obj:
         raise HTTPException(status_code=404, detail="Type not found")
-        
     for var, value in type_in.model_dump(exclude_unset=True).items():
         setattr(db_obj, var, value)
-        
     db.add(db_obj)
     await db.commit()
     await db.refresh(db_obj)
     return db_obj
-
 @router.delete(
     "/{type_id}",
     status_code=status.HTTP_204_NO_CONTENT
@@ -88,7 +78,6 @@ async def delete_ticket_type(
     db_obj = result.scalar_one_or_none()
     if not db_obj:
         raise HTTPException(status_code=404, detail="Type not found")
-        
     await db.delete(db_obj)
     await db.commit()
     return None

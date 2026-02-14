@@ -7,9 +7,7 @@ from app.db.session import AsyncSessionLocal
 from app.db.models.ticket import Ticket
 from app.services.notification_service import notification_service
 from app.services.email_service import email_service
-
 logger = logging.getLogger(__name__)
-
 async def poll_incoming_emails():
     """
     Background task to poll incoming emails and create tickets.
@@ -23,7 +21,6 @@ async def poll_incoming_emails():
         except Exception as e:
             logger.error(f"Error in email polling task: {e}")
             await asyncio.sleep(60)
-
 async def check_sla_breaches():
     """
     Background task to check for tickets near SLA breach.
@@ -41,7 +38,6 @@ async def check_sla_breaches():
                 )
                 result = await db.execute(query)
                 tickets = result.scalars().all()
-
                 for ticket in tickets:
                     # Notify assigned user or group
                     user_to_notify = ticket.assigned_to_id or ticket.created_by_id
@@ -53,7 +49,6 @@ async def check_sla_breaches():
                         link=f"/tickets/{ticket.id}"
                     )
                     logger.info(f"SLA Warning sent for ticket {ticket.id}")
-
             await asyncio.sleep(300) # Check every 5 minutes
         except Exception as e:
             logger.error(f"Error in SLA background task: {e}")

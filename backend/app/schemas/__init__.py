@@ -11,7 +11,6 @@ from .auth import (
 )
 from .iam import Role, RoleCreate, UserRoleAssignment, UserWithRoles
 from .user_security import ChangePasswordRequest
-
 __all__ = [
     "Token",
     "TokenData",

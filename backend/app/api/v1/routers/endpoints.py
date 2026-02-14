@@ -2,17 +2,13 @@ from typing import Annotated, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
-
 from app.api.deps import get_db, require_permission, require_endpoint_permission # Updated imports
 from app.crud import crud_endpoint, crud_audit
 from app.db.models import User
 from app.schemas.endpoint import Endpoint, EndpointCreate, EndpointUpdate
-
 from app.services.group_service import group_service
 from app.db.models.endpoint import Endpoint as EndpointModel # Import EndpointModel
-
 router = APIRouter()
-
 @router.get("", response_model=List[Endpoint])
 async def read_endpoints(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -33,19 +29,15 @@ async def read_endpoints(
         if not current_user.group_id:
             return []
         group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
-        
         # We need to modify get_multi to accept a list of group_ids
         from sqlalchemy.future import select
-        
         query = select(EndpointModel).filter(
             EndpointModel.deleted_at == None,
             EndpointModel.group_id.in_(group_ids)
         )
         result = await db.execute(query.offset(skip).limit(limit))
         endpoints = result.scalars().all()
-        
     return endpoints
-
 @router.post("", response_model=Endpoint, status_code=status.HTTP_201_CREATED)
 async def create_endpoint(
     request: Request,
@@ -57,7 +49,6 @@ async def create_endpoint(
     Create new endpoint.
     """
     endpoint = await crud_endpoint.endpoint.create(db, obj_in=endpoint_in)
-    
     await crud_audit.audit_log.create_log(
         db,
         user_id=current_user.id,
@@ -66,7 +57,6 @@ async def create_endpoint(
         details={"endpoint_id": str(endpoint.id), "hostname": endpoint.hostname}
     )
     return endpoint
-
 @router.get("/{endpoint_id}", response_model=Endpoint)
 async def read_endpoint(
     endpoint: Annotated[EndpointModel, Depends(require_endpoint_permission("read"))], # New dependency
@@ -75,7 +65,6 @@ async def read_endpoint(
     Get endpoint by ID.
     """
     return endpoint
-
 @router.put("/{endpoint_id}", response_model=Endpoint)
 async def update_endpoint(
     request: Request,
@@ -89,7 +78,6 @@ async def update_endpoint(
     """
     # Removed internal access check
     updated_endpoint = await crud_endpoint.endpoint.update(db, db_obj=endpoint, obj_in=endpoint_in)
-    
     await crud_audit.audit_log.create_log(
         db,
         user_id=current_user.id,
@@ -98,7 +86,6 @@ async def update_endpoint(
         details={"endpoint_id": str(endpoint.id)}
     )
     return updated_endpoint
-
 @router.delete("/{endpoint_id}", response_model=Endpoint)
 async def delete_endpoint(
     request: Request,
@@ -111,7 +98,6 @@ async def delete_endpoint(
     """
     # Removed internal access check
     deleted_endpoint = await crud_endpoint.endpoint.remove(db, id=endpoint.id) # Use endpoint.id
-    
     await crud_audit.audit_log.create_log(
         db,
         user_id=current_user.id,

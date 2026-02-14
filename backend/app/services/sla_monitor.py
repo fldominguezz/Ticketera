@@ -3,13 +3,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import and_
 import logging
-
 from app.db.models.sla import SLAMetric
 from app.db.models.ticket import Ticket
 from app.services.notification_service import notification_service
-
 logger = logging.getLogger(__name__)
-
 class SLAMonitor:
     async def check_breaches(self, db: AsyncSession):
         """
@@ -17,7 +14,6 @@ class SLAMonitor:
         """
         now = datetime.utcnow()
         warning_window = now + timedelta(minutes=30)
-
         # 1. Vencimientos de RESPUESTA
         query_resp = select(SLAMetric).join(Ticket).where(
             and_(
@@ -27,7 +23,6 @@ class SLAMonitor:
             )
         )
         metrics_resp = (await db.execute(query_resp)).scalars().all()
-
         for m in metrics_resp:
             await notification_service.notify_user(
                 db,
@@ -36,7 +31,6 @@ class SLAMonitor:
                 message=f"Ticket {m.ticket.id}: vence en <30 min.",
                 link=f"/tickets/{m.ticket.id}"
             )
-
         # 2. Vencimientos de RESOLUCIÓN
         query_res = select(SLAMetric).join(Ticket).where(
             and_(
@@ -46,7 +40,6 @@ class SLAMonitor:
             )
         )
         metrics_res = (await db.execute(query_res)).scalars().all()
-
         for m in metrics_res:
             await notification_service.notify_user(
                 db,
@@ -55,7 +48,5 @@ class SLAMonitor:
                 message=f"El plazo de resolución del ticket {m.ticket.id} está por expirar.",
                 link=f"/tickets/{m.ticket.id}"
             )
-
         await db.commit()
-
 sla_monitor = SLAMonitor()

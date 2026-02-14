@@ -9,5 +9,4 @@ from . import crud_location
 from . import crud_asset
 from . import crud_daily_report
 from . import crud_form
-
 from .crud_user import user

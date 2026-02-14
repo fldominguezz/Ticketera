@@ -3,7 +3,6 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 import uuid
-
 from app.db.session import AsyncSessionLocal
 from app.crud.crud_user import user
 from app.schemas.user import UserCreate
@@ -11,10 +10,8 @@ from app.db.models import Group, User, Workflow, WorkflowState, WorkflowTransiti
 from app.db.models.iam import Role, Permission, UserRole, RolePermission
 from app.core.config import settings
 from app.core.permissions import PermissionEnum
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 async def init_db() -> None:
     async with AsyncSessionLocal() as session:
         # 1. Asegurar Grupo Admin Base
@@ -25,7 +22,6 @@ async def init_db() -> None:
             session.add(group)
             await session.commit()
             await session.refresh(group)
-
         # 2. SINCRONIZACIÓN DEL REGISTRO DE PERMISOS (Diccionario de Capacidades)
         # Solo mantenemos los permisos actualizados para que aparezcan en el Panel Admin.
         permissions_data = [
@@ -44,24 +40,19 @@ async def init_db() -> None:
             {"key": PermissionEnum.TICKET_WATCH_GLOBAL, "name": "Tickets: Observar Global", "module": "TICKETS", "scope_type": "global"},
             {"key": PermissionEnum.TICKET_WATCH_GROUP, "name": "Tickets: Observar en Grupo", "module": "TICKETS", "scope_type": "group"},
             {"key": PermissionEnum.TICKET_WATCH_OWN, "name": "Tickets: Observar Propios", "module": "TICKETS", "scope_type": "own"},
-            
             # PARTES
             {"key": PermissionEnum.PARTES_READ_GLOBAL, "name": "Partes: Leer Global", "module": "PARTES", "scope_type": "global"},
             {"key": PermissionEnum.PARTES_READ_GROUP, "name": "Partes: Leer Grupo", "module": "PARTES", "scope_type": "group"},
             {"key": PermissionEnum.PARTES_CREATE, "name": "Partes: Crear", "module": "PARTES", "scope_type": "none"},
             {"key": PermissionEnum.PARTES_UPDATE_OWN, "name": "Partes: Editar Propios", "module": "PARTES", "scope_type": "own"},
             {"key": PermissionEnum.PARTES_MANAGE, "name": "Partes: Gestión Total", "module": "PARTES", "scope_type": "global"},
-
             # SIEM
             {"key": PermissionEnum.SIEM_VIEW, "name": "SIEM: Ver Alertas", "module": "SIEM", "scope_type": "none"},
             {"key": PermissionEnum.SIEM_MANAGE, "name": "SIEM: Gestionar/Promover", "module": "SIEM", "scope_type": "none"},
-
             # FORENSICS
             {"key": PermissionEnum.FORENSICS_EML_SCAN, "name": "Forense: Escáner EML", "module": "FORENSE", "scope_type": "none"},
-
             # AUDITORÍA
             {"key": PermissionEnum.AUDIT_READ, "name": "Admin: Ver Auditoría", "module": "AUDITORIA", "scope_type": "global"},
-
             # ADMIN GENERAL
             {"key": PermissionEnum.ADMIN_ACCESS, "name": "Admin: Acceso Panel", "module": "ADMINISTRACION", "scope_type": "none"},
             {"key": PermissionEnum.ADMIN_USERS_READ, "name": "Admin: Leer Usuarios", "module": "ADMINISTRACION", "scope_type": "global"},
@@ -77,7 +68,6 @@ async def init_db() -> None:
             {"key": PermissionEnum.ADMIN_SETTINGS_READ, "name": "Admin: Leer Configuración", "module": "ADMINISTRACION", "scope_type": "global"},
             {"key": PermissionEnum.ADMIN_SETTINGS_MANAGE, "name": "Admin: Configuración Sistema", "module": "ADMINISTRACION", "scope_type": "global"},
             {"key": PermissionEnum.DASHBOARD_VIEW, "name": "Ver Dashboard", "module": "DASHBOARD", "scope_type": "none"},
-
             # ACTIVOS
             {"key": PermissionEnum.ASSETS_READ_GLOBAL, "name": "Activos: Leer Global", "module": "ACTIVOS", "scope_type": "global"},
             {"key": PermissionEnum.ASSETS_READ_GROUP, "name": "Activos: Leer Grupo", "module": "ACTIVOS", "scope_type": "group"},
@@ -87,7 +77,6 @@ async def init_db() -> None:
             {"key": PermissionEnum.ASSETS_INSTALL, "name": "Activos: Instalar Agente", "module": "ACTIVOS", "scope_type": "none"},
             {"key": PermissionEnum.ASSETS_DELETE, "name": "Activos: Eliminar", "module": "ACTIVOS", "scope_type": "none"},
         ]
-        
         for p in permissions_data:
             result = await session.execute(select(Permission).filter(Permission.key == p["key"]))
             perm = result.scalar_one_or_none()
@@ -98,10 +87,8 @@ async def init_db() -> None:
                 perm.module = p["module"]
                 perm.scope_type = p["scope_type"]
                 session.add(perm)
-        
         await session.commit()
         logger.info("Registro de permisos actualizado.")
-
         # 3. Asegurar Rol Administrator y Superuser
         # Solo garantizamos que el rol Administrator exista y el usuario admin lo tenga.
         result = await session.execute(select(Role).filter(Role.name == "Administrator"))
@@ -111,7 +98,6 @@ async def init_db() -> None:
             session.add(admin_role)
             await session.commit()
             await session.refresh(admin_role)
-
         superuser_user = await user.get_by_email(session, email=settings.FIRST_SUPERUSER)
         if not superuser_user:
             user_in = UserCreate(
@@ -126,8 +112,6 @@ async def init_db() -> None:
             )
             await user.create(session, obj_in=user_in)
             logger.info("Superuser creado.")
-        
         await session.commit()
-
 if __name__ == "__main__":
     asyncio.run(init_db())

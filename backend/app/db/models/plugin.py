@@ -3,7 +3,6 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 import uuid
 from app.db.base_class import Base
-
 class Plugin(Base):
     __tablename__ = "plugins"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

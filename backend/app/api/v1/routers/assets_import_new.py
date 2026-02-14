@@ -9,9 +9,7 @@ from app.crud.crud_location import location as crud_location
 from datetime import datetime
 import re
 import traceback
-
 router = APIRouter()
-
 @router.post(
     "/import",
     dependencies=[Depends(require_role(['owner', 'admin']))] # Restrict to owner/admin roles
@@ -25,24 +23,19 @@ async def import_assets(
     """
     Import assets from EMS/ESET.
     """
-    
     stats = {"created": 0, "updated": 0, "errors": 0}
-
     def clean_mac(mac):
         if not mac: return None
         cleaned = re.sub(r'[^a-fA-F0-9]', '', str(mac)).lower()
         if len(cleaned) != 12: return str(mac).lower()
         return ":".join(cleaned[i:i+2] for i in range(0, 12, 2))
-
     for item in assets_in:
         try:
             # 1. Normalización de llaves (insensible a mayúsculas/espacios)
             item_low = {str(k).lower().strip(): v for k, v in item.items()}
-            
             # 2. Detectar si es ESET
             source = item_low.get("source", "ems")
             is_eset = source == "eset" or any(k in item_low for k in ["usuarios registrados", "direcciones ip", "nombre del sistema operativo"])
-            
             if is_eset:
                 source = "eset"
                 raw_name = str(item_low.get("nombre") or item_low.get("fqdn") or item_low.get("name") or "").strip()
@@ -52,14 +45,11 @@ async def import_assets(
                 path_str = str(item_low.get("grupo") or item_low.get("group_paths") or "").strip()
                 operator = str(item_low.get("usuarios registrados") or item_low.get("operator") or "").strip()
                 mac = clean_mac(item_low.get("dirección mac") or item_low.get("mac_addr"))
-                
                 av_product_final = "ESET CLOUD"
                 source_system_final = "ESET"
                 observations_final = f"Operador: {operator}" if operator else ""
-                
                 # Simplificar OS
                 if os_ver and "." in os_ver: os_ver = os_ver.split('.')[0]
-                
                 # Resolución de carpeta ESET
                 location_id = None
                 group_name = path_str.strip('/')
@@ -91,33 +81,26 @@ async def import_assets(
                 observations_final = ""
                 if not path_str: path_str = "PFA/FORTIEMS/Perdidos y Encontrados (EMS)"
                 elif not path_str.startswith("PFA/"): path_str = f"PFA/FORTIEMS/{path_str}"
-
                 location_id = None
-
             # 3. Hostname final
             hostname_final = raw_name or f"Device-{mac or 'Unknown'}"
             if hostname_final == "Device-Unknown" and ip: hostname_final = f"ESET-{ip}"
-            
             # 4. Asegurar location_id
             if not location_id:
                 location_id = await crud_location.get_or_create_by_path(db, path_str)
-            
             # 5. Estado
             status_final = "operative"
             if "Perdidos y Encontrados" in path_str or "Lost And Found" in path_str:
                 status_final = "tagging_pending"
-
             # 6. Guardar en DB
             # Buscar duplicado por MAC o Hostname
             existing = None
             if mac and len(mac) > 5:
                 res = await db.execute(sa_select(AssetModel).filter(AssetModel.mac_address == mac))
                 existing = res.scalar_one_or_none()
-            
             if not existing and hostname_final:
                 res = await db.execute(sa_select(AssetModel).filter(AssetModel.hostname == hostname_final))
                 existing = res.scalar_one_or_none()
-            
             if existing:
                 existing.hostname = hostname_final
                 existing.ip_address = ip or existing.ip_address
@@ -139,13 +122,10 @@ async def import_assets(
                 )
                 db.add(new_asset)
                 stats["created"] += 1
-
             if (stats["created"] + stats["updated"]) % 50 == 0:
                 await db.flush()
-
         except Exception as e:
             traceback.print_exc()
             stats["errors"] += 1
-            
     await db.commit()
     return stats

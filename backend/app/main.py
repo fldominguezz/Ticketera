@@ -8,23 +8,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-
 from app.core.config import settings
 from app.core.limiter import limiter
 from app.db.session import engine, AsyncSessionLocal
 from app.core.observability import setup_observability 
-
 logger = logging.getLogger(__name__)
-
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.db_engine = engine
     app.state.async_session_local = AsyncSessionLocal
     yield
     await engine.dispose()
-
 app = FastAPI(title=settings.PROJECT_NAME, version="1.0.0", lifespan=lifespan)
-
 # Configuración de CORS
 app.add_middleware(
     CORSMiddleware,
@@ -33,17 +28,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 # Servir archivos estáticos
 if not os.path.exists("/app/uploads"):
     os.makedirs("/app/uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="/app/uploads"), name="uploads")
-
 # Observabilidad y Limites
 setup_observability(app)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
 # IMPORTACIÓN DE ROUTERS
 from app.api.v1.routers import (
     auth, users, sessions, groups, tickets, audit, integrations, 
@@ -52,9 +44,7 @@ from app.api.v1.routers import (
     locations, expedientes, admin_configs, daily_reports, soc, soc_ws,
     attachments, endpoints, forensics, plugins, search, oidc, health
 )
-
 v1 = settings.API_V1_STR # /api/v1
-
 # Registro de Rutas
 app.include_router(health.router, prefix=v1, tags=["system"])
 app.include_router(auth.router, prefix=f"{v1}/auth", tags=["auth"])
@@ -86,8 +76,6 @@ app.include_router(oidc.router, prefix=f"{v1}/oidc", tags=["oidc"])
 app.include_router(ai_assistant.router, prefix=f"{v1}/ai", tags=["ai"])
 app.include_router(soc.router, prefix=f"{v1}/soc", tags=["soc"])
 app.include_router(soc_ws.router, prefix=v1, tags=["ws"])
-
 # SIEM Alias
 app.post(f"{v1}/fortisiem-incident", include_in_schema=False)(integrations.fortisiem_incident_webhook)
-
 app.router.redirect_slashes = False

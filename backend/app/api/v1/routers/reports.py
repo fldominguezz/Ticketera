@@ -6,9 +6,7 @@ from app.crud import crud_ticket
 from app.db.models import User
 from app.services.export_service import export_service
 from app.services.group_service import group_service
-
 router = APIRouter()
-
 @router.get("/tickets/{format}")
 async def export_tickets(
     format: str,
@@ -23,7 +21,6 @@ async def export_tickets(
     else:
         group_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
         tickets = await crud_ticket.ticket.get_multi_by_group_ids(db, group_ids=group_ids, limit=1000)
-
     # Convert to dict for export
     data = []
     for t in tickets:
@@ -35,7 +32,6 @@ async def export_tickets(
             "Created At": t.created_at.strftime("%Y-%m-%d %H:%M") if t.created_at else "",
             "SLA Deadline": t.sla_deadline.strftime("%Y-%m-%d %H:%M") if t.sla_deadline else "N/A"
         })
-
     if format == "csv":
         content = export_service.to_csv(data)
         media_type = "text/csv"
@@ -50,7 +46,6 @@ async def export_tickets(
         filename = "tickets_report.pdf"
     else:
         raise HTTPException(status_code=400, detail="Invalid format")
-
     return Response(
         content=content,
         media_type=media_type,
