@@ -217,7 +217,7 @@ def require_ticket_permission(action: str):
         if not ticket: raise HTTPException(status_code=404, detail="No encontrado")
         
         if current_user.is_superuser: return ticket
-    pass
+
         # Capability Mapping
         # We check for:
         # 0. MASTER action permission (e.g. ticket:comment)
