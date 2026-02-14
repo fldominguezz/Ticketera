@@ -44,16 +44,16 @@ export default function TicketPage() {
   try {
    setLoading(true);
    const [ticketRes, commentsRes, relationsRes, attachmentsRes, userRes, auditRes, subtasksRes, usersRes, watchersRes, groupsRes] = await Promise.all([
-    fetch(`/api/v1/${String("/api/v1/tickets/" + encodeURIComponent(ticketId).replace(/[^a-zA-Z0-9-/]/g, "")}`) , { headers: { 'Authorization': `Bearer ${token}` } }),
-    fetch(`/api/v1/${String("/api/v1/tickets/" + encodeURIComponent(ticketId).replace(/[^a-zA-Z0-9-/]/g, "")}`) + "/comments", { headers: { 'Authorization': `Bearer ${token}` } }),
-    fetch(`/api/v1/${String("/api/v1/tickets/" + encodeURIComponent(ticketId).replace(/[^a-zA-Z0-9-/]/g, "")}`) + "/relations", { headers: { 'Authorization': `Bearer ${token}` } }),
-    fetch(`/api/v1/${String("/api/v1/attachments/" + encodeURIComponent(ticketId).replace(/[^a-zA-Z0-9-/]/g, "")}`) , { headers: { 'Authorization': `Bearer ${token}` } }),
-    fetch(`/api/v1/${String('/api/v1/users/me', { headers: { 'Authorization': `Bearer ${token}` } }).replace(/[^a-zA-Z0-9-/]/g, "")}`),
-    fetch(`/api/v1/${String("/api/v1/audit?ticket_id=" + encodeURIComponent(ticketId).replace(/[^a-zA-Z0-9-/]/g, "")}`), { headers: { 'Authorization': `Bearer ${token}` } }),
-    fetch(`/api/v1/${String("/api/v1/tickets/" + encodeURIComponent(ticketId).replace(/[^a-zA-Z0-9-/]/g, "")}`) + "/subtasks", { headers: { 'Authorization': `Bearer ${token}` } }),
-    fetch(`/api/v1/${String('/api/v1/users', { headers: { 'Authorization': `Bearer ${token}` } }).replace(/[^a-zA-Z0-9-/]/g, "")}`),
-    fetch(`/api/v1/${String("/api/v1/tickets/" + encodeURIComponent(ticketId).replace(/[^a-zA-Z0-9-/]/g, "")}`) + "/watchers", { headers: { 'Authorization': `Bearer ${token}` } }),
-    fetch(`/api/v1/${String('/api/v1/groups', { headers: { 'Authorization': `Bearer ${token}` } }).replace(/[^a-zA-Z0-9-/]/g, "")}`)
+    fetch("/api/v1/" + String(id).replace(/[^a-zA-Z0-9-]/g, "")).replace(/[^a-zA-Z0-9-/]/g, "")}`) , { headers: { 'Authorization': `Bearer ${token}` } }),
+    fetch("/api/v1/" + String(id).replace(/[^a-zA-Z0-9-]/g, "")).replace(/[^a-zA-Z0-9-/]/g, "")}`) + "/comments", { headers: { 'Authorization': `Bearer ${token}` } }),
+    fetch("/api/v1/" + String(id).replace(/[^a-zA-Z0-9-]/g, "")).replace(/[^a-zA-Z0-9-/]/g, "")}`) + "/relations", { headers: { 'Authorization': `Bearer ${token}` } }),
+    fetch("/api/v1/" + String(id).replace(/[^a-zA-Z0-9-]/g, "")).replace(/[^a-zA-Z0-9-/]/g, "")}`) , { headers: { 'Authorization': `Bearer ${token}` } }),
+    fetch("/api/v1/" + String(id).replace(/[^a-zA-Z0-9-]/g, "")).replace(/[^a-zA-Z0-9-/]/g, "")}`),
+    fetch("/api/v1/" + String(id).replace(/[^a-zA-Z0-9-]/g, "")).replace(/[^a-zA-Z0-9-/]/g, "")}`), { headers: { 'Authorization': `Bearer ${token}` } }),
+    fetch("/api/v1/" + String(id).replace(/[^a-zA-Z0-9-]/g, "")).replace(/[^a-zA-Z0-9-/]/g, "")}`) + "/subtasks", { headers: { 'Authorization': `Bearer ${token}` } }),
+    fetch("/api/v1/" + String(id).replace(/[^a-zA-Z0-9-]/g, "")).replace(/[^a-zA-Z0-9-/]/g, "")}`),
+    fetch("/api/v1/" + String(id).replace(/[^a-zA-Z0-9-]/g, "")).replace(/[^a-zA-Z0-9-/]/g, "")}`) + "/watchers", { headers: { 'Authorization': `Bearer ${token}` } }),
+    fetch("/api/v1/" + String(id).replace(/[^a-zA-Z0-9-]/g, "")).replace(/[^a-zA-Z0-9-/]/g, "")}`)
    ]);
 
    if (ticketRes.ok) {
@@ -101,7 +101,7 @@ export default function TicketPage() {
  const handleAddComment = async (content: string, isInternal: boolean) => {
   const token = localStorage.getItem('access_token');
   try {
-   const res = await fetch(`/api/v1/${String(`/api/v1/tickets/${(id).replace(/[^a-zA-Z0-9-/]/g, "")}`)}/comments`, {
+   const res = await fetch("/api/v1/" + String(id).replace(/[^a-zA-Z0-9-]/g, "")).replace(/[^a-zA-Z0-9-/]/g, "")}`)}/comments`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ content, is_internal: isInternal })
@@ -123,7 +123,7 @@ export default function TicketPage() {
   const formData = new FormData();
   formData.append('file', file);
   try {
-   const res = await fetch(`/api/v1/${String(`/api/v1/attachments/${(id).replace(/[^a-zA-Z0-9-/]/g, "")}`)}`, {
+   const res = await fetch("/api/v1/" + String(id).replace(/[^a-zA-Z0-9-]/g, "")).replace(/[^a-zA-Z0-9-/]/g, "")}`)}`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}` },
     body: formData
@@ -141,7 +141,7 @@ export default function TicketPage() {
   if (!confirm('¿Está seguro de que desea eliminar este ticket de forma permanente?')) return;
   const token = localStorage.getItem('access_token');
   try {
-   const res = await fetch(`/api/v1/${String(`/api/v1/tickets/${(id).replace(/[^a-zA-Z0-9-/]/g, "")}`)}`, {
+   const res = await fetch("/api/v1/" + String(id).replace(/[^a-zA-Z0-9-]/g, "")).replace(/[^a-zA-Z0-9-/]/g, "")}`)}`, {
     method: 'DELETE',
     headers: { 'Authorization': `Bearer ${token}` }
    });
@@ -189,7 +189,7 @@ export default function TicketPage() {
  const handleAddSubtask = async (title: string) => {
   const token = localStorage.getItem('access_token');
   try {
-   const res = await fetch(`/api/v1/${String(`/api/v1/tickets/${(id).replace(/[^a-zA-Z0-9-/]/g, "")}`)}/subtasks`, {
+   const res = await fetch("/api/v1/" + String(id).replace(/[^a-zA-Z0-9-]/g, "")).replace(/[^a-zA-Z0-9-/]/g, "")}`)}/subtasks`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ title, is_completed: false })
@@ -221,13 +221,13 @@ export default function TicketPage() {
   const method = isWatching ? 'DELETE' : 'POST';
   
   try {
-   const res = await fetch(`/api/v1/${String(`/api/v1/tickets/${(id).replace(/[^a-zA-Z0-9-/]/g, "")}`)}/watchers`, {
+   const res = await fetch("/api/v1/" + String(id).replace(/[^a-zA-Z0-9-]/g, "")).replace(/[^a-zA-Z0-9-/]/g, "")}`)}/watchers`, {
     method: method,
     headers: { 'Authorization': `Bearer ${token}` }
    });
    if (res.ok) {
     // Refresh watchers
-    const watchersRes = await fetch(`/api/v1/${String(`/api/v1/tickets/${(id).replace(/[^a-zA-Z0-9-/]/g, "")}`)}/watchers`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const watchersRes = await fetch("/api/v1/" + String(id).replace(/[^a-zA-Z0-9-]/g, "")).replace(/[^a-zA-Z0-9-/]/g, "")}`)}/watchers`, { headers: { 'Authorization': `Bearer ${token}` } });
     if (watchersRes.ok) setWatchers(await watchersRes.json());
    }
   } catch (e) { console.error(e); }
@@ -236,7 +236,7 @@ export default function TicketPage() {
  const handleUpdateTicket = async (data: any) => {
   const token = localStorage.getItem('access_token');
   try {
-   const res = await fetch(`/api/v1/${String(`/api/v1/tickets/${(id).replace(/[^a-zA-Z0-9-/]/g, "")}`)}`, {
+   const res = await fetch("/api/v1/" + String(id).replace(/[^a-zA-Z0-9-]/g, "")).replace(/[^a-zA-Z0-9-/]/g, "")}`)}`, {
     method: 'PUT',
     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(data)

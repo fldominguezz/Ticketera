@@ -3,7 +3,7 @@ import { sanitizeParam } from "../../utils/security";
 import React, { useState, useEffect } from 'react';
 import Layout from '../../../../components/Layout';
 import { Card, Row, Col, Form, Button, Badge, Spinner } from 'react-bootstrap';
-import { Trash2, GripVertical, Save, Eye, Settings2, PlusSquare, ArrowLeft } from 'lucide-react';
+import { Trash2, GripVertical, Save, Eye, Settings2, PlusSquare, ArrowLeft } from 'lucformIde-react';
 import { useTheme } from '../../../../context/ThemeContext';
 import { useRouter } from 'next/router';
 import api from '../../../../lib/api';

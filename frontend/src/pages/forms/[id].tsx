@@ -28,7 +28,7 @@ export default function FormRenderPage() {
 
  const fetchForm = async (token: string, formId: string) => {
   try {
-   const res = await fetch(`/api/v1/${String('/api/v1/forms', { headers: { 'Authorization': `Bearer ${token}` } }).replace(/[^a-zA-Z0-9-/]/g, "")}`);
+   const res = await fetch("/api/v1/" + String(id).replace(/[^a-zA-Z0-9-]/g, "")).replace(/[^a-zA-Z0-9-/]/g, "")}`);
    if (res.ok) {
     const allForms = await res.json();
     const found = allForms.find((f: any) => f.id === formId);
@@ -47,7 +47,7 @@ export default function FormRenderPage() {
   setSubmitting(true);
   const token = localStorage.getItem('access_token');
   try {
-   const res = await fetch(`/api/v1/${String(`/api/v1/forms/${(id).replace(/[^a-zA-Z0-9-/]/g, "")}`)}/submit`, {
+   const res = await fetch("/api/v1/" + String(id).replace(/[^a-zA-Z0-9-]/g, "")).replace(/[^a-zA-Z0-9-/]/g, "")}`)}/submit`, {
     method: 'POST',
     headers: {
      'Authorization': `Bearer ${token}`,
