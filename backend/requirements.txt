@@ -30,7 +30,7 @@ prometheus-fastapi-instrumentator==7.0.0
 sentry-sdk==2.10.0
 
 # 2. Motor de Búsqueda
-meilisearch==0.31.0
+meilisearch==0.40.0
 
 # 3. LDAP / Active Directory
 python-ldap==3.4.4
