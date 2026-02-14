@@ -33,7 +33,7 @@ sentry-sdk==2.0.1
 meilisearch==0.31.0
 
 # 3. LDAP / Active Directory
-python-ldap==3.4.4
+python-ldap==3.4.5
 
 # 1. IA / Analista Virtual
 langchain==0.1.9
