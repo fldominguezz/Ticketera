@@ -1,2 +1,3 @@
-# Llave SSL de desarrollo conocida
 nginx/ssl/nginx.key
+/nginx/ssl/nginx.key
+backend/app/nginx/ssl/nginx.key
