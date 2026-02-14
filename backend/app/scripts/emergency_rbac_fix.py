@@ -7,7 +7,7 @@ from sqlalchemy import delete
 
 async def full_audit_fix():
     async with AsyncSessionLocal() as db:
-        
+        pass
         # 1. Obtener al admin
         res = await db.execute(select(User).where(User.username == 'admin'))
         admin = res.scalar_one_or_none()
