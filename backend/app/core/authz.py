@@ -9,7 +9,6 @@ class Authorize:
         self.required_permissions = set(permissions)
 
     def __call__(self, user: Annotated[User, Depends(get_current_active_user)]):
-    pass
         user_permissions = user.get_permissions()
 
         if not self.required_permissions.issubset(user_permissions):
@@ -17,6 +16,3 @@ class Authorize:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not enough permissions",
             )
-
-# Example Usage:
-# @router.get("/some-data", dependencies=[Depends(Authorize(["ticket:read"]))])
