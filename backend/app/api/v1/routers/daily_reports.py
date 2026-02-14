@@ -1,3 +1,4 @@
+from app.utils.security import safe_join, sanitize_filename
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -203,7 +204,7 @@ async def create_daily_report(
     group_name_slug = target_group.name.replace(" ", "_")
     filename = f"Parte_{group_name_slug}_{report_date.strftime('%d-%m-%Y')}_{report_in.shift}.docx"
     os.makedirs(UPLOAD_DIR, exist_ok=True)
-    file_path = os.path.join(UPLOAD_DIR, filename)
+    file_path = safe_join(UPLOAD_DIR, sanitize_filename(filename))
     
     try:
         report_generator.generate(context, file_path, template_override=template_path)
@@ -291,7 +292,7 @@ async def upload_legacy_report(
 
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     filename = f"Parte_LEGACY_{uuid.uuid4().hex[:8]}.docx"
-    file_path = os.path.join(UPLOAD_DIR, filename)
+    file_path = safe_join(UPLOAD_DIR, sanitize_filename(filename))
     with open(file_path, "wb") as buffer: shutil.copyfileobj(file.file, buffer)
 
     extracted_text = ""

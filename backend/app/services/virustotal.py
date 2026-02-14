@@ -1,4 +1,5 @@
 from app.utils.security import validate_external_url
+from app.utils.security import validate_external_url
 import requests
 import base64
 import time

@@ -1,3 +1,4 @@
+from app.utils.security import validate_external_url
 from typing import List, Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, Body, Request, status, BackgroundTasks
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
