@@ -88,6 +88,6 @@ make start
 ---
 
 ## 📞 Institucional
-**Desarrollado por:** División Seguridad Informática - PFA
+**Desarrollado por:** Ayudante Dominguez Fernando
 **Contacto:** [software-seguridad@pfa.gob.ar]
 **Estado:** Producción / Estable

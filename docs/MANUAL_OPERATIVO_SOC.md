@@ -71,4 +71,5 @@ Para visualización prolongada en monitores de centro de mando (Video Wall):
 
 ---
 *Versión del Documento: 1.0 - Febrero 2026*
-*Aprobado por: Coordinación de Ciberseguridad Institucional*
+*Desarrollado por: Ayudante Dominguez Fernando*
+*División Seguridad Informática*
