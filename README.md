@@ -69,11 +69,18 @@ Este desarrollo ha sido auditado bajo el **Código de Buenas Prácticas en el De
 -   **Virtualización:** Despliegue estandarizado y portable.
 -   **Seguridad por Diseño:** Escaneos automáticos de vulnerabilidades (Trivy, Bandit, CodeQL).
 -   **Protección de Datos:** Alineado con la **Ley 25.326** de Protección de Datos Personales de la República Argentina.
--   **Accesibilidad:** Soporte nativo para modos de **Alto Contraste** y **Dark Mode**.
+-   **Accesibilidad:** Soporte nativo para modos de **Alto Contraste** y **Dark Mode**, cumpliendo con las pautas de accesibilidad para software público (**WCAG 2.1 / Ley 26.653**).
+-   **IA Responsable:** Procesamiento de IA **100% local** (sin fuga de datos a la nube) y bajo el principio de supervisión humana (*Human-in-the-Loop*).
 
 ---
 
-## 📦 Instalación y Despliegue
+## 📚 Documentación Técnica Adicional
+
+Para más detalles sobre la operación y el cumplimiento del sistema, consulte:
+*   [**Manual Operativo SOC**](docs/MANUAL_OPERATIVO_SOC.md)
+*   [**Plan de Contingencia y Backup**](docs/CONTINGENCIA_Y_BACKUP.md)
+*   [**Ética de IA y Privacidad**](docs/ETICA_IA_Y_PRIVACIDAD.md)
+*   [**Guía de Instalación**](docs/INSTALLATION.md)
 
 ```bash
 # Preparar entorno
