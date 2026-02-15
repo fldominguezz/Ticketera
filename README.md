@@ -3,6 +3,11 @@
 
 ![GitHub last commit](https://img.shields.io/github/last-commit/fldominguezz/Ticketera?style=flat-alpha&color=00d2ff)
 ![Version](https://img.shields.io/badge/version-1.0.0-blue?style=flat-square)
+[![CI Ticketera SOC](https://github.com/fldominguezz/Ticketera/actions/workflows/ci.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/ci.yml)
+[![Bandit Scan](https://github.com/fldominguezz/Ticketera/actions/workflows/bandit-security.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/bandit-security.yml)
+[![Trivy Scan](https://github.com/fldominguezz/Ticketera/actions/workflows/trivy-security.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/trivy-security.yml)
+[![Gitleaks Scan](https://github.com/fldominguezz/Ticketera/actions/workflows/gitleaks-security.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/gitleaks-security.yml)
+[![CodeQL](https://github.com/fldominguezz/Ticketera/actions/workflows/codeql.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/codeql.yml)
 
 Ticketera SOC es una plataforma integral desarrollada para la orquestación y seguimiento de incidentes de ciberseguridad. El sistema permite centralizar la recepción de alertas, la investigación forense y la trazabilidad de las acciones de respuesta, cumpliendo con los estándares de seguridad exigidos para el software público nacional.
 
