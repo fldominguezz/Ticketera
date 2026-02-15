@@ -8,10 +8,13 @@ from app.db.models.asset import Asset
 from app.db.models.asset_history import AssetLocationHistory, AssetIPHistory, AssetInstallRecord, AssetEventLog
 from app.schemas.asset import AssetCreate, AssetUpdate, AssetInstallRecordCreate
 from sqlalchemy.sql import func
+from app.services.search_service import search_service
+
 class CRUDAsset:
     async def get(self, db: AsyncSession, id: UUID) -> Optional[Asset]:
         result = await db.execute(select(Asset).filter(Asset.id == id, Asset.deleted_at == None))
         return result.scalar_one_or_none()
+
     async def get_multi(self, db: AsyncSession, skip: int = 0, limit: int = 100, location_node_id: Optional[UUID] = None, show_decommissioned: bool = False) -> List[Asset]:
         query = select(Asset)
         if not show_decommissioned:
@@ -21,6 +24,7 @@ class CRUDAsset:
         query = query.offset(skip).limit(limit)
         result = await db.execute(query)
         return result.scalars().all()
+
     async def remove(self, db: AsyncSession, id: UUID) -> Optional[Asset]:
         """
         Baja lógica: Marca como decommissioned y establece deleted_at.
@@ -38,7 +42,12 @@ class CRUDAsset:
                 "status", "criticality", "av_product", "device_type", "os_name", "os_version", "observations", "last_seen",
                 "created_at", "updated_at", "deleted_at"
             ])
+            # Eliminar de Meilisearch
+            try:
+                search_service.delete_asset(str(db_obj.id))
+            except Exception: pass
         return db_obj
+
     async def hard_delete(self, db: AsyncSession, id: UUID) -> bool:
         """
         Borrado físico: Elimina el registro de la base de datos.
@@ -48,8 +57,13 @@ class CRUDAsset:
         if db_obj:
             await db.delete(db_obj)
             await db.commit()
+            # Eliminar de Meilisearch
+            try:
+                search_service.delete_asset(str(id))
+            except Exception: pass
             return True
         return False
+
     async def create(self, db: AsyncSession, obj_in: AssetCreate) -> Asset:
         db_obj = Asset(**obj_in.model_dump())
         db.add(db_obj)
@@ -60,6 +74,27 @@ class CRUDAsset:
             "status", "criticality", "av_product", "device_type", "os_name", "os_version", "observations", "last_seen",
             "created_at", "updated_at"
         ])
+        
+        # Indexar en Meilisearch
+        try:
+            asset_data = {
+                "id": str(db_obj.id),
+                "hostname": db_obj.hostname,
+                "ip_address": db_obj.ip_address,
+                "mac_address": db_obj.mac_address,
+                "serial": db_obj.serial,
+                "asset_tag": db_obj.asset_tag,
+                "status": db_obj.status,
+                "criticality": db_obj.criticality,
+                "location_node_id": str(db_obj.location_node_id) if db_obj.location_node_id else None,
+                "dependencia": db_obj.dependencia,
+                "codigo_dependencia": db_obj.codigo_dependencia,
+                "device_type": db_obj.device_type,
+                "last_seen": db_obj.last_seen.isoformat() if db_obj.last_seen else None
+            }
+            search_service.index_asset(asset_data)
+        except Exception: pass
+
         if db_obj.location_node_id:
             loc_history = AssetLocationHistory(
                 asset_id=db_obj.id,
@@ -76,6 +111,7 @@ class CRUDAsset:
             db.add(ip_history)
         await db.commit()
         return db_obj
+
     async def update(self, db: AsyncSession, db_obj: Asset, obj_in: AssetUpdate, user_id: Optional[UUID] = None) -> Asset:
         old_location_id = db_obj.location_node_id
         old_ip = db_obj.ip_address
@@ -135,6 +171,27 @@ class CRUDAsset:
             "status", "criticality", "av_product", "device_type", "os_name", "os_version", "observations", "last_seen",
             "created_at", "updated_at"
         ])
+
+        # Actualizar en Meilisearch
+        try:
+            asset_data = {
+                "id": str(db_obj.id),
+                "hostname": db_obj.hostname,
+                "ip_address": db_obj.ip_address,
+                "mac_address": db_obj.mac_address,
+                "serial": db_obj.serial,
+                "asset_tag": db_obj.asset_tag,
+                "status": db_obj.status,
+                "criticality": db_obj.criticality,
+                "location_node_id": str(db_obj.location_node_id) if db_obj.location_node_id else None,
+                "dependencia": db_obj.dependencia,
+                "codigo_dependencia": db_obj.codigo_dependencia,
+                "device_type": db_obj.device_type,
+                "last_seen": db_obj.last_seen.isoformat() if db_obj.last_seen else None
+            }
+            search_service.index_asset(asset_data)
+        except Exception: pass
+
         return db_obj
     async def find_existing_asset(self, db: AsyncSession, serial: str = None, mac: str = None, hostname: str = None, ip: str = None) -> Optional[Asset]:
         # 1. Prioridad absoluta: Dirección MAC (Es lo más único en una red)

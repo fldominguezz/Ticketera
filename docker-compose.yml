@@ -25,6 +25,17 @@ services:
     restart: always
     networks: [app-network]
 
+  meilisearch:
+    container_name: ticketera-meilisearch
+    image: getmeili/meilisearch:v1.6
+    restart: always
+    environment:
+      - MEILI_MASTER_KEY=masterKeyTicketeraSOC
+      - MEILI_NO_ANALYTICS=true
+    volumes:
+      - meilisearch_data:/meili_data
+    networks: [app-network]
+
   backend:
     container_name: ticketera-backend
     build: { context: ./backend, dockerfile: Dockerfile }
@@ -40,11 +51,13 @@ services:
       interval: 30s
       timeout: 5s
       retries: 15
+      start_period: 60s
 
   frontend:
     container_name: ticketera-frontend
     build: { context: ./frontend, dockerfile: Dockerfile }
     restart: always
+    ports: ["3006:3000"]
     depends_on:
       backend: { condition: service_healthy }
     networks: [app-network]
@@ -96,6 +109,7 @@ services:
 
 volumes:
   db_data:
+  meilisearch_data:
 
 networks:
   app-network: { driver: bridge }

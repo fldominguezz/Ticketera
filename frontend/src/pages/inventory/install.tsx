@@ -58,17 +58,24 @@ const AssetInstallPage = () => {
    const res = await fetch('/api/v1/users', { headers: { 'Authorization': `Bearer ${token}` } });
    if (res.ok) {
     const data = await res.json();
-    const filtered = data.filter((u: any) => !['fortisiem', 'system'].includes((u.username || '').toLowerCase()));
+    // Asegurar que data sea array (el backend de users devuelve lista directa)
+    const userList = Array.isArray(data) ? data : (data.items || []);
+    const filtered = userList.filter((u: any) => !['fortisiem', 'system', 'admin'].includes((u.username || '').toLowerCase()));
     setUsers(filtered);
    }
   } catch (err) { console.error(err); }
  };
 
- const fetchLocations = async () => {
+ const fetchLocations = async (q = '') => {
   try {
    const token = localStorage.getItem('access_token');
-   const res = await fetch('/api/v1/locations', { headers: { 'Authorization': `Bearer ${token}` } });
-   if (res.ok) setLocations(await res.json());
+   // Realizar búsqueda real en el backend con el parámetro 'q'
+   const url = q ? `/api/v1/locations?q=${encodeURIComponent(q)}&size=20` : '/api/v1/locations?size=100';
+   const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+   if (res.ok) {
+    const data = await res.json();
+    setLocations(data.items || []);
+   }
   } catch (err) { console.error(err); }
  };
 
@@ -81,6 +88,12 @@ const AssetInstallPage = () => {
     if (name === 'mac_address') {
       val = value.replace(/[^0-9a-fA-F]/g, '').substring(0, 12).match(/.{1,2}/g)?.join(':')?.toUpperCase() || value.toUpperCase();
     }
+    
+    // Si se está buscando, disparar el fetch con debounce sutil
+    if (name === 'dependencia' || name === 'codigo_dependencia') {
+      if (val.length >= 2) fetchLocations(val);
+    }
+
     return { ...dev, [name]: val };
    }
    return dev;
@@ -176,7 +189,7 @@ const AssetInstallPage = () => {
      <Button variant="link" onClick={() => router.back()} className="p-0 me-3 text-body">
       <ChevronLeft size={24} />
      </Button>
-     <h4 className="mb-0 fw-black uppercase tracking-tighter">System Asset Deployment</h4>
+     <h4 className="mb-0 fw-black uppercase tracking-tighter">TICKETERA Asset Deployment</h4>
     </div>
 
     {error && <Alert variant="danger" dismissible>{error}</Alert>}
@@ -266,7 +279,7 @@ const AssetInstallPage = () => {
              </InputGroup>
              {activeSuggestion === device.id + '_name' && (device.dependencia || '').length > 1 && (
               <ListGroup className="position-absolute w-100 shadow-lg z-3 mt-1">
-               {locations.filter(l => (l.name || '').toLowerCase().includes((device.dependencia || '').toLowerCase())).map(l => (
+               {(locations || []).filter(l => (l.name || '').toLowerCase().includes((device.dependencia || '').toLowerCase())).map(l => (
                 <ListGroup.Item key={l.id} action onClick={() => selectLocation(device.id, l)} className="d-flex justify-content-between align-items-center x-small py-2 border-0 bg-surface">
                  <span className="fw-bold text-primary">{l.name}</span>
                  <Badge bg="secondary" className="text-body">{l.dependency_code}</Badge>
@@ -286,7 +299,7 @@ const AssetInstallPage = () => {
              </InputGroup>
              {activeSuggestion === device.id + '_code' && device.codigo_dependencia.length >= 2 && (
               <ListGroup className="position-absolute w-100 shadow-lg z-3 mt-1">
-               {locations.filter(l => l.dependency_code?.includes(device.codigo_dependencia)).map(l => (
+               {(locations || []).filter(l => l.dependency_code?.includes(device.codigo_dependencia)).map(l => (
                 <ListGroup.Item key={l.id} action onClick={() => selectLocation(device.id, l)} className="d-flex flex-column x-small py-2 border-0 bg-surface">
                  <div className="fw-black text-primary">#{l.dependency_code}</div>
                  <div className="text-muted text-truncate" style={{fontSize: '9px'}}>{l.name}</div>

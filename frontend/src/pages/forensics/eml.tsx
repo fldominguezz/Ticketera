@@ -88,7 +88,7 @@ export default function EMLForensicsPage() {
     <h4 className="fw-black text-uppercase m-0 d-flex align-items-center gap-2">
      <Mail className="text-primary" size={24}/> Análisis Forense de Correo
     </h4>
-    <p className="text-muted small m-0 text-uppercase tracking-widest fw-bold opacity-75">CyberCase EML Intelligence Lab</p>
+    <p className="text-muted-foreground small m-0 text-uppercase tracking-widest fw-bold opacity-75">TICKETERA EML Intelligence Lab</p>
    </div>
 
    <Row className="g-4">

@@ -16,9 +16,12 @@ class TicketBase(BaseModel):
     parent_ticket_id: Optional[UUID] = None
     sla_deadline: Optional[datetime] = None
     is_private: Optional[bool] = False
+    is_global: Optional[bool] = False
     extra_data: Optional[Dict[str, Any]] = None
 class TicketCreate(TicketBase):
     attachment_ids: Optional[List[UUID]] = []
+    asset_ids: Optional[List[UUID]] = []
+    location_ids: Optional[List[UUID]] = []
 class TicketUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
@@ -28,7 +31,10 @@ class TicketUpdate(BaseModel):
     assigned_to_id: Optional[UUID] = None
     group_id: Optional[UUID] = None
     is_private: Optional[bool] = None
+    is_global: Optional[bool] = None
     extra_data: Optional[Any] = None
+    asset_ids: Optional[List[UUID]] = None
+    location_ids: Optional[List[UUID]] = None
 class TicketInDBBase(TicketBase):
     id: UUID
     created_by_id: UUID
@@ -58,7 +64,9 @@ class AssetSchemaMinimal(BaseModel):
     id: UUID
     hostname: str
     ip_address: Optional[str] = None
+    mac_address: Optional[str] = None
     asset_tag: Optional[str] = None
+    location_name: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 class LocationSchemaMinimal(BaseModel):
     id: UUID
@@ -74,6 +82,20 @@ class SLAMetricSchema(BaseModel):
     is_response_breached: bool = False
     is_resolution_breached: bool = False
     model_config = ConfigDict(from_attributes=True)
+class AttachmentSchema(BaseModel):
+    id: UUID
+    filename: str
+    size: Optional[int] = None
+    content_type: Optional[str] = None
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class WatcherSchema(BaseModel):
+    id: UUID
+    user_id: UUID
+    username: str
+    model_config = ConfigDict(from_attributes=True)
+
 class Ticket(TicketInDBBase):
     ticket_type_name: Optional[str] = None
     group_name: Optional[str] = None
@@ -86,7 +108,12 @@ class Ticket(TicketInDBBase):
     assigned_to: Optional[UserSchemaMinimal] = None
     asset: Optional[AssetSchemaMinimal] = None
     location: Optional[LocationSchemaMinimal] = None
+    locations: Optional[List[LocationSchemaMinimal]] = []
     sla_metric: Optional[SLAMetricSchema] = None
+    attachments: Optional[List[AttachmentSchema]] = []
+    watchers: Optional[List[WatcherSchema]] = []
+    assets: Optional[List[AssetSchemaMinimal]] = []
+
     @model_validator(mode='before')
     @classmethod
     def flatten_relations(cls, data: Any) -> Any:
@@ -124,9 +151,46 @@ class Ticket(TicketInDBBase):
             group = safe_getattr(data, "group")
             assigned_to = safe_getattr(data, "assigned_to")
             created_by = safe_getattr(data, "created_by")
+            
             asset = safe_getattr(data, "asset")
+            processed_asset = None
+            if asset:
+                asset_location = safe_getattr(asset, "location")
+                processed_asset = {
+                    "id": asset.id,
+                    "hostname": asset.hostname,
+                    "ip_address": asset.ip_address,
+                    "mac_address": asset.mac_address,
+                    "asset_tag": asset.asset_tag,
+                    "location_name": asset_location.name if asset_location else "Sin Ubicación"
+                }
+            
+            linked_assets = safe_getattr(data, "assets") or []
+            processed_assets = []
+            for a in linked_assets:
+                a_loc = safe_getattr(a, "location")
+                processed_assets.append({
+                    "id": a.id,
+                    "hostname": a.hostname,
+                    "ip_address": a.ip_address,
+                    "mac_address": a.mac_address,
+                    "asset_tag": a.asset_tag,
+                    "location_name": a_loc.name if a_loc else "Sin Ubicación"
+                })
+            
             location = safe_getattr(data, "location")
+            linked_locations = safe_getattr(data, "locations") or []
+            processed_locations = []
+            for loc in linked_locations:
+                processed_locations.append({
+                    "id": loc.id,
+                    "name": loc.name,
+                    "path": loc.path
+                })
+
             sla_metric = safe_getattr(data, "sla_metric")
+            created_by = safe_getattr(data, "created_by")
+            
             # LÓGICA ULTRA-ROBUSTA: Priorizar Nombre Real > Username > Sistema
             res_created_by_name = "Sistema"
             if created_by:
@@ -134,10 +198,11 @@ class Ticket(TicketInDBBase):
                 last = getattr(created_by, "last_name", "") or ""
                 full_name = f"{first} {last}".strip()
                 res_created_by_name = full_name or getattr(created_by, "username", "Sistema")
+            
             attachments = safe_getattr(data, "attachments")
+            watchers = safe_getattr(data, "watchers")
             has_attachments = len(attachments) > 0 if attachments else False
-            if has_attachments:
-                pass
+            
             return {
                 "id": data.id,
                 "title": data.title,
@@ -152,9 +217,12 @@ class Ticket(TicketInDBBase):
                 "group_name": group.name if group else None,
                 "group": group if group else None,
                 "asset_id": data.asset_id,
-                "asset": asset if asset else None,
+                "asset": processed_asset,
+                "assets": processed_assets,
                 "location_id": data.location_id,
                 "location": location if location else None,
+                "locations": processed_locations,
+                "is_global": data.is_global,
                 "sla_metric": sla_metric if sla_metric else None,
                 "created_by_id": data.created_by_id,
                 "created_by_name": res_created_by_name,
@@ -166,6 +234,8 @@ class Ticket(TicketInDBBase):
                 "is_private": data.is_private,
                 "extra_data": data.extra_data,
                 "has_attachments": has_attachments,
+                "attachments": attachments if attachments else [],
+                "watchers": watchers if watchers else [],
                 "created_at": data.created_at,
                 "updated_at": data.updated_at,
                 "closed_at": data.closed_at,

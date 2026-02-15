@@ -19,7 +19,7 @@ interface LayoutProps {
  title?: string;
 }
 
-export default function Layout({ children, title = 'Enterprise SOC' }: LayoutProps) {
+export default function Layout({ children, title = 'TICKETERA SOC' }: LayoutProps) {
  const [sidebarOpen, setSidebarOpen] = useState(false);
  const router = useRouter();
  const { user, logout, isSuperuser, loading } = useAuth();
@@ -28,9 +28,6 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
 
  useEffect(() => {
   setMounted(true);
-  // Aplicar tema inmediatamente desde localStorage para evitar parpadeos
-  const savedTheme = localStorage.getItem('app-theme') || 'soc';
-  document.documentElement.setAttribute('data-theme', savedTheme);
 
   // Verificación de Seguridad Obligatoria (Onboarding)
   if (user && !loading) {
@@ -168,7 +165,7 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
    <aside className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
     <div className="sidebar-header d-flex align-items-center px-3 border-bottom " style={{ height: 64 }}>
      <ShieldAlert size={24} className="me-2 text-primary" />
-     {sidebarOpen && <span className="fw-bold text-uppercase letter-spacing-1">Ticketera <small className="text-primary">SOC</small></span>}
+     {sidebarOpen && <span className="fw-bold text-uppercase letter-spacing-1">TICKETERA <small className="text-primary">SOC</small></span>}
     </div>
     
     <div className="py-3 flex-grow-1 overflow-auto custom-scrollbar">
@@ -201,42 +198,45 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
     </div>
    </aside>
 
-   <main className={`main-content flex-grow-1 ${sidebarOpen ? 'shifted' : 'collapsed'}`}>
+   <main className={`main-content flex-grow-1 ${sidebarOpen ? 'shifted' : 'collapsed'}`} data-build-version="V4-THEME-FIX">
     <header className="topbar d-flex align-items-center justify-content-between px-4">
      <div className="d-flex align-items-center gap-3">
-      <Button variant="link" className="p-0 text-muted" onClick={() => setSidebarOpen(!sidebarOpen)}>
+      <Button variant="link" className="p-0 text-muted-foreground hover-text-foreground" onClick={() => setSidebarOpen(!sidebarOpen)}>
        {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
       </Button>
-      <h6 className="m-0 text-uppercase fw-bold opacity-75 d-none d-lg-block">{title}</h6>
+      <h6 className="m-0 text-uppercase fw-bold opacity-75 d-none d-lg-block text-foreground">{title}</h6>
       <GlobalSearch />
      </div>
      <div className="d-flex align-items-center gap-3">
       <Button 
        variant="link" 
-       className="text-muted p-2 hover-bg-surface-muted rounded-circle d-flex align-items-center justify-content-center transition-all shadow-sm border border-color " 
+       className="p-2 hover-bg-muted rounded-circle d-flex align-items-center justify-content-center transition-all shadow-sm border border-border" 
        onClick={(e) => {
         e.preventDefault();
         toggleTheme();
        }}
-       style={{ width: '38px', height: '38px', position: 'relative', zIndex: 1100 }}
+       style={{ width: '38px', height: '38px', position: 'relative', zIndex: 1100, color: 'var(--text-muted-foreground)' }}
        title={`Tema actual: ${theme}`}
       >
-       {theme === 'dark' ? <Sun size={18} /> : theme === 'light' ? <Moon size={18} /> : <Activity size={18} className="text-primary" />}
+       {theme === 'dark' && <Sun size={18} className="text-primary" />}
+       {theme === 'light' && <Moon size={18} className="text-primary" />}
+       {theme === 'soc' && <Shield size={18} className="text-primary" />}
+       {theme === 'high-contrast' && <Activity size={18} className="text-primary" />}
       </Button>
       {!isSecurityOnboarding && <NotificationBell />}
       <Dropdown align="end">
        <Dropdown.Toggle as="div" className="d-flex align-items-center gap-2 cursor-pointer p-1">
         <UserAvatar user={user} size={32} fontSize="12px" />
        </Dropdown.Toggle>
-       <Dropdown.Menu className="shadow border-0">
-        <Dropdown.Item onClick={() => router.push('/profile')}>Mi Perfil</Dropdown.Item>
-        <Dropdown.Divider />
-        <Dropdown.Item onClick={logout} className="text-danger">Salir</Dropdown.Item>
+       <Dropdown.Menu className="shadow-lg border-border bg-card">
+        <Dropdown.Item onClick={() => router.push('/profile')} className="text-foreground hover-bg-muted">Mi Perfil</Dropdown.Item>
+        <Dropdown.Divider className="border-border" />
+        <Dropdown.Item onClick={logout} className="text-danger hover-bg-muted">Salir</Dropdown.Item>
        </Dropdown.Menu>
       </Dropdown>
      </div>
     </header>
-    <div className="p-4 flex-grow-1">{children}</div>
+    <div className="p-4 flex-grow-1 bg-background">{children}</div>
     <Footer />
    </main>
 
@@ -245,24 +245,24 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
      position: fixed; left: 0; top: 0; bottom: 0;
      z-index: 1000; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
      display: flex; flex-direction: column;
-     background-color: var(--bg-surface);
-     border-right: 1px solid var(--border-color);
+     background-color: var(--bg-card);
+     border-right: 1px solid var(--border-border);
     }
     .sidebar.open { width: 260px; }
     .sidebar.closed { width: 70px; }
 
     .topbar {
      height: 64px; position: sticky; top: 0; z-index: 900;
-     background-color: var(--bg-surface);
-     border-bottom: 1px solid var(--border-color);
-     backdrop-filter: blur(8px);
+     background-color: color-mix(in srgb, var(--bg-card), transparent 10%);
+     backdrop-filter: blur(12px);
+     border-bottom: 1px solid var(--border-border);
     }
 
     .main-content {
      transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
      min-height: 100vh;
-     background-color: var(--bg-app) !important;
-     color: var(--text-main) !important;
+     background-color: var(--bg-background) !important;
+     color: var(--text-foreground) !important;
     }
     .main-content.shifted { margin-left: 260px; }
     .main-content.collapsed { margin-left: 70px; }
@@ -271,43 +271,49 @@ export default function Layout({ children, title = 'Enterprise SOC' }: LayoutPro
      cursor: pointer;
      user-select: none;
      position: relative;
-     transition: all 0.2s ease;
-     margin: 0 8px;
-     border-radius: 8px;
-     color: var(--text-muted);
+     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+     margin: 4px 12px;
+     padding: 10px 16px !important;
+     border-radius: 12px;
+     color: var(--text-muted-foreground);
     }
 
     .nav-item-container:hover {
-     background-color: var(--bg-surface-muted);
+     background-color: var(--bg-muted);
      color: var(--primary);
+     transform: translateX(4px);
     }
 
     .active-nav {
-     background-color: rgba(var(--primary-rgb), 0.1) !important;
+     background-color: var(--primary-muted) !important;
      color: var(--primary) !important;
     }
 
     .active-nav::before {
      content: "";
      position: absolute;
-     left: -8px;
-     top: 20%;
-     height: 60%;
+     left: -12px;
+     top: 25%;
+     height: 50%;
      width: 4px;
      background-color: var(--primary);
      border-radius: 0 4px 4px 0;
+     box-shadow: 0 0 10px var(--primary);
     }
 
     .nav-text {
       color: inherit;
+      font-size: 0.9rem;
+      font-weight: 500;
     }
 
+    .hover-text-foreground:hover { color: var(--text-foreground) !important; }
     .letter-spacing-1 { letter-spacing: 1px; }
     .x-small { font-size: 10px; }
     
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 10px; }
    `}</style>
   </div>
  );

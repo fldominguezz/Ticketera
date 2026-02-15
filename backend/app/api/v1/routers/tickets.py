@@ -20,7 +20,31 @@ from sqlalchemy import func, or_
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.db.models.ticket import Ticket as TicketModel, TicketType
+from app.db.models.asset import Asset
+from fastapi.responses import FileResponse, StreamingResponse
+import io
+from app.services.pdf_service import pdf_service
+
 router = APIRouter()
+
+@router.get("/{ticket_id}/export")
+async def export_ticket_pdf(
+    ticket: Annotated[TicketModel, Depends(require_ticket_permission("read"))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Genera y descarga un reporte PDF formal del ticket."""
+    # Obtener comentarios para el reporte
+    comments = await crud_ticket.ticket.get_comments(db, ticket_id=ticket.id, include_internal=False)
+    
+    # Generar el PDF
+    pdf_buffer = await pdf_service.generate_ticket_report(ticket, comments)
+    
+    filename = f"Reporte_Ticket_{ticket.id.hex[:8]}.pdf"
+    return StreamingResponse(
+        pdf_buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 # Helper for Meilisearch indexing
 def index_ticket_task(ticket: TicketModel):
     try:
@@ -163,7 +187,8 @@ async def read_tickets(
         selectinload(TicketModel.assigned_to),
         selectinload(TicketModel.created_by),
         selectinload(TicketModel.sla_metric),
-        selectinload(TicketModel.asset),
+        selectinload(TicketModel.asset).selectinload(Asset.location),
+        selectinload(TicketModel.assets).selectinload(Asset.location),
         selectinload(TicketModel.location),
         selectinload(TicketModel.attachments)
     ]
@@ -199,7 +224,7 @@ async def read_tickets(
         pass # Full Access (dentro del filtro de privacidad aplicado arriba)
     else:
         # Build Access Conditions
-        access_conditions = []
+        access_conditions = [TicketModel.is_global == True]
         if has_group:
             child_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
             access_conditions.append(TicketModel.group_id.in_(child_ids))
@@ -207,8 +232,7 @@ async def read_tickets(
         if has_own:
             access_conditions.append(TicketModel.created_by_id == current_user.id)
             access_conditions.append(TicketModel.assigned_to_id == current_user.id)
-        if not access_conditions:
-            return {"items": [], "total": 0, "page": page, "size": size, "pages": 0}
+        
         query = query.filter(or_(*access_conditions))
     # Count total
     total_query = select(func.count()).select_from(query.subquery())
@@ -297,13 +321,15 @@ async def create_ticket(
     pass
     # Return the created ticket using the correct CRUD call to avoid TypeError
     return await crud_ticket.ticket.get(db, id=ticket.id, current_user=current_user, permission_key="read")
-@router.get("/{ticket_id}", response_model=Ticket)
+@router.get("/{ticket_id}", response_model=Optional[Ticket])
 async def read_ticket(
-    ticket: Annotated[TicketModel, Depends(require_ticket_permission("read"))]
+    ticket: Annotated[Optional[TicketModel], Depends(require_ticket_permission("read"))]
 ):
     """
-    Get ticket by ID.
+    Get ticket by ID. Returns null if not found instead of 404 to avoid frontend crashes.
     """
+    if not ticket:
+        return None
     return ticket
 @router.put("/{ticket_id}", response_model=Ticket)
 async def update_ticket(

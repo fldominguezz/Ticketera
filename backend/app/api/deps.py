@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.db.models import User
 from app.db.models.iam import UserRole, Role, RolePermission, Permission
 from app.db.models.ticket import Ticket as TicketModel
+from app.db.models.asset import Asset
 from app.db.models.endpoint import Endpoint as EndpointModel
 from app.db.models.notifications import Attachment as AttachmentModel
 from app.services.group_service import group_service
@@ -171,16 +172,29 @@ def require_ticket_permission(action: str):
             .options(
                 selectinload(TicketModel.group),
                 selectinload(TicketModel.assigned_to),
+                selectinload(TicketModel.created_by),
                 selectinload(TicketModel.ticket_type),
-                selectinload(TicketModel.asset),
+                selectinload(TicketModel.asset).selectinload(Asset.location),
+                selectinload(TicketModel.assets).selectinload(Asset.location),
                 selectinload(TicketModel.location),
-                selectinload(TicketModel.sla_metric)
+                selectinload(TicketModel.sla_metric),
+                selectinload(TicketModel.attachments),
+                selectinload(TicketModel.watchers)
             )
         )
         result = await db.execute(query)
         ticket = result.scalar_one_or_none()
-        if not ticket: raise HTTPException(status_code=404, detail="No encontrado")
+        
+        # Si el ticket no existe, no lanzamos 404 aquí, dejamos que el router decida
+        if not ticket:
+            return None
+            
         if current_user.is_superuser: return ticket
+
+        # Si el ticket es global, cualquier usuario activo puede leerlo
+        if action == "read" and ticket.is_global:
+            return ticket
+
         # Capability Mapping
         # We check for:
         # 0. MASTER action permission (e.g. ticket:comment)

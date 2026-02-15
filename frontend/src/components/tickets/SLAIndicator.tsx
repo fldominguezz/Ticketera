@@ -64,7 +64,7 @@ export const SLAIndicator: React.FC<SLAProps> = ({ deadline, completedAt, label 
  };
 
  return (
-  <div className="sla-indicator mb-3 p-2 bg-white bg-opacity-5 rounded border ">
+  <div className="sla-indicator mb-3 p-2 rounded border border-subtle bg-surface-muted shadow-sm">
    <div className="d-flex justify-content-between align-items-center mb-1">
     <div className="d-flex align-items-center gap-2">
      {status === 'success' ? <CheckCircle2 size={12} className="text-success" /> : 
@@ -72,19 +72,28 @@ export const SLAIndicator: React.FC<SLAProps> = ({ deadline, completedAt, label 
       <Clock size={12} className="text-muted" />}
      <span className="x-small fw-black text-muted uppercase tracking-tighter">{label}</span>
     </div>
-    <Badge bg={colorMap[status]} className={`bg-opacity-25 text-${colorMap[status]} x-small`}>
+    <Badge bg="transparent" className={`sla-status-badge status-${status} x-small`}>
      {timeLeft}
     </Badge>
    </div>
    <ProgressBar 
     variant={colorMap[status]} 
     now={percentage} 
-    style={{ height: '3px' }} 
-    className="shadow-inner"
+    style={{ height: '3px', backgroundColor: 'var(--border-subtle)' }} 
+    className="overflow-hidden rounded-pill"
    />
    <style jsx>{`
     .x-small { font-size: 9px; }
     .fw-black { font-weight: 900; }
+    .sla-status-badge {
+      font-weight: 800;
+      border: 1px solid currentColor !important;
+      padding: 3px 6px;
+    }
+    .status-normal { color: var(--primary); background: var(--primary-muted) !important; }
+    .status-warning { color: var(--color-warning); background: color-mix(in srgb, var(--color-warning), transparent 90%) !important; }
+    .status-danger { color: var(--color-danger); background: var(--primary-muted) !important; background-color: color-mix(in srgb, var(--color-danger), transparent 90%) !important; }
+    .status-success { color: var(--color-success, #10b981); background: color-mix(in srgb, var(--color-success, #10b981), transparent 90%) !important; }
    `}</style>
   </div>
  );

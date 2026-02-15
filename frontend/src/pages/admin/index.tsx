@@ -9,10 +9,10 @@ import { useAuth } from '../../context/AuthContext';
 const AdminDashboard = () => {
   const { user } = useAuth();
   const [settings, setSettings] = useState<any>({
-    app_name: 'CyberCase SOC',
+    app_name: 'TICKETERA SOC',
     primary_color: '#0d6efd',
     accent_color: '#6c757d',
-    login_footer_text: '© 2026 CyberCase Security',
+    login_footer_text: '© 2026 TICKETERA Security',
     require_2fa_all_users: false
   });
   const [loading, setLoading] = useState(true);
@@ -96,13 +96,17 @@ const AdminDashboard = () => {
       </ToastContainer>
 
       <div className="mb-5">
-        <h1 className="fw-bold h2 mb-1">Administración del Sistema</h1>
-        <p className="text-muted">Control centralizado de infraestructura, seguridad y procesos SOC.</p>
+        <h4 className="fw-black text-uppercase m-0 d-flex align-items-center gap-2 text-main">
+          <Settings className="text-primary" size={24}/> Administración del Sistema
+        </h4>
+        <p className="text-muted-foreground small m-0 text-uppercase tracking-widest fw-bold opacity-75">
+          Control Centralizado de Infraestructura y Procesos SOC
+        </p>
       </div>
 
-      <h5 className="fw-bold mb-4 d-flex align-items-center">
-        <Server size={20} className="me-2 text-primary"/> Módulos de Gestión
-      </h5>
+      <h6 className="fw-black text-uppercase mb-4 small tracking-widest text-primary d-flex align-items-center gap-2 opacity-75">
+        <Server size={18} /> Módulos de Gestión Técnica
+      </h6>
       <Row className="g-4 mb-5">
         <AdminCard title="Usuarios" desc="Gestionar cuentas y accesos" icon={Users} href="/admin/users" color="primary" perm="admin:users:read"/>
         <AdminCard title="Roles" desc="Configurar RBAC y seguridad" icon={Shield} href="/admin/roles" color="danger" perm="admin:roles:read"/>
@@ -120,9 +124,9 @@ const AdminDashboard = () => {
         <AdminCard title="Integración SIEM" desc="Configurar FortiSIEM y Webhooks" icon={ShieldAlert} href="/admin/integrations/siem" color="danger" perm="admin:settings:manage"/>
       </Row>
 
-      <h5 className="fw-bold mb-4 d-flex align-items-center">
-        <Palette size={20} className="me-2 text-primary"/> Personalización y Marca (White Label)
-      </h5>
+      <h6 className="fw-black text-uppercase mb-4 small tracking-widest text-primary d-flex align-items-center gap-2 opacity-75">
+        <Palette size={18} /> Personalización y Marca (White Label)
+      </h6>
       <Card className="border-0 shadow-sm">
         <Card.Body className="p-4">
           <Form onSubmit={handleSave}>

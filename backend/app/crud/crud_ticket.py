@@ -112,17 +112,39 @@ class CRUDTicket:
     async def create(self, db: AsyncSession, obj_in: TicketCreate, created_by_id: UUID, owner_group_id: UUID) -> Ticket:
         data = obj_in.model_dump()
         attachment_ids = data.pop("attachment_ids", [])
+        asset_ids = data.pop("asset_ids", [])
+        location_ids = data.pop("location_ids", [])
+        
         db_obj = Ticket(**data, created_by_id=created_by_id, owner_group_id=owner_group_id)
         if not db_obj.sla_deadline:
             db_obj.sla_deadline = await sla_service.calculate_deadline(db, db_obj.priority)
         db.add(db_obj)
         await db.flush()
+        
         # Auditoría inicial
         await audit_log.create_log(db, user_id=created_by_id, event_type="ticket_created", target_type="ticket", target_id=db_obj.id, details={"title": db_obj.title})
+        
+        # 1. Vincular Adjuntos
         if attachment_ids:
             from app.db.models.notifications import Attachment
             from sqlalchemy import update as sa_update
             await db.execute(sa_update(Attachment).where(Attachment.id.in_(attachment_ids)).values(ticket_id=db_obj.id))
+            
+        # 2. Vincular Múltiples Activos
+        if asset_ids:
+            from app.db.models.asset import Asset
+            from sqlalchemy import insert
+            from app.db.models.ticket import ticket_assets
+            for a_id in asset_ids:
+                await db.execute(insert(ticket_assets).values(ticket_id=db_obj.id, asset_id=a_id))
+
+        # 3. Vincular Múltiples Ubicaciones
+        if location_ids:
+            from sqlalchemy import insert
+            from app.db.models.ticket import ticket_locations
+            for l_id in location_ids:
+                await db.execute(insert(ticket_locations).values(ticket_id=db_obj.id, location_id=l_id))
+
         await db.commit()
         await db.refresh(db_obj)
         # Indexar en Meilisearch
@@ -133,17 +155,24 @@ class CRUDTicket:
                 "description": db_obj.description,
                 "status": db_obj.status,
                 "priority": db_obj.priority,
-                "created_at": db_obj.created_at
+                "created_at": db_obj.created_at,
+                "is_global": db_obj.is_global
             })
         except Exception as e:
             logger.error(f"Meilisearch Indexing Error: {e}")
         return db_obj
+
     async def update(self, db: AsyncSession, db_obj: Ticket, obj_in: TicketUpdate, current_user_id: Optional[UUID] = None) -> Ticket:
         old_status = db_obj.status
         old_assignee = db_obj.assigned_to_id
         update_data = obj_in.model_dump(exclude_unset=True)
+        
+        asset_ids = update_data.pop("asset_ids", None)
+        location_ids = update_data.pop("location_ids", None)
+
         for var, value in update_data.items():
             setattr(db_obj, var, value)
+        
         # Registrar cambios en auditoría
         audit_details = {}
         if "status" in update_data and update_data["status"] != old_status:
@@ -153,6 +182,10 @@ class CRUDTicket:
                 db_obj.closed_at = datetime.utcnow()
             else:
                 db_obj.closed_at = None
+            
+            # Gestionar SLA Inteligente
+            await sla_service.handle_status_change(db, ticket_id=db_obj.id, old_status=old_status, new_status=update_data["status"])
+        
         if "assigned_to_id" in update_data and update_data["assigned_to_id"] != old_assignee:
             audit_details["old_assignee"] = str(old_assignee) if old_assignee else None
             audit_details["new_assignee"] = str(update_data["assigned_to_id"]) if update_data["assigned_to_id"] else None
@@ -166,8 +199,24 @@ class CRUDTicket:
                     message=f"Se te ha asignado el ticket: {db_obj.title}",
                     link=f"/tickets/{db_obj.id}"
                 )
+
+        if asset_ids is not None:
+            from sqlalchemy import delete, insert
+            from app.db.models.ticket import ticket_assets
+            await db.execute(delete(ticket_assets).where(ticket_assets.c.ticket_id == db_obj.id))
+            for a_id in asset_ids:
+                await db.execute(insert(ticket_assets).values(ticket_id=db_obj.id, asset_id=a_id))
+
+        if location_ids is not None:
+            from sqlalchemy import delete, insert
+            from app.db.models.ticket import ticket_locations
+            await db.execute(delete(ticket_locations).where(ticket_locations.c.ticket_id == db_obj.id))
+            for l_id in location_ids:
+                await db.execute(insert(ticket_locations).values(ticket_id=db_obj.id, location_id=l_id))
+
         if audit_details and current_user_id:
             await audit_log.create_log(db, user_id=current_user_id, event_type="ticket_updated", target_type="ticket", target_id=db_obj.id, details=audit_details)
+        
         db.add(db_obj)
         await db.commit()
         await db.refresh(db_obj)
@@ -179,7 +228,8 @@ class CRUDTicket:
                 "description": db_obj.description,
                 "status": db_obj.status,
                 "priority": db_obj.priority,
-                "updated_at": db_obj.updated_at
+                "updated_at": db_obj.updated_at,
+                "is_global": db_obj.is_global
             })
         except Exception as e:
             logger.error(f"Meilisearch Update Indexing Error: {e}")

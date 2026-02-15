@@ -35,11 +35,11 @@ async def get_settings(db: Annotated[AsyncSession, Depends(get_db)]):
     if not settings_obj:
         # Default settings if none exist
         settings_obj = SystemSettings(
-            app_name="CyberCase SOC",
+            app_name="TICKETERA SOC",
             session_timeout_minutes=30,
             primary_color="#0d6efd",
             accent_color="#6c757d",
-            login_footer_text="© 2026 CyberCase Security"
+            login_footer_text="© 2026 TICKETERA Security"
         )
         db.add(settings_obj)
         try:

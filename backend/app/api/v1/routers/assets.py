@@ -36,44 +36,65 @@ async def search_inventory(
 ):
     from app.db.models.asset import Asset as AssetModel
     from app.db.models.location import LocationNode
-    # Permission Check - Permite búsqueda si tiene permisos de lectura
+    from app.services.search_service import search_service
+    
+    # Permission Check
     has_global = current_user.has_permission("assets:read:global")
     has_group = current_user.has_permission("assets:read:group")
     if not has_global and not has_group:
         raise HTTPException(status_code=403, detail="No tienes permiso para buscar activos.")
-    search_filter = f"%{search}%"
-    # 1. Búsqueda de Activos (Assets)
-    query_assets = sa_select(AssetModel, LocationNode.name.label("loc_name")).outerjoin(
-        LocationNode, AssetModel.location_node_id == LocationNode.id
-    ).filter(
-        and_(
-            AssetModel.deleted_at == None,
-            or_(
-                AssetModel.hostname.ilike(search_filter),
-                AssetModel.ip_address.ilike(search_filter),
-                AssetModel.mac_address.ilike(search_filter),
-                AssetModel.codigo_dependencia.ilike(search_filter)
+
+    # 1. Búsqueda de Activos (Meilisearch)
+    ms_results = search_service.search_assets(search, limit=15)
+    assets_out = []
+    
+    if ms_results.get("hits"):
+        asset_ids = [UUID(h["id"]) for h in ms_results["hits"]]
+        query_assets = sa_select(AssetModel, LocationNode.name.label("loc_name")).outerjoin(
+            LocationNode, AssetModel.location_node_id == LocationNode.id
+        ).filter(AssetModel.id.in_(asset_ids))
+        
+        result_assets = await db.execute(query_assets)
+        for row in result_assets.all():
+            a = row[0]
+            assets_out.append({
+                "id": str(a.id),
+                "type": "asset",
+                "hostname": a.hostname,
+                "ip_address": a.ip_address or "---",
+                "mac_address": a.mac_address or "---",
+                "location_name": row.loc_name or "Sin Ubicación",
+                "status": a.status
+            })
+    else:
+        # Fallback SQL
+        search_filter = f"%{search}%"
+        query_assets = sa_select(AssetModel, LocationNode.name.label("loc_name")).outerjoin(
+            LocationNode, AssetModel.location_node_id == LocationNode.id
+        ).filter(
+            and_(
+                AssetModel.deleted_at == None,
+                or_(
+                    AssetModel.hostname.ilike(search_filter),
+                    AssetModel.ip_address.ilike(search_filter),
+                    AssetModel.mac_address.ilike(search_filter),
+                    AssetModel.codigo_dependencia.ilike(search_filter)
+                )
             )
         )
-    )
-    # Si no es superuser y no tiene permiso global, limitamos a su grupo/jerarquía
-    if not current_user.is_superuser and not has_global and has_group:
-        # Aquí se podría filtrar por ubicación si fuera necesario, 
-        # pero para vinculación de tickets suele ser global.
-        pass
-    result_assets = await db.execute(query_assets.limit(15))
-    assets_out = []
-    for row in result_assets.all():
-        a = row[0]
-        assets_out.append({
-            "id": str(a.id),
-            "type": "asset",
-            "hostname": a.hostname,
-            "ip_address": a.ip_address or "---",
-            "mac_address": a.mac_address or "---",
-            "location_name": row.loc_name or "Sin Ubicación",
-            "status": a.status
-        })
+        result_assets = await db.execute(query_assets.limit(15))
+        for row in result_assets.all():
+            a = row[0]
+            assets_out.append({
+                "id": str(a.id),
+                "type": "asset",
+                "hostname": a.hostname,
+                "ip_address": a.ip_address or "---",
+                "mac_address": a.mac_address or "---",
+                "location_name": row.loc_name or "Sin Ubicación",
+                "status": a.status
+            })
+
     return {"assets": assets_out, "locations": []}
 @router.post(
     "/bulk-action"
@@ -130,6 +151,10 @@ async def bulk_action(
                 a.location_node_id = action_in.location_node_id
         if action_in.status:
             if a.status != action_in.status:
+                # Si el nuevo estado NO es de baja, restauramos el equipo (limpiamos deleted_at)
+                if action_in.status != "decommissioned":
+                    a.deleted_at = None
+                
                 event = AssetEventLog(
                     asset_id=a.id,
                     event_type="status_change",
@@ -214,11 +239,15 @@ async def read_assets(
     skip = (page - 1) * size
     query = sa_select(AssetModel, LocationNode.name.label("loc_name"), LocationNode.dependency_code.label("dep_code")).outerjoin(
         LocationNode, AssetModel.location_node_id == LocationNode.id
-    ).filter(AssetModel.deleted_at == None)
-    if location_node_id:
-        query = query.filter(AssetModel.location_node_id == location_node_id)
+    )
+    
+    # Filtrar eliminados solo si NO se piden las bajas
     if not show_decommissioned:
+        query = query.filter(AssetModel.deleted_at == None)
         query = query.filter(AssetModel.status != "decommissioned")
+    else:
+        # Si se piden las bajas, mostramos SOLO los que tienen deleted_at O status decommissioned
+        query = query.filter(or_(AssetModel.deleted_at != None, AssetModel.status == "decommissioned"))
     if status:
         query = query.filter(AssetModel.status == status)
     if device_type:
@@ -234,16 +263,23 @@ async def read_assets(
                 (LocationNode.dependency_code.ilike(f"%{code_search}%"))
             )
         else:
-            # Búsqueda general (sin incluir código de dependencia para evitar ruido con IPs)
-            search_filter = f"%{search}%"
-            query = query.filter(
-                (AssetModel.hostname.ilike(search_filter)) |
-                (AssetModel.ip_address.ilike(search_filter)) |
-                (AssetModel.mac_address.ilike(search_filter)) |
-                (AssetModel.dependencia.ilike(search_filter)) |
-                (AssetModel.serial.ilike(search_filter)) |
-                (LocationNode.name.ilike(search_filter))
-            )
+            # Intentar búsqueda en Meilisearch para mayor precisión (Hostname, MAC, etc)
+            from app.services.search_service import search_service
+            ms_results = search_service.search_assets(search, limit=size)
+            if ms_results.get("hits"):
+                asset_ids = [UUID(h["id"]) for h in ms_results["hits"]]
+                query = query.filter(AssetModel.id.in_(asset_ids))
+            else:
+                # Fallback a búsqueda SQL si Meilisearch no devuelve nada o falla
+                search_filter = f"%{search}%"
+                query = query.filter(
+                    (AssetModel.hostname.ilike(search_filter)) |
+                    (AssetModel.ip_address.ilike(search_filter)) |
+                    (AssetModel.mac_address.ilike(search_filter)) |
+                    (AssetModel.dependencia.ilike(search_filter)) |
+                    (AssetModel.serial.ilike(search_filter)) |
+                    (LocationNode.name.ilike(search_filter))
+                )
     # Count total
     total_query = sa_select(func.count()).select_from(query.subquery())
     total_res = await db.execute(total_query)

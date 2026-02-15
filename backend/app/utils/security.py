@@ -32,6 +32,11 @@ def validate_external_url(url: str):
     if not hostname:
         raise HTTPException(status_code=400, detail="URL inválida")
     try:
+        # Lista blanca de hosts internos permitidos
+        ALLOWED_INTERNAL_HOSTS = ["ollama", "backend", "db", "redis"]
+        if hostname.lower() in ALLOWED_INTERNAL_HOSTS:
+            return True
+
         # Resolver el hostname a IP
         ip = socket.gethostbyname(hostname)
         ip_obj = ipaddress.ip_address(ip)

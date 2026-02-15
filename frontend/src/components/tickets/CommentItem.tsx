@@ -23,7 +23,7 @@ export const CommentItem: React.FC<Props> = ({ comment }) => {
     </div>
    </div>
    
-   <div className="comment-bubble p-3 bg-black rounded-lg border border-opacity-5">
+   <div className="comment-bubble p-3 bg-surface-muted rounded-lg border border-subtle shadow-sm">
     <div 
      className="comment-content" 
      dangerouslySetInnerHTML={{ __html: comment.content }} 

@@ -26,7 +26,7 @@ export default function NewTicketPage() {
  const [assets, setAssets] = useState<any[]>([]);
  const [assetSearch, setAssetSearch] = useState('');
  const [searchingAssets, setSearchingAssets] = useState(false);
- const [selectedAsset, setSelectedAsset] = useState<any>(null);
+ const [selectedAssets, setSelectedAssets] = useState<any[]>([]);
  const [showAssetResults, setShowAssetResults] = useState(false);
  const searchRef = useRef<HTMLDivElement>(null);
 
@@ -34,7 +34,7 @@ export default function NewTicketPage() {
  const [locations, setLocations] = useState<any[]>([]);
  const [locationSearch, setLocationSearch] = useState('');
  const [searchingLocations, setSearchingLocations] = useState(false);
- const [selectedLocation, setSelectedLocation] = useState<any>(null);
+ const [selectedLocations, setSelectedLocations] = useState<any[]>([]);
  const [showLocationResults, setShowLocationResults] = useState(false);
  const locationSearchRef = useRef<HTMLDivElement>(null);
 
@@ -47,6 +47,7 @@ export default function NewTicketPage() {
   priority: 'medium',
   platform: 'INTERNO',
   is_private: false,
+  is_global: false,
   asset_id: (asset_id as string) || '',
   location_id: ''
  });
@@ -186,34 +187,85 @@ export default function NewTicketPage() {
  }, [locationSearch]);
 
  const handleSelectAsset = (asset: any) => {
-  setSelectedAsset(asset);
-  setFormData({ ...formData, asset_id: asset.id, location_id: asset.location_id || formData.location_id });
+  // Evitar duplicados en la lista local
+  if (!selectedAssets.find(a => a.id === asset.id)) {
+    setSelectedAssets([...selectedAssets, asset]);
+  }
   
-  // Si el activo tiene una ubicación, intentar seleccionarla visualmente
-  if (asset.location_id) {
-   setSelectedLocation({ id: asset.location_id, name: asset.location_name, path: asset.location_path });
+  // Si el equipo tiene ubicación y no hay ninguna seleccionada, sugerirla
+  if (asset.location_id && !selectedLocations.find(l => l.id === asset.location_id)) {
+   setSelectedLocations([...selectedLocations, { id: asset.location_id, name: asset.location_name, path: asset.location_path }]);
   }
   
   setAssetSearch('');
   setShowAssetResults(false);
  };
 
- const clearSelectedAsset = () => {
-  setSelectedAsset(null);
-  setFormData({ ...formData, asset_id: '' });
+ const removeSelectedAsset = (assetId: string) => {
+  setSelectedAssets(selectedAssets.filter(a => a.id !== assetId));
  };
 
  const handleSelectLocation = (loc: any) => {
-  setSelectedLocation(loc);
-  setFormData({ ...formData, location_id: loc.id });
+  if (!selectedLocations.find(l => l.id === loc.id)) {
+    setSelectedLocations([...selectedLocations, loc]);
+  }
   setLocationSearch('');
   setShowLocationResults(false);
  };
 
- const clearSelectedLocation = () => {
-  setSelectedLocation(null);
-  setFormData({ ...formData, location_id: '' });
+ const removeSelectedLocation = (locId: string) => {
+  setSelectedLocations(selectedLocations.filter(l => l.id !== locId));
  };
+
+ // Lógica de Adjuntos
+ const handleFileUpload = async (files: FileList | null) => {
+  if (!files) return;
+  const token = localStorage.getItem('access_token');
+  
+  for (let i = 0; i < files.length; i++) {
+   const formData = new FormData();
+   formData.append('file', files[i]);
+   try {
+    const res = await fetch('/api/v1/attachments/upload', {
+     method: 'POST',
+     headers: { 'Authorization': `Bearer ${token}` },
+     body: formData
+    });
+    if (res.ok) {
+     const data = await res.json();
+     setAttachmentIds(prev => [...prev, data.id]);
+    }
+   } catch (e) { console.error('Upload failed', e); }
+  }
+ };
+
+ const removeAttachment = (id: string) => {
+  setAttachmentIds(prev => prev.filter(aid => aid !== id));
+ };
+
+ // Capturar pegado de imágenes (CTRL+V)
+ useEffect(() => {
+  const handlePaste = (e: ClipboardEvent) => {
+   const items = e.clipboardData?.items;
+   if (items) {
+    const files: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+     if (items[i].type.indexOf('image') !== -1) {
+      const file = items[i].getAsFile();
+      if (file) files.push(file);
+     }
+    }
+    if (files.length > 0) {
+     // Convertir FileList-like a lo que espera nuestra función
+     const dataTransfer = new DataTransfer();
+     files.forEach(f => dataTransfer.items.add(f));
+     handleFileUpload(dataTransfer.files);
+    }
+   }
+  };
+  window.addEventListener('paste', handlePaste);
+  return () => window.removeEventListener('paste', handlePaste);
+ }, []);
 
  const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -228,11 +280,14 @@ export default function NewTicketPage() {
     priority: formData.priority,
     platform: formData.platform,
     ticket_type_id: formData.ticket_type_id || null,
-    group_id: formData.is_private ? null : (formData.group_id || null),
+    group_id: (formData.is_private || formData.is_global) ? null : (formData.group_id || null),
     assigned_to_id: formData.assigned_to_id || null,
-    asset_id: formData.asset_id || null,
-    location_id: formData.location_id || null,
+    asset_id: selectedAssets.length > 0 ? selectedAssets[0].id : null,
+    asset_ids: selectedAssets.map(a => a.id),
+    location_id: selectedLocations.length > 0 ? selectedLocations[0].id : null,
+    location_ids: selectedLocations.map(l => l.id),
     is_private: formData.is_private,
+    is_global: formData.is_global,
     parent_ticket_id: null,
     attachment_ids: attachmentIds
    };
@@ -377,164 +432,209 @@ export default function NewTicketPage() {
          </Row>
 
          <div className="mt-4 p-3 rounded-3 bg-opacity-10 border border-color bg-warning">
-          <Form.Check 
-           type="switch"
-           id="private-ticket-switch"
-           label={
-            <div>
-             <div className="fw-black x-small uppercase tracking-widest text-main">🔒 Ticket Privado</div>
-             <div className="x-small text-muted fw-bold">Solo tú y la persona asignada podrán visualizar este ticket. El resto del grupo no tendrá acceso.</div>
-            </div>
-           }
-           checked={formData.is_private}
-           onChange={e => {
-            const isPrivate = e.target.checked;
-            setFormData({ 
-             ...formData, 
-             is_private: isPrivate,
-             // Si vuelve a ser público, restaurar su grupo por defecto
-             group_id: (!isPrivate && currentUser?.group_id) ? currentUser.group_id : formData.group_id
-            });
-           }}
-           className="d-flex align-items-center gap-3 custom-switch-lg"
-          />
+          <Row className="g-3">
+           <Col md={6}>
+            <Form.Check 
+             type="switch"
+             id="private-ticket-switch"
+             label={
+              <div>
+               <div className="fw-black x-small uppercase tracking-widest text-main">🔒 Ticket Privado</div>
+               <div className="x-small text-muted fw-bold">Solo tú y el destinatario podrán verlo.</div>
+              </div>
+             }
+             checked={formData.is_private}
+             disabled={formData.is_global}
+             onChange={e => {
+              const isPrivate = e.target.checked;
+              setFormData({ 
+               ...formData, 
+               is_private: isPrivate,
+               is_global: isPrivate ? false : formData.is_global,
+               group_id: (!isPrivate && currentUser?.group_id) ? currentUser.group_id : formData.group_id
+              });
+             }}
+             className="d-flex align-items-center gap-3 custom-switch-lg"
+            />
+           </Col>
+           <Col md={6}>
+            <Form.Check 
+             type="switch"
+             id="global-ticket-switch"
+             label={
+              <div>
+               <div className="fw-black x-small uppercase tracking-widest text-primary">🌍 Ticket Global</div>
+               <div className="x-small text-muted fw-bold">Visible para TODOS los grupos de la plataforma.</div>
+              </div>
+             }
+             checked={formData.is_global}
+             disabled={formData.is_private}
+             onChange={e => {
+              const isGlobal = e.target.checked;
+              setFormData({ 
+               ...formData, 
+               is_global: isGlobal,
+               is_private: isGlobal ? false : formData.is_private,
+               group_id: isGlobal ? '' : (currentUser?.group_id || '')
+              });
+             }}
+             className="d-flex align-items-center gap-3 custom-switch-lg"
+            />
+           </Col>
+          </Row>
          </div>
         </Card.Body>
        </Card>
 
        {/* Location Linking Section */}
-       <Card className="shadow-sm border-0 mb-4 border-start border-4 border-success">
+       <Card className="shadow-sm border-0 mb-4 border-start border-4 border-success overflow-visible" style={{ position: 'relative', zIndex: 100 }}>
         <Card.Body className="p-4">
-         <h6 className="fw-bold mb-3 text-uppercase text-success small border-bottom pb-2">Vincular Ubicación / Dependencia</h6>
+         <h6 className="fw-bold mb-3 text-uppercase text-success small border-bottom pb-2">Vincular Ubicaciones / Dependencias</h6>
          
-         {!selectedLocation ? (
-          <div className="position-relative" ref={locationSearchRef}>
-           <Form.Group controlId="location-search">
-            <InputGroup className="border rounded-pill px-3 py-1">
-             <InputGroup.Text className="bg-transparent border-0"><MapPin size={18} className="text-muted" /></InputGroup.Text>
-             <Form.Control 
-              id="location-search-input"
-              name="locationSearch"
-              placeholder="Buscar dependencia o ubicación..."
-              className="bg-transparent border-0 shadow-none"
-              value={locationSearch}
-              onChange={e => { setLocationSearch(e.target.value); setShowLocationResults(true); }}
-              onFocus={() => setShowLocationResults(true)}
-             />
-            </InputGroup>
-           </Form.Group>
-           
-           {showLocationResults && locationSearch.length >= 2 && (
-            <Card className="position-absolute w-100 mt-2 shadow-lg border-0 z-3">
-             <ListGroup variant="flush">
-              {locations.length > 0 ? (
-               locations.map(l => (
-                <ListGroup.Item 
-                 key={l.id} 
-                 action 
-                 className="py-2"
-                 onClick={() => handleSelectLocation(l)}
-                >
-                 <div className="fw-bold small text-success">{l.name}</div>
-                 <div className="x-small text-muted">{l.path}</div>
-                </ListGroup.Item>
-               ))
-              ) : (
-               <ListGroup.Item className="text-center py-3 text-muted small">No se encontraron ubicaciones</ListGroup.Item>
-              )}
-             </ListGroup>
-            </Card>
-           )}
-          </div>
-         ) : (
-          <div className="p-3 bg-surface-muted rounded border d-flex justify-content-between align-items-center">
-           <div className="d-flex align-items-center gap-3">
-            <div className="bg-success bg-opacity-10 p-2 rounded">
-             <MapPin className="text-success" size={20} />
+         <div className="position-relative" ref={locationSearchRef}>
+          <Form.Group controlId="location-search">
+           <InputGroup className="border rounded-pill px-3 py-1 mb-3">
+            <InputGroup.Text className="bg-transparent border-0"><MapPin size={18} className="text-muted" /></InputGroup.Text>
+            <Form.Control 
+             id="location-search-input"
+             name="locationSearch"
+             placeholder="Buscar dependencias para agregar..."
+             className="bg-transparent border-0 shadow-none"
+             value={locationSearch}
+             onChange={e => { setLocationSearch(e.target.value); setShowLocationResults(true); }}
+             onFocus={() => setShowLocationResults(true)}
+            />
+           </InputGroup>
+          </Form.Group>
+          
+          {showLocationResults && locationSearch.length >= 2 && (
+           <Card className="position-absolute w-100 mt-n2 shadow-lg border-0" style={{ zIndex: 2000 }}>
+            <ListGroup variant="flush">
+             {locations.length > 0 ? (
+              locations.map(l => (
+               <ListGroup.Item 
+                key={l.id} 
+                action 
+                className="py-2"
+                onClick={() => handleSelectLocation(l)}
+               >
+                <div className="fw-bold small text-success">{l.name}</div>
+                <div className="x-small text-muted">{l.path}</div>
+               </ListGroup.Item>
+              ))
+             ) : (
+              <ListGroup.Item className="text-center py-3 text-muted small">No se encontraron ubicaciones</ListGroup.Item>
+             )}
+            </ListGroup>
+           </Card>
+          )}
+         </div>
+
+         {/* Lista de Ubicaciones Seleccionadas */}
+         <div className="d-flex flex-column gap-2">
+          {selectedLocations.map(l => (
+            <div key={l.id} className="p-2 bg-surface-muted rounded border d-flex justify-content-between align-items-center animate-fade-in">
+             <div className="d-flex align-items-center gap-3">
+              <div className="bg-success bg-opacity-10 p-2 rounded">
+               <MapPin className="text-success" size={18} />
+              </div>
+              <div>
+               <div className="fw-bold text-success small">{l.name}</div>
+               <div className="x-tiny text-muted">{l.path}</div>
+              </div>
+             </div>
+             <Button variant="outline-danger" size="sm" onClick={() => removeSelectedLocation(l.id)} className="rounded-circle p-1 border-0"><X size={14} /></Button>
             </div>
-            <div>
-             <div className="fw-bold text-success">{selectedLocation.name}</div>
-             <div className="small text-muted">{selectedLocation.path}</div>
+          ))}
+          {selectedLocations.length === 0 && (
+            <div className="text-center py-3 text-muted opacity-50 x-small fw-bold border rounded border-dashed">
+              NINGUNA UBICACIÓN SELECCIONADA
             </div>
-           </div>
-           <Button variant="outline-danger" size="sm" onClick={clearSelectedLocation} className="rounded-circle p-1"><X size={16} /></Button>
-          </div>
-         )}
+          )}
+         </div>
         </Card.Body>
        </Card>
 
        {/* Asset Linking Section */}
-       <Card className="shadow-sm border-0 mb-4 border-start border-4 border-primary">
+       <Card className="shadow-sm border-0 mb-4 border-start border-4 border-primary overflow-visible" style={{ position: 'relative', zIndex: 90 }}>
         <Card.Body className="p-4">
-         <h6 className="fw-bold mb-3 text-uppercase text-primary small border-bottom pb-2">Vincular Equipo del Inventario</h6>
+         <h6 className="fw-bold mb-3 text-uppercase text-primary small border-bottom pb-2">Vincular Equipos del Inventario</h6>
          
-         {!selectedAsset ? (
-          <div className="position-relative" ref={searchRef}>
-           <Form.Group controlId="asset-search">
-            <InputGroup className="border rounded-pill px-3 py-1">
-             <InputGroup.Text className="bg-transparent border-0"><Search size={18} className="text-muted" /></InputGroup.Text>
-             <Form.Control 
-              id="asset-search-input"
-              name="assetSearch"
-              placeholder="Buscar por Hostname, IP o MAC..."
-              className="bg-transparent border-0 shadow-none"
-              value={assetSearch}
-              onChange={e => { setAssetSearch(e.target.value); setShowAssetResults(true); }}
-              onFocus={() => setShowAssetResults(true)}
-             />
-            </InputGroup>
-           </Form.Group>
-           
-           {showAssetResults && assetSearch.length >= 2 && (
-            <Card className="position-absolute w-100 mt-2 shadow-lg border-0 z-3">
-             <ListGroup variant="flush">
-              {assets.length > 0 ? (
-               assets.map(a => (
-                <ListGroup.Item 
-                 key={a.id} 
-                 action 
-                 className="d-flex justify-content-between align-items-center py-2"
-                 onClick={() => handleSelectAsset(a)}
-                >
-                 <div>
-                  <div className="fw-bold small text-primary">{a.hostname}</div>
-                  <div className="x-small text-muted font-monospace">{a.ip_address} | {a.mac_address}</div>
-                 </div>
-                 <Badge bg="secondary" className="bg-opacity-10 text-body font-monospace x-small">{a.location_name || 'Sin Ubicación'}</Badge>
-                </ListGroup.Item>
-               ))
-              ) : (
-               <ListGroup.Item className="text-center py-3 text-muted small">No se encontraron equipos</ListGroup.Item>
-              )}
-             </ListGroup>
-            </Card>
-           )}
-          </div>
-         ) : (
-          <div className="p-3 bg-surface-muted rounded border d-flex justify-content-between align-items-center">
-           <div className="d-flex align-items-center gap-3">
-            <div className="bg-primary bg-opacity-10 p-2 rounded">
-             <Monitor className="text-primary" size={20} />
-            </div>
-            <div>
-             <div className="fw-bold text-primary">{selectedAsset.hostname}</div>
-             <div className="small text-muted font-monospace">
-              <span className="badge bg-primary bg-opacity-10 text-primary border border-primary me-2">{selectedAsset.ip_address}</span>
-              <MapPin size={12} className="me-1" /> {selectedAsset.location_name || 'Ubicación Desconocida'}
+         <div className="position-relative" ref={searchRef}>
+          <Form.Group controlId="asset-search">
+           <InputGroup className="border rounded-pill px-3 py-1 mb-3">
+            <InputGroup.Text className="bg-transparent border-0"><Search size={18} className="text-muted" /></InputGroup.Text>
+            <Form.Control 
+             id="asset-search-input"
+             name="assetSearch"
+             placeholder="Buscar por Hostname, IP o MAC para agregar..."
+             className="bg-transparent border-0 shadow-none"
+             value={assetSearch}
+             onChange={e => { setAssetSearch(e.target.value); setShowAssetResults(true); }}
+             onFocus={() => setShowAssetResults(true)}
+            />
+           </InputGroup>
+          </Form.Group>
+          
+          {showAssetResults && assetSearch.length >= 2 && (
+           <Card className="position-absolute w-100 mt-n2 shadow-lg border-0" style={{ zIndex: 2000 }}>
+            <ListGroup variant="flush">
+             {assets.length > 0 ? (
+              assets.map(a => (
+               <ListGroup.Item 
+                key={a.id} 
+                action 
+                className="d-flex justify-content-between align-items-center py-2"
+                onClick={() => handleSelectAsset(a)}
+               >
+                <div>
+                 <div className="fw-bold small text-primary">{a.hostname}</div>
+                 <div className="x-small text-muted font-monospace">{a.ip_address} | {a.mac_address}</div>
+                </div>
+                <Badge bg="secondary" className="bg-opacity-10 text-body font-monospace x-small">{a.location_name || 'Sin Ubicación'}</Badge>
+               </ListGroup.Item>
+              ))
+             ) : (
+              <ListGroup.Item className="text-center py-3 text-muted small">No se encontraron equipos</ListGroup.Item>
+             )}
+            </ListGroup>
+           </Card>
+          )}
+         </div>
+
+         {/* Lista de Activos Seleccionados */}
+         <div className="d-flex flex-column gap-2">
+          {selectedAssets.map(a => (
+            <div key={a.id} className="p-2 bg-surface-muted rounded border d-flex justify-content-between align-items-center animate-fade-in">
+             <div className="d-flex align-items-center gap-3">
+              <div className="bg-primary bg-opacity-10 p-2 rounded">
+               <Monitor className="text-primary" size={18} />
+              </div>
+              <div>
+               <div className="fw-bold text-primary small">{a.hostname}</div>
+               <div className="x-tiny text-muted font-monospace">{a.ip_address} | {a.mac_address}</div>
+              </div>
              </div>
+             <Button variant="outline-danger" size="sm" onClick={() => removeSelectedAsset(a.id)} className="rounded-circle p-1 border-0"><X size={14} /></Button>
             </div>
-           </div>
-           <Button variant="outline-danger" size="sm" onClick={clearSelectedAsset} className="rounded-circle p-1"><X size={16} /></Button>
-          </div>
-         )}
-         <div className="mt-2 x-small text-muted italic">Vincular un equipo permite realizar el seguimiento técnico en el historial del activo.</div>
+          ))}
+          {selectedAssets.length === 0 && (
+            <div className="text-center py-3 text-muted opacity-50 x-small fw-bold border rounded border-dashed">
+              NINGÚN EQUIPO SELECCIONADO
+            </div>
+          )}
+         </div>
+         <div className="mt-2 x-small text-muted italic">Puedes vincular múltiples equipos. Esto generará una entrada en el historial de cada activo.</div>
         </Card.Body>
        </Card>
 
        <Card className="shadow-sm border-0 mb-4">
         <Card.Body className="p-4">
-         <Form.Group>
-          <Form.Label className="small fw-bold text-uppercase text-muted mb-3">Descripción Detallada del Incidente *</Form.Label>
+         <Form.Group className="mb-4">
+          <Form.Label className="small fw-bold text-uppercase text-muted mb-3 d-flex justify-content-between align-items-center">
+            <span>Descripción Detallada del Incidente *</span>
+            <Badge bg="primary" className="bg-opacity-10 text-primary x-small fw-black">TECNOLOGÍA RICH TEXT</Badge>
+          </Form.Label>
           <RichTextEditor 
            value={formData.description}
            onChange={content => setFormData({ ...formData, description: content })}
@@ -542,6 +642,33 @@ export default function NewTicketPage() {
            users={users}
           />
          </Form.Group>
+
+         {/* ZONA DE CARGA DE ARCHIVOS / PEGADO DE IMAGENES */}
+         <div className="bg-muted bg-opacity-25 p-4 rounded-4 border border-dashed text-center position-relative mb-2">
+            <input 
+              type="file" 
+              multiple 
+              className="position-absolute inset-0 opacity-0 cursor-pointer w-100 h-100" 
+              style={{ zIndex: 5 }}
+              onChange={(e) => handleFileUpload(e.target.files)}
+            />
+            <div className="py-2">
+              <div className="mb-2 text-primary opacity-75"><Monitor size={32} className="mx-auto" /></div>
+              <h6 className="fw-black x-small uppercase tracking-widest text-main m-0">Evidencia Técnica y Adjuntos</h6>
+              <p className="x-tiny text-muted fw-bold mt-1 mb-0">ARRASTRA ARCHIVOS O PEGA CAPTURAS (CTRL+V)</p>
+            </div>
+         </div>
+
+         {/* Lista de archivos cargados */}
+         {attachmentIds.length > 0 && (
+           <div className="mt-3 d-flex flex-wrap gap-2">
+             {attachmentIds.map(id => (
+               <Badge key={id} bg="primary" className="p-2 px-3 rounded-pill fw-bold d-flex align-items-center gap-2">
+                 <FileText size={14} /> ARCHIVO LISTO <X size={14} className="cursor-pointer" onClick={() => removeAttachment(id)} />
+               </Badge>
+             ))}
+           </div>
+         )}
         </Card.Body>
        </Card>
 

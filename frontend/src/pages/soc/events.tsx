@@ -242,61 +242,55 @@ export default function SIEMEventsPage() {
     </Card.Body>
    </Card>
 
-   <Card className="border-0 shadow-sm rounded-4 overflow-hidden bg-card">
+   <Card className="shadow-sm overflow-hidden">
     <div className="table-responsive">
      <Table hover className="m-0 align-middle">
       <thead>
-       <tr className="small text-muted uppercase tracking-widest border-bottom border-color bg-surface">
-        <th className="ps-4 py-3">ALERTA</th>
+       <tr>
+        <th className="ps-4">ALERTA</th>
         {visibleCols.includes('source') && <th>ORIGEN</th>}
         {visibleCols.includes('arrival') && <th>LLEGADA</th>}
         {visibleCols.includes('severity') && <th>SEVERIDAD</th>}
         <th className="text-end pe-4">COMANDO</th>
        </tr>
       </thead>
-      <tbody className="small">
-       {loading ? (<tr><td colSpan={10} className="text-center py-5"><Spinner animation="border" size="sm" /></td></tr>) : filteredEvents.map(event => (
-         <tr key={event.id} className="border-bottom border-color transition-all">
+      <tbody>
+       {loading ? (<tr><td colSpan={10} className="text-center py-5"><Spinner animation="border" size="sm" variant="primary" /></td></tr>) : filteredEvents.map(event => (
+         <tr key={event.id}>
           <td className="ps-4 py-3">
             <div className="d-flex align-items-center gap-3">
-              <div className="p-2 rounded-3" style={{ 
-                backgroundColor: event.severity === 'critical' ? 'rgba(255,0,0,0.1)' : 'rgba(255,165,0,0.1)',
-                color: event.severity === 'critical' ? 'var(--color-danger)' : 'var(--color-warning)'
-              }}>
+              <div className="p-2 rounded-3 severity-icon-wrapper" data-severity={event.severity}>
                 <ShieldAlert size={18} />
               </div>
               <div>
-                <div className="fw-black text-uppercase text-main">{event.rule_name !== 'N/A' ? event.rule_name : (event.raw_log?.substring(0, 40) || 'Generic Alert')}</div>
-                <div className="text-muted x-small font-monospace opacity-50">REF: {event.id.substring(0,8).toUpperCase()}</div>
+                <div className="fw-black text-uppercase text-foreground">{event.rule_name !== 'N/A' ? event.rule_name : (event.raw_log?.substring(0, 40) || 'Generic Alert')}</div>
+                <div className="text-muted-foreground x-small font-monospace opacity-50">REF: {event.id.substring(0,8).toUpperCase()}</div>
               </div>
             </div>
           </td>
           {visibleCols.includes('source') && (<td><div className="fw-bold text-info">{event.source_ip || '---'}</div></td>)}
-          {visibleCols.includes('arrival') && (<td><div className="fw-bold text-main">{new Date(event.created_at).toLocaleDateString('es-AR')}</div><div className="x-small text-primary fw-black opacity-75">{new Date(event.created_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}</div></td>)}
+          {visibleCols.includes('arrival') && (<td><div className="fw-bold text-foreground">{new Date(event.created_at).toLocaleDateString('es-AR')}</div><div className="x-small text-primary fw-black opacity-75">{new Date(event.created_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}</div></td>)}
           {visibleCols.includes('severity') && (
             <td>
               <Badge 
-                bg={event.severity === 'critical' ? 'danger' : 'warning'} 
-                className="text-uppercase fw-black px-2 border border-opacity-25"
-                style={{ 
-                  backgroundColor: event.severity === 'critical' ? 'var(--color-danger)' : 'var(--color-warning)',
-                  color: event.severity === 'critical' ? '#fff' : '#000'
-                }}
+                bg="transparent" 
+                className="severity-badge fw-black px-2 border"
+                data-severity={event.severity}
               >
-                {event.severity}
+                {event.severity.toUpperCase()}
               </Badge>
             </td>
           )}
           <td className="text-end pe-4">
            <div className="d-flex gap-2 justify-content-end">
              {event.status === 'new' && (
-               <Button variant="primary" size="sm" className="fw-black x-small px-3 rounded-pill shadow-sm" onClick={() => handleOpenAssign(event)}>ASIGNAR</Button>
+               <Button variant="primary" size="sm" className="fw-black x-small px-3 rounded-pill shadow-sm border-0" onClick={() => handleOpenAssign(event)}>ASIGNAR</Button>
              )}
              {event.status === 'pending' && (
-               <Button variant="success" size="sm" className="fw-black x-small px-3 rounded-pill shadow-sm" onClick={() => handleRemediate(event)}>TRIAGE</Button>
+               <Button variant="success" size="sm" className="fw-black x-small px-3 rounded-pill shadow-sm border-0 text-white" onClick={() => handleRemediate(event)}>TRIAGE</Button>
              )}
              {(event.status === 'resolved' || event.status === 'promoted') && (
-               <Button variant="outline-secondary" size="sm" className="fw-black x-small px-3 rounded-pill shadow-sm" onClick={() => handleRemediate(event)}>VER</Button>
+               <Button variant="outline-secondary" size="sm" className="fw-black x-small px-3 rounded-pill shadow-sm border-0 text-muted-foreground" onClick={() => handleRemediate(event)}>VER</Button>
              )}
            </div>
           </td>
@@ -306,6 +300,24 @@ export default function SIEMEventsPage() {
      </Table>
     </div>
    </Card>
+
+   <style jsx global>{`
+     .fw-black { font-weight: 900; } 
+     .x-small { font-size: 0.7rem; }
+     
+     /* Severity logic in CSS instead of JS inline styles */
+     [data-severity="critical"] { color: var(--color-danger) !important; border-color: var(--color-danger) !important; background-color: color-mix(in srgb, var(--color-danger), transparent 90%) !important; }
+     [data-severity="high"] { color: var(--color-warning) !important; border-color: var(--color-warning) !important; background-color: color-mix(in srgb, var(--color-warning), transparent 90%) !important; }
+     [data-severity="medium"] { color: #0ea5e9 !important; border-color: #0ea5e9 !important; background-color: rgba(14, 165, 233, 0.1) !important; }
+     [data-severity="low"] { color: var(--color-success) !important; border-color: var(--color-success) !important; background-color: color-mix(in srgb, var(--color-success), transparent 90%) !important; }
+     
+     .severity-badge[data-severity="critical"] { background-color: var(--color-danger) !important; color: white !important; }
+     .severity-badge[data-severity="high"] { background-color: var(--color-warning) !important; color: black !important; }
+     .severity-badge[data-severity="medium"] { background-color: #0ea5e9 !important; color: white !important; }
+     .severity-badge[data-severity="low"] { background-color: var(--color-success) !important; color: white !important; }
+
+     .severity-icon-wrapper[data-severity="medium"] { color: #0ea5e9 !important; background-color: rgba(14, 165, 233, 0.1) !important; }
+   `}</style>
 
    <Modal show={showRemediate} onHide={() => setShowRemediate(false)} size="lg" centered scrollable contentClassName="bg-surface rounded-4 border-0 shadow-lg">
     <Modal.Header closeButton className="border-0 pb-0"><Modal.Title className="h6 fw-black text-uppercase">ANÁLISIS DE AMENAZA</Modal.Title></Modal.Header>

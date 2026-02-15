@@ -80,24 +80,50 @@ async def get_dashboard_stats(
         for a in res_latest.scalars().all()
     ]
     res_cats = await db.execute(
-        select(Alert.rule_name, func.count(Alert.id))
+        select(Alert.rule_name, func.count(Alert.id).label("total_count"))
+        .where(Alert.rule_name != None)
         .group_by(Alert.rule_name)
         .order_by(func.count(Alert.id).desc())
         .limit(5)
     )
-    siem_data["categories"] = [{"name": r.rule_name[:25], "count": r.count} for r in res_cats]
-    # --- DISPOSITIVOS AFECTADOS ---
+    # Limpiar prefijos y asegurar mapeo correcto
+    siem_data["categories"] = [
+        {"name": r.rule_name.replace("SOC - PFA - ", "").replace("SOC - ", "")[:30], "count": r.total_count} 
+        for r in res_cats
+    ]
+
+    # --- DISPOSITIVOS AFECTADOS (REVISIÓN MEJORADA) ---
     import re
     res_logs = await db.execute(select(Alert.raw_log).where(Alert.raw_log != None))
     logs = res_logs.scalars().all()
     dev_counts = {}
     for log in logs:
-        match = re.search(r'devname="?([^"\s,]+)"?', log)
-        if match:
-            dev = match.group(1)
-            dev_counts[dev] = dev_counts.get(dev, 0) + 1
+        # Intenta múltiples patrones: devname="...", hostName=..., src_ip=...
+        patterns = [
+            r'devname="([^"]+)"',
+            r'devname=([^"\s,]+)',
+            r'hostName="([^"]+)"',
+            r'hostName=([^"\s,]+)',
+            r'device="([^"]+)"'
+        ]
+        found = False
+        for p in patterns:
+            match = re.search(p, log, re.IGNORECASE)
+            if match:
+                dev = match.group(1).split('_')[0] # Simplificar nombres como PFA-cluster_FG10E0 a PFA-cluster
+                dev_counts[dev] = dev_counts.get(dev, 0) + 1
+                found = True
+                break
+        
+        # Si es XML (FortiSIEM native), buscar en ruleType o similar si no hay devname
+        if not found and '<?xml' in log:
+            xml_match = re.search(r'ruleType="([^"]+)"', log)
+            if xml_match:
+                dev = "FortiSIEM"
+                dev_counts[dev] = dev_counts.get(dev, 0) + 1
+    
     top_devs = sorted(dev_counts.items(), key=lambda x: x[1], reverse=True)[:5]
-    siem_data["affected_devices"] = [{"name": name, "count": count} for name, count in top_devs]
+    siem_data["affected_devices"] = [{"name": name.upper(), "count": count} for name, count in top_devs]
     # --- ASSETS STATS ---
     res_assets = await db.execute(select(Asset.status, func.count(Asset.id)).where(and_(*asset_filters)).group_by(Asset.status))
     a_stats = {row.status: row.count for row in res_assets}
@@ -105,26 +131,32 @@ async def get_dashboard_stats(
         and_(*asset_filters)
     ).group_by(LocationNode.name).order_by(func.count(Asset.id).desc()).limit(5)
     res_locs = await db.execute(loc_q)
-    # 3. Top Analistas (Alertas del SIEM resueltas/cerradas por usuario)
+    # 3. Top Analistas (Asignaciones activas + resueltas)
     res_analysts = await db.execute(
-        select(User.username, func.count(Alert.id))
-        .join(Alert, Alert.resolved_by_id == User.id)
-        .where(Alert.status.in_(['resolved', 'closed']))
+        select(User.username, func.count(Ticket.id).label("total"))
+        .join(Ticket, Ticket.assigned_to_id == User.id)
+        .where(Ticket.status.in_(['open', 'in_progress', 'resolved']))
         .group_by(User.username)
-        .order_by(func.count(Alert.id).desc())
+        .order_by(func.count(Ticket.id).desc())
         .limit(5)
     )
-    top_analysts = [{"name": r.username, "count": r.count} for r in res_analysts]
-    # 4. Equipos con más tickets asociados
+    top_analysts = [{"name": r.username, "count": r.total} for r in res_analysts]
+
+    # 4. Equipos con más incidencias (Híbrido: Tickets vinculados + Detecciones en Logs)
     res_top_assets = await db.execute(
-        select(Asset.hostname, func.count(Ticket.id))
+        select(Asset.hostname, func.count(Ticket.id).label("total"))
         .join(Ticket, Ticket.asset_id == Asset.id)
         .where(and_(Ticket.deleted_at == None, Asset.deleted_at == None))
         .group_by(Asset.hostname)
         .order_by(func.count(Ticket.id).desc())
         .limit(5)
     )
-    assets_with_tickets = [{"name": r.hostname, "count": r.count} for r in res_top_assets]
+    assets_with_tickets = [{"name": r.hostname, "count": r.total} for r in res_top_assets]
+    
+    # Si no hay vinculaciones manuales, usamos los datos de logs del SIEM para no dejar el widget vacío
+    if not assets_with_tickets and siem_data["affected_devices"]:
+        assets_with_tickets = siem_data["affected_devices"]
+    
     # 5. Contador de cambios de estado a mantenimiento
     try:
         res_maint = await db.execute(

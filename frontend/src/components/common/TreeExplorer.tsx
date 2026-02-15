@@ -62,14 +62,23 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, level, type, onSelect }) => {
 
 export const TreeExplorer = ({ data, type, onSelect }: { data: any[], type: 'groups' | 'locations', onSelect: (node: any) => void }) => {
  return (
-  <div className="tree-explorer bg-black rounded p-2 border border-opacity-5">
+  <div className="tree-explorer bg-background rounded-3 p-2 border border-border shadow-inner">
    {data.length > 0 ? (
     data.map(node => (
      <TreeNode key={node.id} node={node} level={0} type={type} onSelect={onSelect} />
     ))
    ) : (
-    <div className="p-4 text-center text-muted x-small uppercase fw-bold">No hay registros definidos</div>
+    <div className="p-4 text-center text-muted-foreground x-small uppercase fw-bold opacity-50">No hay registros definidos</div>
    )}
+   <style jsx global>{`
+     .tree-row:hover { 
+       background-color: var(--bg-muted) !important; 
+       color: var(--primary) !important;
+     }
+     .tree-row {
+       color: var(--text-foreground);
+     }
+   `}</style>
   </div>
  );
 };

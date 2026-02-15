@@ -182,158 +182,148 @@ export default function Dashboard() {
  );
 
  const SiemWidgets = () => {
-  if (!stats.siem) return null;
+  if (!stats?.siem) return null;
+  
+  const categoriesData = (stats.siem.categories || []);
+  const devicesData = (stats.siem.affected_devices || []);
+
   return (
     <Row className="g-4 mb-4">
       <Col lg={8}>
-        <Card className="p-4 border-0 shadow-sm h-100">
-          <h6 className="fw-bold mb-4 text-uppercase d-flex align-items-center gap-2">
-          <BarChart3 size={16} className="text-primary" /> Alertas SIEM (Top 5)
-          </h6>
-          <div style={{ width: '100%', height: 300 }}>
-          {mounted && stats.siem.categories && stats.siem.categories.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-            <BarChart data={stats.siem.categories || []} layout="vertical" margin={{ left: 20, right: 30 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'} vertical={false} />
-              <XAxis type="number" hide />
-              <YAxis 
-                dataKey="name" 
-                type="category" 
-                width={150} 
-                fontSize={10} 
-                tick={{ fill: getTickColor() }} 
-                axisLine={false} 
-                tickLine={false} 
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: isDark || isSoc ? '#161b22' : '#ffffff', 
-                  borderColor: 'rgba(128,128,128,0.2)',
-                  borderRadius: '8px',
-                  fontSize: '12px'
-                }} 
-                itemStyle={{ color: isDark || isSoc ? '#fff' : '#000' }}
-                labelStyle={{ color: isDark || isSoc ? '#38bdf8' : '#0d6efd', fontWeight: 'bold', marginBottom: '4px' }}
-              />
-              <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={20} name="Cantidad de Alertas">
-              {(stats.siem.categories || []).map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-              <LabelList dataKey="count" position="right" fill={getTickColor()} fontSize={10} fontWeight="bold" offset={10} />
-              </Bar>
-            </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="d-flex align-items-center justify-content-center h-100 text-muted small italic">
-              Sin datos de alertas para graficar.
-            </div>
-          )}
+        <Card className="p-4 border-0 shadow-sm h-100 bg-card">
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h6 className="fw-black text-uppercase m-0 small tracking-widest text-primary d-flex align-items-center gap-2">
+              <BarChart3 size={18} /> Top Alertas SIEM
+            </h6>
+            <Badge bg="primary" className="bg-opacity-10 text-primary px-3 py-1 fw-black x-small">{categoriesData.length} REGLAS ACTIVAS</Badge>
+          </div>
+          
+          <div className="flex-grow-1">
+            {categoriesData.length > 0 ? (
+              <div className="table-responsive">
+                <Table borderless size="sm" className="m-0">
+                  <tbody>
+                    {categoriesData.map((c: any, i: number) => (
+                      <tr key={i} className="border-bottom border-subtle">
+                        <td className="py-3 px-0">
+                          <div className="fw-black text-main small uppercase tracking-tighter">{c.name}</div>
+                          <div className="progress mt-2" style={{ height: '6px', backgroundColor: 'var(--bg-muted)' }}>
+                            <div 
+                              className="progress-bar rounded-pill" 
+                              role="progressbar" 
+                              style={{ width: `${(c.count / stats.siem.total) * 100}%`, backgroundColor: COLORS[i % COLORS.length] }}
+                            ></div>
+                          </div>
+                        </td>
+                        <td className="text-end py-3 px-0 align-middle">
+                          <span className="h5 fw-black m-0 text-primary">{c.count}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </div>
+            ) : (
+              <div className="py-5 text-center text-muted small italic opacity-50 uppercase fw-bold">Sin alertas para categorizar</div>
+            )}
+          </div>
+        </Card>
+      </Col>
+
+      <Col lg={4}>
+        <Card className="p-4 border-0 shadow-sm h-100 bg-card">
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h6 className="fw-black text-uppercase m-0 small tracking-widest text-danger d-flex align-items-center gap-2">
+              <ShieldAlert size={18} /> Fuego en Red
+            </h6>
+          </div>
+          <div className="flex-grow-1">
+            {devicesData.length > 0 ? (
+              devicesData.map((d: any, i: number) => (
+                <div key={i} className="mb-3 p-3 bg-muted bg-opacity-50 rounded-3 border-start border-4 border-danger d-flex justify-content-between align-items-center">
+                  <div>
+                    <div className="fw-black text-main small font-monospace">{d.name}</div>
+                    <div className="x-tiny text-muted uppercase fw-bold tracking-wider">Dispositivo FortiGate</div>
+                  </div>
+                  <div className="text-end">
+                    <div className="h4 fw-black m-0 text-danger">{d.count}</div>
+                    <div className="x-tiny text-muted uppercase">Detecciones</div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="py-5 text-center text-muted small italic opacity-50 uppercase fw-bold border rounded border-dashed">
+                Perímetro Limpio
+              </div>
+            )}
           </div>
         </Card>
       </Col>
       <Col lg={4}>
-        <Card className="p-4 border-0 shadow-sm h-100">
-          <h6 className="fw-bold mb-4 text-uppercase d-flex align-items-center gap-2">
-          <ShieldAlert size={16} className="text-danger" /> Dispositivos Afectados (Firewalls)
-          </h6>
-          <div style={{ width: '100%', height: 300 }}>
-          {mounted && stats.siem.affected_devices && stats.siem.affected_devices.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={stats.siem.affected_devices} layout="vertical" margin={{ left: 10, right: 30 }}>
-              <XAxis type="number" hide />
-              <YAxis 
-                dataKey="name" 
-                type="category" 
-                width={100} 
-                fontSize={10} 
-                tick={{ fill: getTickColor() }} 
-                axisLine={false} 
-                tickLine={false} 
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: isDark || isSoc ? '#161b22' : '#ffffff', 
-                  borderColor: 'rgba(128,128,128,0.2)',
-                  borderRadius: '8px',
-                  fontSize: '12px'
-                }} 
-                itemStyle={{ color: isDark || isSoc ? '#fff' : '#000' }}
-                labelStyle={{ color: '#ffc107', fontWeight: 'bold', marginBottom: '4px' }}
-              />
-              <Bar dataKey="count" fill="#ffc107" radius={[0, 4, 4, 0]} barSize={15} name="Detecciones">
-                <LabelList dataKey="count" position="right" fill={getTickColor()} fontSize={10} fontWeight="bold" offset={10} />
-              </Bar>
-            </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="d-flex align-items-center justify-content-center h-100 text-muted small italic">
-              Sin datos de dispositivos.
-            </div>
-          )}
-          </div>
-        </Card>
-      </Col>
-      <Col lg={4}>
-        <Card className="p-4 border-0 shadow-sm h-100 bg-primary bg-opacity-10">
-          <h6 className="fw-bold mb-4 text-uppercase d-flex align-items-center gap-2 opacity-75">
-            <ShieldAlert size={16} /> Resumen de Incidentes
+        <Card className="p-4 border-0 shadow-sm h-100 bg-muted bg-opacity-50">
+          <h6 className="fw-black text-uppercase mb-4 small tracking-widest text-main opacity-75 d-flex align-items-center gap-2">
+            <ShieldAlert size={18} /> Resumen de Incidentes
           </h6>
           <div 
-            className="d-flex justify-content-between align-items-center mb-3 p-3 bg-surface rounded shadow-sm interactive-item"
+            className="d-flex justify-content-between align-items-center mb-3 p-3 bg-card rounded shadow-sm border-start border-4 border-primary interactive-item"
             onClick={() => navigateTo('/soc/events?status=all')}
             role="button"
           >
-            <span className={`small fw-bold ${isSoc ? 'text-main' : 'text-muted'} text-uppercase`}>Total de Alertas</span>
-            <span className="h4 m-0 fw-bold text-primary">{stats.siem.total}</span>
+            <span className="small fw-bold text-muted text-uppercase tracking-wider">Total Recibidas</span>
+            <span className="h4 m-0 fw-black text-primary">{stats.siem.total}</span>
           </div>
           <div 
-            className="d-flex justify-content-between align-items-center mb-3 p-3 bg-success bg-opacity-10 rounded interactive-item border border-success "
+            className="d-flex justify-content-between align-items-center mb-3 p-3 bg-card rounded shadow-sm border-start border-4 border-success interactive-item"
             onClick={() => navigateTo('/soc/events?status=resolved')}
             role="button"
           >
-            <span className={`small fw-bold ${isSoc ? 'text-success' : 'text-success'} text-uppercase`}>Remediadas</span>
-            <span className="h4 m-0 fw-bold text-success">{stats.siem.remediated}</span>
+            <span className="small fw-bold text-muted text-uppercase tracking-wider">Remediadas</span>
+            <span className="h4 m-0 fw-black text-success">{stats.siem.remediated}</span>
           </div>
           <div 
-            className="d-flex justify-content-between align-items-center mb-3 p-3 bg-warning bg-opacity-10 rounded interactive-item border border-warning "
+            className="d-flex justify-content-between align-items-center mb-3 p-3 bg-card rounded shadow-sm border-start border-4 border-warning interactive-item"
             onClick={() => navigateTo('/soc/events?status=in_progress')}
             role="button"
           >
-            <span className={`small fw-bold ${isSoc ? 'text-warning' : 'text-warning'} text-uppercase`}>En Proceso</span>
-            <span className="h4 m-0 fw-bold text-warning">{stats.siem.in_process}</span>
+            <span className="small fw-bold text-muted text-uppercase tracking-wider">En Proceso</span>
+            <span className="h4 m-0 fw-black text-warning">{stats.siem.in_process}</span>
           </div>
           <div 
-            className="d-flex justify-content-between align-items-center p-3 bg-danger bg-opacity-10 rounded interactive-item border border-danger "
+            className="d-flex justify-content-between align-items-center p-3 bg-card rounded shadow-sm border-start border-4 border-danger interactive-item"
             onClick={() => navigateTo('/soc/events?status=pending')}
             role="button"
           >
-            <span className={`small fw-bold ${isSoc ? 'text-danger' : 'text-danger'} text-uppercase`}>Abiertas</span>
-            <span className="h4 m-0 fw-bold text-danger">{stats.siem.open}</span>
+            <span className="small fw-bold text-muted text-uppercase tracking-wider">Abiertas / Críticas</span>
+            <span className="h4 m-0 fw-black text-danger">{stats.siem.open}</span>
           </div>
         </Card>
       </Col>
 
       {/* NEW: Top Analistas */}
       <Col lg={4}>
-        <Card className="p-4 border-0 shadow-sm h-100">
-          <h6 className="fw-bold mb-4 text-uppercase d-flex align-items-center gap-2">
-            <User size={16} className="text-info" /> Top Analistas
+        <Card className="p-4 border-0 shadow-sm h-100 bg-card">
+          <h6 className="fw-black text-uppercase mb-4 small tracking-widest text-info d-flex align-items-center gap-2">
+            <User size={18} /> Top Analistas Activos
           </h6>
           <div className="flex-grow-1">
             {stats.top_analysts && stats.top_analysts.length > 0 ? (
               stats.top_analysts.map((analyst: any, idx: number) => (
-                <div key={idx} className="d-flex justify-content-between align-items-center mb-2 p-2 bg-surface rounded border border-color ">
+                <div key={idx} className="d-flex justify-content-between align-items-center mb-2 p-2 bg-muted bg-opacity-50 rounded border border-color ">
                   <div className="d-flex align-items-center gap-2">
-                    <div className="avatar-xs" style={{ background: COLORS[idx % COLORS.length], color: '#fff', width: '24px', height: '24px', fontSize: '10px' }}>
-                      {analyst.name.charAt(0).toUpperCase()}
+                    <div className="avatar-xs" style={{ background: COLORS[idx % COLORS.length], color: '#fff', width: '28px', height: '28px', fontSize: '12px', fontWeight: '900', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyCenter: 'center' }}>
+                      <span className="w-100 text-center">{analyst.name.charAt(0).toUpperCase()}</span>
                     </div>
-                    <span className="small fw-bold">{analyst.name}</span>
+                    <span className="small fw-black text-main">{analyst.name}</span>
                   </div>
-                  <Badge bg="info" className="bg-opacity-10 text-info border border-info ">
-                    {analyst.count} Tickets
+                  <Badge bg="transparent" className="text-info border border-info px-2 py-1 x-small fw-black">
+                    {analyst.count} TICKETS
                   </Badge>
                 </div>
               ))
             ) : (
-              <div className="text-center py-4 text-muted small italic">Sin asignaciones activas.</div>
+              <div className="text-center py-5 text-muted small italic opacity-50 uppercase fw-bold tracking-wider">
+                Sin asignaciones activas
+              </div>
             )}
           </div>
         </Card>
@@ -341,22 +331,24 @@ export default function Dashboard() {
 
       {/* NEW: Equipos con más incidencias */}
       <Col lg={4}>
-        <Card className="p-4 border-0 shadow-sm h-100">
-          <h6 className="fw-bold mb-4 text-uppercase d-flex align-items-center gap-2">
-            <HardDrive size={16} className="text-warning" /> Equipos Críticos
+        <Card className="p-4 border-0 shadow-sm h-100 bg-card">
+          <h6 className="fw-black text-uppercase mb-4 small tracking-widest text-warning d-flex align-items-center gap-2">
+            <HardDrive size={18} /> Dispositivos Críticos
           </h6>
           <div className="flex-grow-1">
             {stats.assets?.top_affected && stats.assets.top_affected.length > 0 ? (
               stats.assets.top_affected.map((asset: any, idx: number) => (
-                <div key={idx} className="d-flex justify-content-between align-items-center mb-2 p-2 bg-surface rounded border border-color ">
-                  <span className="small fw-bold font-monospace">{asset.name}</span>
-                  <Badge bg="warning" className="bg-opacity-10 text-warning border border-warning ">
-                    {asset.count} Incidencias
+                <div key={idx} className="d-flex justify-content-between align-items-center mb-2 p-2 bg-muted bg-opacity-50 rounded border border-color ">
+                  <span className="small fw-black font-monospace text-main uppercase">{asset.name}</span>
+                  <Badge bg="transparent" className="text-warning border border-warning px-2 py-1 x-small fw-black">
+                    {asset.count} EVENTOS
                   </Badge>
                 </div>
               ))
             ) : (
-              <div className="text-center py-4 text-muted small italic">Sin datos de incidencias por equipo.</div>
+              <div className="text-center py-5 text-muted small italic opacity-50 uppercase fw-bold tracking-wider">
+                Sin incidentes por equipo
+              </div>
             )}
           </div>
         </Card>
@@ -424,33 +416,35 @@ export default function Dashboard() {
 
       {/* Locations Breakdown */}
       <Col lg={12}>
-        <Card className="border-0 shadow-sm overflow-hidden">
-          <Card.Header className="bg-surface-muted border-0 py-3">
-            <h6 className="m-0 fw-bold small text-uppercase">Top Ubicaciones con más activos</h6>
+        <Card className="shadow-sm overflow-hidden">
+          <Card.Header className="py-3 bg-muted border-0">
+            <h6 className="m-0 fw-black small text-uppercase tracking-wider text-muted-foreground">Top Ubicaciones con más activos</h6>
           </Card.Header>
-          <Table hover responsive className="mb-0 align-middle">
-            <thead>
-              <tr className="bg-surface">
-                <th className="small text-muted border-0 ps-4 py-3 uppercase tracking-widest">Ubicación</th>
-                <th className="small text-muted border-0 text-end pe-4 py-3 uppercase tracking-widest">Cantidad</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(stats.assets!.by_location || []).map((loc) => (
-                <tr key={`loc-${loc.name}`} className="border-bottom ">
-                  <td className="ps-4 fw-bold text-primary">{loc.name}</td>
-                  <td className="text-end pe-4">
-                    <Badge bg="primary" className="bg-opacity-10 text-primary border border-primary ">
-                      {loc.count}
-                    </Badge>
-                  </td>
+          <div className="table-responsive">
+            <Table hover className="mb-0 align-middle">
+              <thead>
+                <tr>
+                  <th className="ps-4">Ubicación</th>
+                  <th className="text-end pe-4">Cantidad</th>
                 </tr>
-              ))}
-               {(!stats.assets!.by_location || stats.assets!.by_location.length === 0) && (
-                <tr><td colSpan={2} className="text-center py-4 text-muted small italic">Sin datos de ubicaciones disponibles.</td></tr>
-              )}
-            </tbody>
-          </Table>
+              </thead>
+              <tbody>
+                {(stats.assets!.by_location || []).map((loc) => (
+                  <tr key={`loc-${loc.name}`}>
+                    <td className="ps-4 fw-bold text-foreground">{loc.name}</td>
+                    <td className="text-end pe-4">
+                      <Badge bg="transparent" className="text-primary border border-primary fw-black x-small">
+                        {loc.count}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+                 {(!stats.assets!.by_location || stats.assets!.by_location.length === 0) && (
+                  <tr><td colSpan={2} className="text-center py-4 text-muted-foreground small italic">Sin datos de ubicaciones disponibles.</td></tr>
+                )}
+              </tbody>
+            </Table>
+          </div>
         </Card>
       </Col>
     </Row>
@@ -468,16 +462,20 @@ export default function Dashboard() {
 
  return (
   <Layout title={getDashboardTitle()}>
-   <div className="d-flex justify-content-between align-items-center mb-4">
+   <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
      <div>
-      <Badge bg="primary" className="mb-2">{stats.role || 'Usuario'}</Badge>
-      <p className="text-muted small m-0">Bienvenido al panel de control centralizado.</p>
+      <h4 className="fw-black text-uppercase m-0 d-flex align-items-center gap-2 text-main">
+        <Activity className="text-primary" size={24}/> {getDashboardTitle()}
+      </h4>
+      <p className="text-muted-foreground small m-0 text-uppercase tracking-widest fw-bold opacity-75">
+        Gestión Centralizada • {stats.role || 'Operador'}
+      </p>
      </div>
      <Button 
       variant="outline-primary" 
       size="sm" 
       onClick={() => fetchAiInsight(stats)} 
-      className="fw-black x-small uppercase d-flex align-items-center gap-2"
+      className="fw-black x-small uppercase d-flex align-items-center gap-2 rounded-pill px-3 py-2 border-0 bg-muted text-primary"
       disabled={loadingInsight}
      >
        <RefreshCw size={12} className={loadingInsight ? 'animate-spin' : ''} /> Refrescar Análisis

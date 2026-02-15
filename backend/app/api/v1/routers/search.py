@@ -16,14 +16,15 @@ async def global_search(
     """
     Realiza una búsqueda global en el sistema (Tickets, Activos, Usuarios).
     """
-    # Por ahora solo tickets en Meilisearch
-    results = search_service.search_tickets(q, limit=limit)
+    # 1. Búsqueda de Tickets
+    ticket_results = search_service.search_tickets(q, limit=limit)
     hits = []
-    for h in results.get("hits", []):
+    
+    for h in ticket_results.get("hits", []):
         hits.append(SearchHit(
             id=str(h.get("id")),
-            title=h.get("title", "Sin título"),
-            description=h.get("description", ""),
+            title=f"Ticket: {h.get('title', 'Sin título')}",
+            description=h.get("description", "")[:100],
             type="ticket",
             link=f"/tickets/{h.get('id')}",
             metadata={
@@ -31,9 +32,27 @@ async def global_search(
                 "priority": h.get("priority")
             }
         ))
+
+    # 2. Búsqueda de Activos
+    asset_results = search_service.search_assets(q, limit=limit)
+    for h in asset_results.get("hits", []):
+        hits.append(SearchHit(
+            id=str(h.get("id")),
+            title=f"Activo: {h.get('hostname', 'Sin Hostname')}",
+            description=f"IP: {h.get('ip_address', '---')} | MAC: {h.get('mac_address', '---')}",
+            type="asset",
+            link=f"/inventory/{h.get('id')}",
+            metadata={
+                "status": h.get("status"),
+                "ip": h.get("ip_address")
+            }
+        ))
+
+    total = ticket_results.get("estimatedTotalHits", 0) + asset_results.get("estimatedTotalHits", 0)
+    
     return SearchResponse(
-        hits=hits,
-        total=results.get("estimatedTotalHits", 0),
-        processing_time_ms=results.get("processingTimeMs", 0),
+        hits=hits[:limit], # Limit final results
+        total=total,
+        processing_time_ms=ticket_results.get("processingTimeMs", 0) + asset_results.get("processingTimeMs", 0),
         query=q
     )

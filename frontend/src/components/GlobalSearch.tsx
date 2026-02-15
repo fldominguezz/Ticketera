@@ -61,7 +61,7 @@ export default function GlobalSearch() {
 
   return (
     <div className="global-search-container position-relative" ref={searchRef} style={{ width: '300px' }}>
-      <InputGroup size="sm" className="bg-surface rounded-pill overflow-hidden border border-color shadow-sm transition-all focus-within-shadow">
+      <InputGroup size="sm" className="bg-surface-muted rounded-pill overflow-hidden border border-subtle shadow-sm transition-all focus-within-shadow">
         <InputGroup.Text className="bg-transparent border-0 pe-0 text-muted">
           {loading ? <Spinner animation="border" size="sm" /> : <Search size={16} />}
         </InputGroup.Text>
@@ -70,7 +70,7 @@ export default function GlobalSearch() {
              name="global-search-input"
              aria-label="Buscador global"
              placeholder="Buscar tickets, activos..."
-             className="bg-transparent border-0 shadow-none x-small fw-bold py-2"
+             className="bg-transparent border-0 shadow-none x-small fw-bold py-2 text-main"
              value={query}
              onChange={(e) => setQuery(e.target.value)}
              onFocus={() => query.length > 1 && setShowResults(true)}
@@ -87,30 +87,30 @@ export default function GlobalSearch() {
       </InputGroup>
 
       {showResults && (
-        <div className="search-results-dropdown position-absolute w-100 mt-2 shadow-2xl rounded-lg overflow-hidden z-1000 border border-color" style={{ top: '100%', left: 0, backgroundColor: 'var(--bg-card)', zIndex: 9999 }}>
+        <div className="search-results-dropdown position-absolute w-100 mt-2 shadow-lg rounded-4 overflow-hidden z-1000 border border-subtle bg-card" style={{ top: '100%', left: 0, zIndex: 9999 }}>
           <ListGroup variant="flush">
             {results.length > 0 ? (
               results.map((hit) => (
                 <ListGroup.Item 
                   key={hit.id} 
                   action 
-                  className="d-flex align-items-center gap-3 py-3 border-bottom border-color clickable"
+                  className="d-flex align-items-center gap-3 py-3 border-bottom border-subtle clickable bg-card text-main"
                   onClick={() => handleSelect(hit.link)}
                 >
-                  <div className="bg-surface p-2 rounded-circle shadow-sm">
+                  <div className="bg-surface-muted p-2 rounded-circle shadow-sm">
                     {getIcon(hit.type)}
                   </div>
                   <div className="flex-grow-1 overflow-hidden">
                     <div className="d-flex justify-content-between align-items-center mb-1">
                       <div className="fw-black x-small uppercase text-truncate text-main">{hit.title}</div>
-                      <Badge bg="secondary" className="bg-opacity-10 text-muted x-small" style={{ fontSize: '8px' }}>{hit.type}</Badge>
+                      <Badge bg="transparent" className="border border-subtle text-muted x-small" style={{ fontSize: '8px' }}>{hit.type.toUpperCase()}</Badge>
                     </div>
                     <div className="text-muted text-truncate" style={{ fontSize: '10px' }}>{hit.description}</div>
                   </div>
                 </ListGroup.Item>
               ))
             ) : (
-              <div className="p-4 text-center text-muted x-small fw-bold italic">
+              <div className="p-4 text-center text-muted x-small fw-bold italic bg-card">
                 No se encontraron resultados para "{query}"
               </div>
             )}

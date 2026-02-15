@@ -12,7 +12,7 @@
   --glass-blur: blur(12px);
 }
 
-body {
+.soc-dashboard-body {
   background-color: var(--soc-bg) !important;
   color: var(--soc-text) !important;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -22,64 +22,98 @@ body {
   background: var(--soc-card-bg) !important;
   backdrop-filter: var(--glass-blur);
   border: 1px solid var(--soc-border) !important;
-  border-radius: 12px !important;
+  border-radius: 12px !important; /* Unificado con el resto */
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .card:hover {
   border-color: var(--soc-accent) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 210, 255, 0.15) !important;
+  transform: translateY(-2px);
 }
 
 .ticket-id {
   font-family: 'Fira Code', monospace;
   font-weight: 600;
   color: var(--soc-accent);
+  letter-spacing: -0.5px;
 }
 
 /* Animación de pulso para tickets críticos */
 @keyframes pulse-critical {
-  0% { box-shadow: 0 0 0 0 rgba(255, 75, 92, 0.4); }
-  70% { box-shadow: 0 0 0 10px rgba(255, 75, 92, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(255, 75, 92, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(255, 75, 92, 0.4); border-color: rgba(255, 75, 92, 0.8); }
+  70% { box-shadow: 0 0 0 10px rgba(255, 75, 92, 0); border-color: rgba(255, 75, 92, 0.4); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 75, 92, 0); border-color: rgba(255, 75, 92, 0.8); }
 }
 
 .status-critical {
   animation: pulse-critical 2s infinite;
+  border-width: 2px !important;
 }
 
 .table {
   color: var(--soc-text) !important;
   border-collapse: separate;
   border-spacing: 0 8px;
+  background: transparent !important;
 }
 
 .table thead th {
-  border-bottom: 2px solid var(--soc-accent);
+  border-bottom: 2px solid var(--soc-accent) !important;
   text-transform: uppercase;
-  font-size: 0.8rem;
-  letter-spacing: 1px;
+  font-size: 0.75rem;
+  letter-spacing: 1.5px;
+  color: var(--soc-accent) !important;
+  background: transparent !important;
 }
 
 .table tbody tr {
-  background-color: var(--soc-card-bg);
-  transition: transform 0.1s ease;
+  background-color: var(--soc-card-bg) !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
 }
 
+.table tbody td:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+.table tbody td:last-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+
 .table tbody tr:hover {
-  transform: scale(1.01);
-  background-color: rgba(0, 210, 255, 0.1) !important;
+  background-color: rgba(0, 210, 255, 0.15) !important;
+  transform: scale(1.005);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .btn-primary {
-  background: linear-gradient(45deg, #00d2ff, #3a7bd5) !important;
+  background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%) !important;
   border: none !important;
-  border-radius: 8px !important;
+  border-radius: 10px !important;
   font-weight: 600 !important;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
   box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3) !important;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 6px 20px rgba(0, 210, 255, 0.4) !important;
+  transform: translateY(-1px);
 }
 
 .btn-critical {
   background: linear-gradient(45deg, #ff4b2b, #ff416c) !important;
   color: white;
+}
+
+/* Fix para el login - Removido max-width restrictivo */
+.login-card-container {
+  width: 100%;
+}
+
+body:has(.login-card) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 100vh !important;
+  background: radial-gradient(circle at center, #161c2d 0%, #0a0e17 100%) !important;
 }

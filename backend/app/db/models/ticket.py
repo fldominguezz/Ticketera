@@ -11,6 +11,39 @@ ticket_endpoints = Table(
     Column("ticket_id", UUID(as_uuid=True), ForeignKey("tickets.id"), primary_key=True),
     Column("endpoint_id", UUID(as_uuid=True), ForeignKey("endpoints.id"), primary_key=True),
 )
+
+# Association table for tickets and assets (M2M)
+
+ticket_assets = Table(
+
+    "ticket_assets",
+
+    Base.metadata,
+
+    Column("ticket_id", UUID(as_uuid=True), ForeignKey("tickets.id"), primary_key=True),
+
+    Column("asset_id", UUID(as_uuid=True), ForeignKey("assets.id"), primary_key=True),
+
+)
+
+
+
+# Association table for tickets and locations (M2M)
+
+ticket_locations = Table(
+
+    "ticket_locations",
+
+    Base.metadata,
+
+    Column("ticket_id", UUID(as_uuid=True), ForeignKey("tickets.id"), primary_key=True),
+
+    Column("location_id", UUID(as_uuid=True), ForeignKey("location_nodes.id"), primary_key=True),
+
+)
+
+
+
 class TicketType(Base):
     __tablename__ = "ticket_types"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -62,6 +95,8 @@ class Ticket(Base):
     comments = relationship("TicketComment", back_populates="ticket", cascade="all, delete-orphan")
     watchers = relationship("TicketWatcher", back_populates="ticket", cascade="all, delete-orphan")
     endpoints = relationship("Endpoint", secondary=ticket_endpoints)
+    assets = relationship("Asset", secondary=ticket_assets)
+    locations = relationship("LocationNode", secondary=ticket_locations)
     sla_metric = relationship("SLAMetric", back_populates="ticket", uselist=False, cascade="all, delete-orphan")
     attachments = relationship("Attachment", back_populates="ticket")
     def __repr__(self):

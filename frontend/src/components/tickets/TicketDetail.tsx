@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { Card, Button, Form, Badge, Table, Tabs, Tab, Spinner, Modal, Row, Col, Alert } from 'react-bootstrap';
-import { User, Clock, Paperclip, Download as DownloadIcon, Eye, AlertCircle, Monitor, Send, Lock } from 'lucide-react';
+import { User, Clock, Paperclip, Download as DownloadIcon, Eye, AlertCircle, Monitor, Send, Lock, MapPin, Ticket, Search as Lupa, FileText } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { UserAvatar } from '../UserAvatar';
 import { RichCommentEditor } from './RichCommentEditor';
-import 'react-quill/dist/quill.snow.css';
 
 interface Comment { id: string; content: string; is_internal: boolean; user_id: string; user_name?: string; user_avatar?: string; created_at: string; }
 interface Relation { id: string; source_ticket_id: string; target_ticket_id: string; relation_type: string; }
@@ -51,10 +50,55 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
  const [uploadingFiles, setUploadingFiles] = useState(false);
  const [showDeleteModal, setShowDeleteModal] = useState(false);
  
+ // VirusTotal States
+ const [vtResult, setVtResult] = useState<any>(null);
+ const [scanning, setScanning] = useState<string | null>(null);
+ const [exporting, setExporting] = useState(false);
+
  // Justification Modal States
  const [showJustifyModal, setShowJustifyModal] = useState(false);
  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
  const [justification, setJustification] = useState('');
+
+ const handleExportPDF = async () => {
+  setExporting(true);
+  try {
+   const res = await api.get(`/tickets/${ticket.id}/export`, { responseType: 'blob' });
+   const url = window.URL.createObjectURL(new Blob([res.data]));
+   const link = document.createElement('a');
+   link.href = url;
+   link.setAttribute('download', `Reporte_Ticket_${ticket.id.substring(0, 8)}.pdf`);
+   document.body.appendChild(link);
+   link.click();
+   link.remove();
+  } catch (err) {
+   alert("No se pudo generar el reporte PDF.");
+  } finally {
+   setExporting(false);
+  }
+ };
+
+ const handleVTScan = async (type: 'ip' | 'attachment', id: string) => {
+  setScanning(id);
+  try {
+   const res = await api.get(`/integrations/scan/${type}/${id}`);
+   setVtResult(res.data);
+   const stats = res.data.data?.attributes?.last_analysis_stats;
+   if (stats?.malicious > 0) {
+    alert(`⚠️ ALERTA: Se detectaron ${stats.malicious} motores maliciosos en VirusTotal para este objetivo.`);
+   } else if (res.data.error) {
+    alert(`VirusTotal: ${res.data.error}`);
+   } else if (res.data.data) {
+    alert("✅ Limpio: No se detectaron amenazas en VirusTotal.");
+   } else {
+    alert("Información de VirusTotal no disponible actualmente.");
+   }
+  } catch (err) {
+   alert("Error conectando con el servicio de análisis.");
+  } finally {
+   setScanning(null);
+  }
+ };
 
  const isGlobalAdmin = currentUser?.is_superuser || currentUser?.group?.name === 'DIVISIÓN SEGURIDAD INFORMÁTICA';
  
@@ -183,7 +227,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
   const isSolBreached = sla.is_resolution_breached || (solDeadline && solDeadline < now && !sla.resolved_at);
 
   return (
-   <div className="sla-container p-3 rounded-3 mb-4 bg-black border ">
+   <div className="sla-container p-3 rounded-3 mb-4 bg-surface-muted border border-subtle shadow-sm">
     <h6 className="x-small fw-black text-primary uppercase tracking-widest mb-3 d-flex align-items-center">
      <Clock size={14} className="me-2" /> Cumplimiento de Niveles de Servicio (SLA)
     </h6>
@@ -192,11 +236,11 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
       <div className="d-flex justify-content-between align-items-center mb-1">
        <span className="x-small fw-bold text-muted uppercase">Primera Respuesta</span>
        {sla.responded_at ? (
-        <Badge bg="success" className="x-small">CUMPLIDO</Badge>
+        <Badge bg="transparent" className="x-small border border-success text-success fw-bold">CUMPLIDO</Badge>
        ) : isResBreached ? (
-        <Badge bg="danger" className="x-small">INCUMPLIDO</Badge>
+        <Badge bg="transparent" className="x-small border border-danger text-danger fw-bold">INCUMPLIDO</Badge>
        ) : (
-        <Badge bg="info" className="x-small ">EN TIEMPO</Badge>
+        <Badge bg="transparent" className="x-small border border-info text-info fw-bold">EN TIEMPO</Badge>
        )}
       </div>
       <div className="small fw-bold text-main">
@@ -207,11 +251,11 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
       <div className="d-flex justify-content-between align-items-center mb-1">
        <span className="x-small fw-bold text-muted uppercase">Resolución Final</span>
        {sla.resolved_at ? (
-        <Badge bg="success" className="x-small">CUMPLIDO</Badge>
+        <Badge bg="transparent" className="x-small border border-success text-success fw-bold">CUMPLIDO</Badge>
        ) : isSolBreached ? (
-        <Badge bg="danger" className="x-small">INCUMPLIDO</Badge>
+        <Badge bg="transparent" className="x-small border border-danger text-danger fw-bold">INCUMPLIDO</Badge>
        ) : (
-        <Badge bg="info" className="x-small ">EN TIEMPO</Badge>
+        <Badge bg="transparent" className="x-small border border-info text-info fw-bold">EN TIEMPO</Badge>
        )}
       </div>
       <div className="small fw-bold text-main">
@@ -231,12 +275,12 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
     <Row className="g-4">
      <Col lg={8}>
       {ticket.sla_metric && <SLADisplay sla={ticket.sla_metric} />}
-      <Card className="mb-4 shadow-sm border-0 overflow-hidden bg-surface">
+      <Card className="mb-4 shadow-sm border-0 overflow-hidden bg-card">
        <Card.Body className="p-4">
-        <div className="d-flex justify-content-between align-items-start mb-3">
+        <div className="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
          <div>
           <div className="d-flex align-items-center gap-2 mb-1">
-           <Badge bg="primary" className="bg-opacity-10 text-primary border border-primary x-small fw-bold">{ticket.platform || 'INTERNO'}</Badge>
+           <Badge bg="transparent" className="text-primary border border-primary x-small fw-bold">{ticket.platform || 'INTERNO'}</Badge>
            <span className="text-muted x-small font-monospace opacity-50">#{ticket.id?.substring(0, 8)}</span>
           </div>
           <h2 className="mb-0 fw-black text-main">{ticket.title || 'Untitled Ticket'}</h2>
@@ -250,6 +294,13 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
           )}
          </div>
          <div className="d-flex gap-2">
+          <Button 
+            variant="outline-primary" size="sm" className="rounded-pill px-3 x-small fw-bold" 
+            onClick={handleExportPDF} disabled={exporting || !ticket?.id}
+          >
+            {exporting ? <Spinner size="sm" className="me-1" /> : <FileText size={14} className="me-1" />} 
+            EXPORTAR PDF
+          </Button>
           {isGlobalAdmin && (
            <Button variant="outline-danger" size="sm" className="rounded-pill px-3 x-small fw-bold" onClick={() => setShowDeleteModal(true)}>ELIMINAR</Button>
           )}
@@ -258,40 +309,67 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
            name="status"
            size="sm" value={ticket.status || 'open'} disabled={!canManageState}
            onChange={(e) => handleStatusChange(e.target.value)}
-           className={`w-auto fw-bold border-0 shadow-sm rounded-pill px-3 ${isDark ? ' text-success' : ' text-primary'}`}
+           className={`w-auto fw-bold shadow-sm rounded-pill px-3 bg-surface-muted text-main border-subtle`}
           >
            <option value="open">OPEN</option><option value="in_progress">IN PROGRESS</option><option value="pending">PENDING</option><option value="resolved">RESOLVED</option><option value="closed">CLOSED</option>
           </Form.Select>
          </div>
         </div>
 
-        {ticket.asset && (
-         <div className="mb-4 p-3 rounded-3 bg-primary bg-opacity-10 border border-primary d-flex justify-content-between align-items-center">
-          <div className="d-flex align-items-center gap-3">
-           <div className="p-2 bg-primary bg-opacity-10 rounded-circle">
-            <Monitor size={20} className="text-primary" />
-           </div>
-           <div>
-            <div className="x-small fw-black text-primary uppercase tracking-wider mb-1">Equipo Vinculado</div>
-            <h6 className="mb-0 fw-bold text-main">{ticket.asset.hostname}</h6>
-            <div className="x-small text-muted font-monospace">{ticket.asset.ip_address || 'Sin IP'} | TAG: {ticket.asset.asset_tag || '---'}</div>
-           </div>
+        {/* SECCIÓN DE EQUIPOS VINCULADOS (MULTIACTIVO) */}
+        {(ticket.assets?.length > 0 || ticket.asset) && (
+         <div className="mb-4 p-3 rounded-4 bg-surface-muted border border-primary border-opacity-10 shadow-sm">
+          <div className="d-flex align-items-center gap-3 mb-3 border-bottom border-subtle pb-2">
+            <Monitor size={18} className="text-primary" />
+            <span className="x-small fw-black text-primary uppercase tracking-widest">Equipos Relacionados</span>
           </div>
-          <Button 
-           variant="primary" size="sm" className="rounded-pill px-3 x-small fw-bold"
-           onClick={() => window.open(`/inventory/${ticket.asset.id}`, '_blank')}
-          >
-           VER EQUIPO
-          </Button>
+          
+          <div className="d-flex flex-column gap-2">
+            {(ticket.assets?.length > 0 ? ticket.assets : [ticket.asset]).filter(Boolean).map((a: any) => (
+              <div key={a.id} className="d-flex justify-content-between align-items-center p-2 px-3 hover:bg-muted rounded-3 transition-all border border-subtle border-opacity-50 bg-card">
+                <div className="d-flex align-items-center gap-3">
+                  <div className="bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center rounded-circle" style={{ width: 32, height: 32 }}>
+                    <Monitor size={16} />
+                  </div>
+                  <div>
+                    <div className="fw-black x-small text-main uppercase mb-0">{a.hostname}</div>
+                    <div className="d-flex align-items-center gap-2 mt-0">
+                      <div className="x-tiny text-primary font-monospace fw-bold">{a.ip_address || '---'}</div>
+                      {a.ip_address && a.ip_address !== '---' && (
+                        <Lupa 
+                          size={10} 
+                          className={`text-muted cursor-pointer hover-text-primary ${scanning === a.ip_address ? 'animate-spin' : ''}`} 
+                          onClick={() => handleVTScan('ip', a.ip_address)} 
+                          title="Analizar IP en VirusTotal"
+                        />
+                      )}
+                      <span className="opacity-25 text-muted">|</span>
+                      <div className="x-tiny text-muted font-monospace">{a.mac_address || '---'}</div>
+                    </div>
+                    <div className="d-flex align-items-center gap-1 text-success fw-bold" style={{ fontSize: '9px' }}>
+                      <MapPin size={8} />
+                      <span className="text-uppercase">Ubicación: {a.location_name || 'Sin Ubicación'}</span>
+                    </div>
+                  </div>
+                </div>
+                <Button 
+                  variant="link" size="sm" className="p-0 text-primary x-small fw-black text-decoration-none"
+                  onClick={() => window.open(`/inventory/${a.id}`, '_blank')}
+                >
+                  VER EXPEDIENTE
+                </Button>
+              </div>
+            ))}
+          </div>
          </div>
         )}
 
         <div 
-         className="mb-4 text-main opacity-90 lh-base ql-editor p-0" 
-         dangerouslySetInnerHTML={{ __html: ticket.description || 'No description provided.' }} 
+         className="mb-4 text-main opacity-90 lh-base ql-editor p-0 ticket-description-content" 
+         dangerouslySetInnerHTML={{ __html: (ticket.description || 'No description provided.').replace(/\n/g, '<br/>') }} 
         />
         
-        <div className="d-flex gap-4 text-muted x-small border-top border-color pt-3 flex-wrap text-uppercase fw-bold tracking-wider align-items-center">
+        <div className="d-flex gap-4 text-muted x-small border-top border-subtle pt-3 flex-wrap text-uppercase fw-bold tracking-wider align-items-center">
          <span className="d-flex align-items-center gap-1">TYPE: <span className="text-primary">{ticket.ticket_type?.name || 'General'}</span></span>
          <span className="d-flex align-items-center gap-1">CREATED: <span className="text-primary">{ticket.created_at ? new Date(ticket.created_at).toLocaleString() : 'N/A'}</span></span>
          
@@ -328,7 +406,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
 
       <Tabs defaultActiveKey="comments" className="custom-tabs mb-4 border-0">
        <Tab eventKey="comments" title={`Actividad (${comments.length})`}>
-        <Card className="border-0 shadow-sm bg-surface">
+        <Card className="border-0 shadow-sm bg-card">
          <Card.Body className="p-4">
           <RichCommentEditor 
            onSubmit={handleCommentSubmit}
@@ -337,14 +415,20 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
            placeholder="Escribe un comentario técnico o usa @ para mencionar..."
           />
           {comments.map(c => (
-           <div key={c.id} className={`d-flex gap-3 mb-4 p-3 rounded-4 ${c.is_internal ? 'bg-warning bg-opacity-10' : 'hover-bg-surface-muted'}`}>
+           <div key={c.id} className={`d-flex gap-3 mb-4 p-3 rounded-4 border border-transparent transition-all ${c.is_internal ? 'bg-warning' : 'hover:bg-surface-muted'}`}>
             <UserAvatar 
              user={{ username: c.user_name, avatar_url: c.user_avatar }} 
              size={40} 
              fontSize="16px"
             />
             <div className="flex-grow-1">
-             <div className="d-flex justify-content-between mb-1"><span className="fw-black text-main small">{c.user_name || 'Usuario'}</span><span className="text-muted x-small">{new Date(c.created_at).toLocaleString()}</span></div>
+             <div className="d-flex justify-content-between mb-1">
+              <span className="fw-black text-main small d-flex align-items-center gap-2">
+               {c.user_name || 'Usuario'}
+               {c.is_internal && <Badge bg="transparent" className="border border-warning text-warning x-small fw-bold"><Lock size={10} className="me-1" /> INTERNO</Badge>}
+              </span>
+              <span className="text-muted x-small">{new Date(c.created_at).toLocaleString()}</span>
+             </div>
              <div className="small text-main opacity-90" style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
             </div>
            </div>
@@ -352,47 +436,30 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
          </Card.Body>
         </Card>
        </Tab>
-       <Tab eventKey="location" title="Ubicación y Equipo">
-        <Card className="border-0 shadow-sm bg-surface overflow-hidden">
+       <Tab eventKey="location" title="Ubicación Organizativa">
+        <Card className="border-0 shadow-sm bg-card overflow-hidden">
          <Card.Body className="p-4">
-          <Row className="g-4">
-           <Col md={6}>
-            <div className="mb-3">
-             <h6 className="x-small fw-black text-primary uppercase mb-3 d-flex align-items-center">
-              <Monitor size={14} className="me-2" /> Lugar / Dependencia
+          <Row className="justify-content-center">
+           <Col md={10}>
+            <div className="text-center py-4">
+             <h6 className="x-small fw-black text-primary uppercase mb-4 tracking-widest d-flex align-items-center justify-content-center">
+              <MapPin size={18} className="me-2" /> Localización de la Incidencia
              </h6>
              {ticket.location ? (
-              <div className="p-3 rounded-4 bg-surface-muted border border-color">
-               <div className="fw-bold text-main">{ticket.location.name}</div>
-               <div className="x-small text-muted font-monospace mt-1">{ticket.location.path}</div>
+              <div className="p-4 rounded-4 bg-surface-muted border border-subtle d-inline-block w-100">
+               <div className="h5 fw-black text-main mb-2 uppercase">{ticket.location.name}</div>
+               <div className="d-flex justify-content-center gap-3 align-items-center">
+                <Badge bg="primary" className="bg-opacity-10 text-primary border border-primary px-3 py-2 fw-black font-monospace">
+                  CÓDIGO: #{ticket.location.dependency_code || 'S/N'}
+                </Badge>
+                <div className="vr opacity-25"></div>
+                <div className="x-small text-muted fw-bold uppercase tracking-wider">Ruta: {ticket.location.path || 'Raíz'}</div>
+               </div>
               </div>
              ) : (
-              <Alert variant="info" className="x-small py-2 border-0 bg-primary bg-opacity-10 text-primary fw-bold">
-               No hay una ubicación específica asignada a este ticket.
-              </Alert>
-             )}
-            </div>
-           </Col>
-           <Col md={6}>
-            <div className="mb-3">
-             <h6 className="x-small fw-black text-primary uppercase mb-3 d-flex align-items-center">
-              <Monitor size={14} className="me-2" /> Equipo Vinculado
-             </h6>
-             {ticket.asset ? (
-              <div className="p-3 rounded-4 bg-surface-muted border border-color">
-               <div className="fw-bold text-main">{ticket.asset.hostname}</div>
-               <div className="x-small text-muted font-monospace mt-1">IP: {ticket.asset.ip_address || 'N/A'} | TAG: {ticket.asset.asset_tag || 'N/A'}</div>
-               <Button 
-                variant="primary" size="sm" className="mt-3 w-100 rounded-pill x-small fw-bold"
-                onClick={() => window.open(`/inventory/${ticket.asset.id}`, '_blank')}
-               >
-                IR AL INVENTARIO
-               </Button>
+              <div className="p-5 text-center text-muted opacity-50 fw-bold uppercase x-small border rounded border-dashed">
+               No hay una ubicación formal vinculada a este ticket
               </div>
-             ) : (
-              <Alert variant="info" className="x-small py-2 border-0 bg-primary bg-opacity-10 text-primary fw-bold">
-               No se ha vinculado un equipo (activo) a este ticket.
-              </Alert>
              )}
             </div>
            </Col>
@@ -401,11 +468,27 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
         </Card>
        </Tab>
        <Tab eventKey="history" title="Registro de Auditoría">
-        <Card className="border-0 shadow-sm bg-surface overflow-hidden">
+        <Card className="border-0 shadow-sm bg-card overflow-hidden">
          <Table hover responsive className="m-0 small">
-          <thead className="bg-surface-muted"><tr className="x-small fw-black text-muted uppercase"><th className="ps-4">Timestamp</th><th>Analista</th><th>Acción</th><th>Detalles</th></tr></thead>
-          <tbody>
-           {history.map(h => (<tr key={h.id}><td className="ps-4 text-muted">{new Date(h.created_at).toLocaleString()}</td><td className="fw-bold">{h.user?.username || 'Sistema'}</td><td><Badge bg="info" className="bg-opacity-10 text-info border border-info ">{h.event_type.toUpperCase()}</Badge></td><td className="text-main">{formatAuditDetail(h)}</td></tr>))}
+          <thead className="bg-surface-muted">
+           <tr className="x-small fw-black text-muted uppercase">
+            <th className="ps-4 border-0">Timestamp</th>
+            <th className="border-0">Analista</th>
+            <th className="border-0">Acción</th>
+            <th className="border-0">Detalles</th>
+           </tr>
+          </thead>
+          <tbody className="border-0">
+           {history.length > 0 ? history.map(h => (
+            <tr key={h.id} className="border-bottom border-subtle">
+             <td className="ps-4 text-muted">{new Date(h.created_at).toLocaleString()}</td>
+             <td className="fw-bold text-main">{h.username || h.user?.username || 'Sistema'}</td>
+             <td><Badge bg="transparent" className="text-info border border-info x-small">{h.event_type.toUpperCase()}</Badge></td>
+             <td className="text-main">{formatAuditDetail(h)}</td>
+            </tr>
+           )) : (
+            <tr><td colSpan={4} className="text-center py-5 text-muted opacity-50 fw-bold uppercase x-small">Sin registros de auditoría vinculados</td></tr>
+           )}
           </tbody>
          </Table>
         </Card>
@@ -414,34 +497,77 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
      </Col>
 
      <Col lg={4}>
-      <Card className="shadow-sm border-0 mb-4 bg-surface overflow-hidden">
-       <Card.Header className="py-3 d-flex justify-content-between align-items-center bg-surface-muted border-bottom border-color"><h6 className="mb-0 fw-black x-small uppercase"><Paperclip size={14} className="me-2" /> Evidencia Adjunta</h6><Form.Label htmlFor="file-up" className="btn btn-primary btn-sm mb-0 rounded-circle p-1">+</Form.Label><Form.Control id="file-up" type="file" multiple className="d-none" onChange={(e: any) => setPendingFiles(Array.from(e.target.files))} /></Card.Header>
+      <Card className="shadow-sm border-0 mb-4 bg-card overflow-hidden">
+       <Card.Header className="py-3 d-flex justify-content-between align-items-center bg-surface-muted border-bottom border-subtle">
+        <h6 className="mb-0 fw-black x-small uppercase text-main"><Paperclip size={14} className="me-2 text-primary" /> Evidencia Adjunta</h6>
+        <Form.Label htmlFor="file-up" className="btn btn-primary btn-sm mb-0 rounded-circle p-0 d-flex align-items-center justify-content-center" style={{ width: 24, height: 24 }}>+</Form.Label>
+        <Form.Control id="file-up" type="file" multiple className="d-none" onChange={(e: any) => setPendingFiles(Array.from(e.target.files))} />
+       </Card.Header>
        <Card.Body className="p-0">
-        {pendingFiles.length > 0 && <div className="p-3 bg-primary bg-opacity-5"><Button variant="primary" size="sm" className="w-100 fw-black x-small" onClick={async () => { setUploadingFiles(true); for (const f of pendingFiles) await onUploadFile(f); setPendingFiles([]); setUploadingFiles(false); }}>SUBIR {pendingFiles.length} ARCHIVOS</Button></div>}
-        {attachments.map(a => (<div key={a.id} className="d-flex justify-content-between align-items-center p-3 border-bottom border-color hover-bg-surface-muted transition-all"><span className="small text-truncate text-main">{a.filename}</span><Button variant="link" size="sm" onClick={() => onDownloadFile(a.id, a.filename)}><DownloadIcon size={14} /></Button></div>))}
+        {pendingFiles.length > 0 && (
+         <div className="p-3 bg-primary-muted border-bottom border-primary border-opacity-25">
+          <Button variant="primary" size="sm" className="w-100 fw-black x-small border-0" onClick={async () => { setUploadingFiles(true); for (const f of pendingFiles) await onUploadFile(f); setPendingFiles([]); setUploadingFiles(false); }}>
+           SUBIR {pendingFiles.length} ARCHIVOS
+          </Button>
+         </div>
+        )}
+        {attachments.length === 0 ? (
+         <div className="p-4 text-center text-muted opacity-50 x-small fw-bold">SIN ARCHIVOS</div>
+        ) : (
+         attachments.map(a => (
+          <div key={a.id} className="d-flex justify-content-between align-items-center p-3 border-bottom border-subtle hover:bg-surface-muted transition-all">
+           <div className="d-flex align-items-center gap-2 flex-grow-1 overflow-hidden">
+            <span className="small text-truncate text-main fw-medium">{a.filename}</span>
+            <Lupa 
+              size={14} 
+              className={`text-muted cursor-pointer hover-text-danger ${scanning === a.id ? 'animate-spin' : ''}`} 
+              onClick={() => handleVTScan('attachment', a.id)} 
+              title="Analizar con VirusTotal"
+            />
+           </div>
+           <Button variant="link" size="sm" className="text-primary p-0" onClick={() => onDownloadFile(a.id, a.filename)}><DownloadIcon size={14} /></Button>
+          </div>
+         ))
+        )}
        </Card.Body>
       </Card>
-      <Card className="shadow-sm border-0 mb-4 bg-surface overflow-hidden">
-       <Card.Header className="py-3 d-flex justify-content-between align-items-center bg-surface-muted border-bottom border-color"><h6 className="mb-0 fw-black x-small uppercase"><Eye size={14} className="me-2" /> Observadores</h6><Button variant="link" size="sm" className="p-0 x-small fw-black" onClick={onToggleWatch}>{watchers.some(w => w.user_id === currentUser?.id) ? 'DEJAR DE SEGUIR' : 'SEGUIR TICKET'}</Button></Card.Header>
-       <Card.Body><div className="d-flex flex-wrap gap-2">{watchers.map(w => (<Badge key={w.id} bg="primary" className="bg-opacity-10 text-primary border border-primary fw-normal rounded-pill px-3">{w.username}</Badge>))}</div></Card.Body>
+      
+      <Card className="shadow-sm border-0 mb-4 bg-card overflow-hidden">
+       <Card.Header className="py-3 d-flex justify-content-between align-items-center bg-surface-muted border-bottom border-subtle">
+        <h6 className="mb-0 fw-black x-small uppercase text-main"><Eye size={14} className="me-2 text-primary" /> Observadores</h6>
+        <Button variant="link" size="sm" className="p-0 x-small fw-black text-primary text-decoration-none" onClick={onToggleWatch}>
+         {watchers.some(w => w.user_id === currentUser?.id) ? 'DEJAR DE SEGUIR' : 'SEGUIR TICKET'}
+        </Button>
+       </Card.Header>
+       <Card.Body>
+        <div className="d-flex flex-wrap gap-2">
+         {watchers.length === 0 ? (
+          <span className="x-small text-muted opacity-50 fw-bold">SIN OBSERVADORES</span>
+         ) : (
+          watchers.map(w => (
+           <Badge key={w.id} bg="transparent" className="text-primary border border-primary fw-bold rounded-pill px-3 x-small">{w.username}</Badge>
+          ))
+         )}
+        </div>
+       </Card.Body>
       </Card>
      </Col>
     </Row>
    )}
 
-   <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered contentClassName="bg-surface rounded-4">
+   <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered contentClassName="bg-card border-0 rounded-4">
     <Modal.Body className="p-4 text-center">
      <AlertCircle size={48} className="text-danger mb-3" />
      <h5 className="fw-black text-main uppercase">¿Eliminar Ticket?</h5>
      <p className="small text-muted mb-4">Esta acción es irreversible y borrará todo el historial y adjuntos asociados.</p>
      <div className="d-flex gap-2 justify-content-center">
       <Button variant="link" className="text-muted text-decoration-none fw-bold" onClick={() => setShowDeleteModal(false)}>CANCELAR</Button>
-      <Button variant="danger" className="fw-black px-4 rounded-pill shadow-sm" onClick={() => { setShowDeleteModal(false); if (onDeleteTicket) onDeleteTicket(); }}>BORRAR PERMANENTEMENTE</Button>
+      <Button variant="danger" className="fw-black px-4 rounded-pill shadow-sm border-0" onClick={() => { setShowDeleteModal(false); if (onDeleteTicket) onDeleteTicket(); }}>BORRAR PERMANENTEMENTE</Button>
      </div>
     </Modal.Body>
    </Modal>
 
-   <Modal show={showJustifyModal} onHide={() => { setShowJustifyModal(false); setJustification(''); }} centered contentClassName="bg-surface rounded-4 shadow-2xl border-primary border-opacity-25">
+   <Modal show={showJustifyModal} onHide={() => { setShowJustifyModal(false); setJustification(''); }} centered contentClassName="bg-card border-0 rounded-4 shadow-2xl">
     <Modal.Header closeButton className="border-0">
      <Modal.Title className="x-small fw-black text-primary uppercase tracking-widest">Justificación de Resolución</Modal.Title>
     </Modal.Header>
@@ -460,7 +586,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
        placeholder="Indique los pasos realizados para resolver el incidente..."
        value={justification}
        onChange={(e) => setJustification(e.target.value)}
-       className="bg-surface-muted border-color shadow-none small fw-bold"
+       className="bg-surface-muted border-subtle shadow-none small fw-bold text-main"
        required
        autoFocus
       />
@@ -470,7 +596,7 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
      <Button variant="link" className="text-muted text-decoration-none x-small fw-black" onClick={() => { setShowJustifyModal(false); setJustification(''); }}>CANCELAR</Button>
      <Button 
       variant="primary" 
-      className="fw-black px-4 rounded-pill shadow"
+      className="fw-black px-4 rounded-pill shadow border-0"
       disabled={!justification.trim() || submitting}
       onClick={confirmStatusChange}
      >
@@ -480,16 +606,50 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
    </Modal>
 
    <style jsx global>{`
-    .text-main { color: var(--text-main) !important; }
-    .bg-surface { background-color: var(--bg-surface) !important; }
-    .bg-surface-muted { background-color: var(--bg-surface-muted) !important; }
-    .custom-tabs .nav-link { color: var(--text-muted); font-weight: 900; border: none !important; font-size: 11px; text-transform: uppercase; padding: 15px 25px; letter-spacing: 1px; opacity: 0.6; }
-    .custom-tabs .nav-link.active { color: var(--bs-primary) !important; background: transparent !important; border-bottom: 3px solid var(--bs-primary) !important; opacity: 1; }
+    .ticket-detail .custom-tabs .nav-link { 
+      color: var(--text-muted); 
+      font-weight: 900; 
+      border: none !important; 
+      font-size: 11px; 
+      text-transform: uppercase; 
+      padding: 15px 25px; 
+      letter-spacing: 1.5px; 
+      opacity: 0.6; 
+      transition: all 0.2s ease;
+    }
+    .ticket-detail .custom-tabs .nav-link:hover {
+      opacity: 1;
+      color: var(--text-main);
+    }
+    .ticket-detail .custom-tabs .nav-link.active { 
+      color: var(--primary) !important; 
+      background: transparent !important; 
+      border-bottom: 3px solid var(--primary) !important; 
+      opacity: 1; 
+    }
+    .ticket-description-content p {
+      margin-bottom: 0.5rem !important;
+    }
+    .ticket-description-content br {
+      content: "";
+      display: block;
+      margin-top: 0.25rem;
+    }
+    .ticket-description-content {
+      line-height: 1.6;
+      word-spacing: 0.05rem;
+    }
+    .x-tiny { font-size: 9px; }
     .fw-black { font-weight: 900; }
     .x-small { font-size: 0.7rem; }
-   `}</style>
-  </div>
- );
-};
-
-export default TicketDetail;
+    .font-monospace { font-family: 'Fira Code', monospace !important; }
+        .hover-bg-surface-muted:hover {
+          background-color: var(--bg-surface-muted) !important;
+        }
+       `}</style>
+      </div>
+     );
+    };
+    
+    export default TicketDetail;
+    

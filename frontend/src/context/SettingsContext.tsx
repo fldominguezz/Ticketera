@@ -12,9 +12,9 @@ const SettingsContext = createContext<SystemSettings | undefined>(undefined);
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<SystemSettings>({
-    app_name: 'CyberCase SOC',
+    app_name: 'TICKETERA SOC',
     primary_color: '#0d6efd',
-    login_footer_text: '© 2026 CyberCase Security',
+    login_footer_text: '© 2026 TICKETERA Security',
     require_2fa_all_users: false
   });
 

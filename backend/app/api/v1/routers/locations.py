@@ -26,35 +26,72 @@ async def read_locations(
     """
     skip = (page - 1) * size
     if q:
-        # Lógica con filtro y conteo de activos
+        # Lógica con filtro y conteo de activos (Insensible a acentos)
         from sqlalchemy import func
         from app.db.models.asset import Asset
-        # Total con filtro
-        total_query = select(func.count(LocationModel.id)).filter(
-            (LocationModel.name.ilike(f"%{q}%")) | 
-            (LocationModel.dependency_code.ilike(f"%{q}%"))
-        )
+        
+        # Función para remover acentos en PostgreSQL
+        def unaccent(column):
+            return func.unaccent(column)
+
+        search_filter = f"%{q}%"
+        
+        # Total con filtro (usando unaccent si está disponible, o ilike simple como fallback)
+        try:
+            total_query = select(func.count(LocationModel.id)).filter(
+                (func.unaccent(LocationModel.name).ilike(func.unaccent(search_filter))) | 
+                (LocationModel.dependency_code.ilike(search_filter))
+            )
+            # Test query to check if unaccent exists
+            await db.execute(select(func.unaccent('test')))
+        except Exception:
+            # Fallback si unaccent no está instalado: usar ilike normal
+            total_query = select(func.count(LocationModel.id)).filter(
+                (LocationModel.name.ilike(search_filter)) | 
+                (LocationModel.dependency_code.ilike(search_filter))
+            )
+
         total_res = await db.execute(total_query)
         total = total_res.scalar() or 0
+        
         asset_count_subquery = (
             select(Asset.location_node_id, func.count(Asset.id).label("total_assets"))
             .group_by(Asset.location_node_id)
             .subquery()
         )
-        query = (
-            select(
-                LocationModel,
-                func.coalesce(asset_count_subquery.c.total_assets, 0).label("total_assets")
+        
+        # Query principal con soporte de acentos
+        try:
+            query = (
+                select(
+                    LocationModel,
+                    func.coalesce(asset_count_subquery.c.total_assets, 0).label("total_assets")
+                )
+                .outerjoin(asset_count_subquery, LocationModel.id == asset_count_subquery.c.location_node_id)
+                .filter(
+                    (func.unaccent(LocationModel.name).ilike(func.unaccent(search_filter))) | 
+                    (LocationModel.dependency_code.ilike(search_filter))
+                )
+                .order_by(func.nullif(func.regexp_replace(LocationModel.dependency_code, '[^0-9]', '', 'g'), '').cast(Integer).asc(), LocationModel.dependency_code.asc())
+                .offset(skip)
+                .limit(size)
             )
-            .outerjoin(asset_count_subquery, LocationModel.id == asset_count_subquery.c.location_node_id)
-            .filter(
-                (LocationModel.name.ilike(f"%{q}%")) | 
-                (LocationModel.dependency_code.ilike(f"%{q}%"))
+            await db.execute(select(func.unaccent('test')))
+        except Exception:
+            query = (
+                select(
+                    LocationModel,
+                    func.coalesce(asset_count_subquery.c.total_assets, 0).label("total_assets")
+                )
+                .outerjoin(asset_count_subquery, LocationModel.id == asset_count_subquery.c.location_node_id)
+                .filter(
+                    (LocationModel.name.ilike(search_filter)) | 
+                    (LocationModel.dependency_code.ilike(search_filter))
+                )
+                .order_by(func.nullif(func.regexp_replace(LocationModel.dependency_code, '[^0-9]', '', 'g'), '').cast(Integer).asc(), LocationModel.dependency_code.asc())
+                .offset(skip)
+                .limit(size)
             )
-            .order_by(func.nullif(func.regexp_replace(LocationModel.dependency_code, '[^0-9]', '', 'g'), '').cast(Integer).asc(), LocationModel.dependency_code.asc())
-            .offset(skip)
-            .limit(size)
-        )
         result = await db.execute(query)
         items = []
         for row in result.all():
