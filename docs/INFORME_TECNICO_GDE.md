@@ -1,6 +1,6 @@
 # INFORME TÉCNICO INSTITUCIONAL
 **PARA:** Dependencia Jerárquica Superior  
-**DE:** Área de Desarrollo y Seguridad Informática  
+**DE:** Ayudante Dominguez Fernando  
 **FECHA:** 15 de febrero de 2026  
 **ASUNTO:** Elevación de Informe sobre el "Gestor Inteligente de Tickets para Seguridad Informática — Proyecto Ticketera"
 
@@ -70,4 +70,4 @@ Se indica que el mantenimiento preventivo se realiza mediante monitoreo de salud
 **CONCLUSIÓN:**  
 Se concluye que el sistema "Ticketera" cumple con los requerimientos técnicos y de seguridad exigidos para su operación en entornos críticos de seguridad informática. Se eleva el presente para su consideración y fines que correspondan.
 
-**Área de Tecnología y Seguridad — Proyecto Ticketera**
+**Ayudante Dominguez Fernando**

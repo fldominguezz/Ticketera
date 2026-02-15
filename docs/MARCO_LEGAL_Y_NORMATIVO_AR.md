@@ -28,6 +28,6 @@ Este desarrollo se alinea con los objetivos estratégicos nacionales de:
 - Desarrollar soberanía tecnológica mediante software diseñado y operado localmente por la fuerza.
 
 ---
-**Responsable Técnico de Cumplimiento:** Ayudante Dominguez Fernando
+**Ayudante Dominguez Fernando:** Ayudante Dominguez Fernando
 **División Seguridad Informática**
 **Fecha de Validación:** Febrero 2026

@@ -87,7 +87,7 @@ La documentación técnica y administrativa se encuentra organizada en la carpet
 
 ### 🏛 Marco Institucional
 *   [Dossier Ejecutivo](docs/DOSSIER_UNIFICADO_INSTITUCIONAL.md)
-*   [Informe Técnico Maestro](docs/INFORME_TECNICO_MASTER_GDE.md)
+*   [Informe Técnico de Elevación](docs/INFORME_TECNICO_GDE.md)
 *   [Marco Legal y Normativa Aplicable](docs/MARCO_LEGAL_Y_NORMATIVO_AR.md)
 *   [Plan de Continuidad Operativa](docs/CONTINGENCIA_Y_BACKUP.md)
 

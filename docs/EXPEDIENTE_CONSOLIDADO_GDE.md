@@ -1,6 +1,6 @@
 # EXPEDIENTE ELECTRÓNICO CONSOLIDADO
 **SISTEMA:** "Ticketera" — Gestión Inteligente de Incidentes SOC  
-**DEPENDENCIA:** Área de Seguridad e Infraestructura Tecnológica  
+**DEPENDENCIA:** Ayudante Dominguez Fernando  
 **FECHA:** 15 de febrero de 2026  
 
 ---
@@ -112,5 +112,4 @@ A continuación, se dejan constancia de las intervenciones de consola más relev
 Se informa que, tras la ejecución de los procedimientos descritos, el sistema presenta un comportamiento estable y predecible, con registros de logs que confirman la ausencia de errores críticos de tiempo de ejecución o de acceso a recursos.
 
 ---
-**Firmado Electrónicamente**  
-**Responsable de la Unidad Técnica de Ciberseguridad**
+**Ayudante Dominguez Fernando**

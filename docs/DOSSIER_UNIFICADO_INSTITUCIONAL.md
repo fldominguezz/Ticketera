@@ -64,4 +64,4 @@ Se constató la adopción de "Clean Architecture" y estándares de desarrollo p�
 **CIERRE ADMINISTRATIVO:**  
 Se concluye el presente informe consolidado, el cual actúa como documento maestro de gestión para el proyecto "Ticketera". Se eleva para su firma y archivo en los registros técnicos de la dependencia.
 
-**Área de Seguridad Informática — Gestión de Proyectos**
+**Ayudante Dominguez Fernando**
