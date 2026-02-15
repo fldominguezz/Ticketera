@@ -39,7 +39,7 @@ async def test_asset_detail_integrity():
 @pytest.mark.asyncio
 async def test_orphan_endpoints_check():
     """Check for commonly forgotten routers."""
-    routes = ["/tickets", "/assets", "/auth/login", "/notifications", "/forms"]
+    routes = ["/tickets", "/assets", "/auth/login", "/notifications/me", "/forms"]
     async with httpx.AsyncClient() as client:
         for route in routes:
             res = await client.get(f"{BASE_URL}{route}")

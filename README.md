@@ -1,107 +1,64 @@
-# 🛡️ Ticketera SOC
-### Sistema Inteligente de Gestión de Incidentes de Seguridad
+# Proyecto Ticketera SOC
+### Sistema de Gestión de Incidentes de Seguridad Informática
 
 ![GitHub last commit](https://img.shields.io/github/last-commit/fldominguezz/Ticketera?style=flat-alpha&color=00d2ff)
 ![Version](https://img.shields.io/badge/version-1.0.0-blue?style=flat-square)
-[![CI Ticketera SOC](https://github.com/fldominguezz/Ticketera/actions/workflows/ci.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/ci.yml)
-[![Bandit Scan](https://github.com/fldominguezz/Ticketera/actions/workflows/bandit-security.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/bandit-security.yml)
-[![Trivy Scan](https://github.com/fldominguezz/Ticketera/actions/workflows/trivy-security.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/trivy-security.yml)
-[![Gitleaks Scan](https://github.com/fldominguezz/Ticketera/actions/workflows/gitleaks-security.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/gitleaks-security.yml)
-[![CodeQL](https://github.com/fldominguezz/Ticketera/actions/workflows/codeql.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/codeql.yml)
 
-**Ticketera SOC** es una plataforma de software público diseñada específicamente para la orquestación, seguimiento y respuesta ante incidentes de ciberseguridad en el **Sector Público Nacional**. Integra capacidades de **Inteligencia Artificial** para asistir en el triage técnico y cumple con los más altos estándares de seguridad y transparencia institucional.
+Ticketera SOC es una plataforma integral desarrollada para la orquestación y seguimiento de incidentes de ciberseguridad. El sistema permite centralizar la recepción de alertas, la investigación forense y la trazabilidad de las acciones de respuesta, cumpliendo con los estándares de seguridad exigidos para el software público nacional.
 
 ---
 
-## 🗺️ Vista General de Arquitectura
+## Arquitectura del Sistema
 
-El sistema opera bajo una arquitectura de microservicios robusta y resiliente:
+El sistema se basa en una infraestructura de microservicios diseñada para alta disponibilidad:
 
-```mermaid
-graph LR
-    subgraph "Ingesta de Datos"
-        S1((FortiSIEM)) -- UDP 514 --> M1[SOC Module]
-        S1 -- Webhook --> B1[API Backend]
-    end
-
-    subgraph "Núcleo de Procesamiento"
-        M1 --> B1
-        B1 <--> DB[(PostgreSQL)]
-        B1 <--> IA{Analista IA}
-        B1 <--> R[(Redis)]
-    end
-
-    subgraph "Interfaces de Usuario"
-        B1 <--> F1[Frontend Next.js]
-        F1 --- A1((Analista SOC))
-        F1 --- A2((Autoridad))
-    end
-
-    style IA fill:#f9f,stroke:#333,stroke-width:2px
-    style B1 fill:#00d2ff,stroke:#000
-```
+*   **Ingesta:** Ingesta de logs vía UDP/514 (Syslog) y procesamiento de incidentes XML desde FortiSIEM.
+*   **Procesamiento:** Núcleo desarrollado en FastAPI que gestiona la lógica de negocio, el motor de SLA y la integración con el Analista de IA local.
+*   **Persistencia:** Almacenamiento relacional en PostgreSQL 16 y caché de alta velocidad en Redis.
+*   **Interfaz:** Aplicación SPA desarrollada en React 19 / Next.js con soporte completo para TypeScript.
 
 ---
 
-## 🚀 Capacidades de Nivel Enterprise
+## Capacidades Operativas
 
-*   **⚡ Monitor SOC (Radar):** Visualización en tiempo real de eventos críticos con latencia cero.
-*   **🤖 Triage Asistido (LLM):** Automatización del primer nivel de análisis utilizando modelos de lenguaje avanzados.
-*   **⚖️ Motor de SLA:** Gestión de tiempos de respuesta basada en normativas institucionales.
-*   **🔒 RBAC Granular:** Control de acceso estricto. Cada usuario ve solo lo que su jerarquía le permite.
-*   **🔎 Auditoría Inmutable:** Registro detallado de cada acción realizada sobre el sistema (Audit Logs).
-
----
-
-## 🛠️ Stack Tecnológico
-
-| Módulo | Tecnología |
-| :--- | :--- |
-| **Backend** | Python 3.11 + FastAPI |
-| **Frontend** | React 19 + Next.js + TypeScript |
-| **Bases de Datos** | PostgreSQL 16 + Redis |
-| **Seguridad** | Nginx (TLS 1.3) + UFW Firewall |
-| **Containerización** | Docker + Docker Compose |
+*   **Gestión de SLA:** Control automático de tiempos de respuesta según la criticidad del incidente.
+*   **Control de Acceso:** Implementación estricta de RBAC (Role-Based Access Control).
+*   **Módulo Forense:** Herramientas para el análisis de archivos EML y búsqueda de indicadores de compromiso (IoC).
+*   **IA Soberana:** Procesamiento de lenguaje natural mediante modelos locales para evitar la fuga de información sensible.
 
 ---
 
-## 🏛️ Cumplimiento Normativo
+## Cumplimiento y Seguridad
 
-Este desarrollo ha sido auditado bajo el **Código de Buenas Prácticas en el Desarrollo de Software Público (ONTI)**:
-
--   **Virtualización:** Despliegue estandarizado y portable.
--   **Seguridad por Diseño:** Escaneos automáticos de vulnerabilidades (Trivy, Bandit, CodeQL).
--   **Protección de Datos:** Alineado con la **Ley 25.326** de Protección de Datos Personales de la República Argentina.
--   **Accesibilidad:** Soporte nativo para modos de **Alto Contraste** y **Dark Mode**, cumpliendo con las pautas de accesibilidad para software público (**WCAG 2.1 / Ley 26.653**).
--   **IA Responsable:** Procesamiento de IA **100% local** (sin fuga de datos a la nube) y bajo el principio de supervisión humana (*Human-in-the-Loop*).
+Este desarrollo ha sido auditado bajo las directivas del **Código de Buenas Prácticas** y se ajusta a:
+- **Ley 25.326** (Protección de Datos Personales).
+- **Hardening de Infraestructura:** Configuración de Nginx con TLS 1.3 y reglas de UFW estrictas.
+- **Validación de Seguridad (Feb 2026):** Superación exitosa de análisis SAST (Bandit) y auditoría de dependencias (SCA).
 
 ---
 
-## 📚 Documentación Técnica Adicional
+## Documentación del Proyecto
 
-Para más detalles sobre la operación y el cumplimiento del sistema, consulte:
-*   [**Manual Operativo SOC**](docs/MANUAL_OPERATIVO_SOC.md)
-*   [**Marco Legal y Normativo (Argentina)**](docs/MARCO_LEGAL_Y_NORMATIVO_AR.md)
-*   [**Informe Institucional (25 págs)**](file:///home/fdominguez/informe_grupal.md)
-*   [**Plan de Contingencia y Backup**](docs/CONTINGENCIA_Y_BACKUP.md)
-*   [**Ética de IA y Privacidad**](docs/ETICA_IA_Y_PRIVACIDAD.md)
-*   [**Guía de Instalación**](docs/INSTALLATION.md)
+La documentación técnica y administrativa se encuentra organizada en la carpeta `docs/`:
 
----
+### 🛠 Especificaciones Técnicas
+*   [Anexo I: Arquitectura del Sistema](docs/ANEXO_I_ARQUITECTURA_TECNICA.md)
+*   [Anexo II: Políticas de Seguridad y Hardening](docs/ANEXO_II_SEGURIDAD_TECNICA.md)
+*   [Anexo IV: Métricas y KPIs de Gestión](docs/ANEXO_IV_ANALYTICS_KPIs.md)
+*   [Anexo V: Guía de Despliegue (Docker)](docs/ANEXO_V_INSTALACION_DEPLOYMENT.md)
 
-## 📦 Instalación y Despliegue
+### 📖 Guías Operativas
+*   [Anexo III: Manual del Operador SOC](docs/ANEXO_III_MANUAL_OPERATIVO.md)
+*   [Anexo VI: Estándares de Desarrollo](docs/ANEXO_VI_BUENAS_PRACTICAS.md)
+*   [Anexo VII: Resultados de la Validación de Campo](docs/ANEXO_VII_METODOLOGIA_RESULTADOS.md)
 
-```bash
-# Preparar entorno
-git clone https://github.com/fldominguezz/Ticketera.git
-cd Ticketera
-cp .env.example .env
-
-# Levantar plataforma completa
-make start
-```
+### 🏛 Marco Institucional
+*   [Dossier Ejecutivo](docs/DOSSIER_UNIFICADO_INSTITUCIONAL.md)
+*   [Informe Técnico Maestro](docs/INFORME_TECNICO_MASTER_GDE.md)
+*   [Marco Legal y Normativa Aplicable](docs/MARCO_LEGAL_Y_NORMATIVO_AR.md)
+*   [Plan de Continuidad Operativa](docs/CONTINGENCIA_Y_BACKUP.md)
 
 ---
 
 **Desarrollado por:** Ayudante Dominguez Fernando
-**Estado:** Producción / Estable
+**Referencia de Proyecto:** SSI-2026-0042
