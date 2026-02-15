@@ -66,7 +66,8 @@ async def read_daily_reports(
         try:
             target_date = datetime.strptime(exact_date, "%Y-%m-%d").date()
             query = query.filter(DailyReport.date == target_date)
-        except: pass
+        except Exception as e:
+        logger.error(f"Error in daily report processing: {e}")
     # Count total
     total_query = select(func.count()).select_from(query.subquery())
     total_res = await db.execute(total_query)
@@ -182,7 +183,8 @@ async def create_daily_report(
          raise HTTPException(status_code=500, detail=f"Error al generar DOCX: {str(e)}")
     extracted_text = ""
     try: extracted_text = report_generator.extract_text(file_path)
-    except: pass
+    except Exception as e:
+        logger.error(f"Error in daily report processing: {e}")
     report = DailyReport(
         date=report_date,
         shift=report_in.shift,
@@ -252,7 +254,8 @@ async def upload_legacy_report(
     with open(file_path, "wb") as buffer: shutil.copyfileobj(file.file, buffer)
     extracted_text = ""
     try: extracted_text = report_generator.extract_text(file_path)
-    except: pass
+    except Exception as e:
+        logger.error(f"Error in daily report processing: {e}")
     report = DailyReport(
         date=report_date, shift=final_shift,
         report_data={"legacy": True},

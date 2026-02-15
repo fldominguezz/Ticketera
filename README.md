@@ -3,7 +3,10 @@
 
 ![GitHub last commit](https://img.shields.io/github/last-commit/fldominguezz/Ticketera?style=flat-alpha&color=00d2ff)
 ![Version](https://img.shields.io/badge/version-1.0.0-blue?style=flat-square)
+[![CI Ticketera SOC](https://github.com/fldominguezz/Ticketera/actions/workflows/ci.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/ci.yml)
+[![Bandit Scan](https://github.com/fldominguezz/Ticketera/actions/workflows/bandit-security.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/bandit-security.yml)
 [![Trivy Scan](https://github.com/fldominguezz/Ticketera/actions/workflows/trivy-security.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/trivy-security.yml)
+[![Gitleaks Scan](https://github.com/fldominguezz/Ticketera/actions/workflows/gitleaks-security.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/gitleaks-security.yml)
 [![CodeQL](https://github.com/fldominguezz/Ticketera/actions/workflows/codeql.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/codeql.yml)
 
 **Ticketera SOC** es una plataforma de software público diseñada específicamente para la orquestación, seguimiento y respuesta ante incidentes de ciberseguridad en el **Sector Público Nacional**. Integra capacidades de **Inteligencia Artificial** para asistir en el triage técnico y cumple con los más altos estándares de seguridad y transparencia institucional.
@@ -82,6 +85,10 @@ Para más detalles sobre la operación y el cumplimiento del sistema, consulte:
 *   [**Plan de Contingencia y Backup**](docs/CONTINGENCIA_Y_BACKUP.md)
 *   [**Ética de IA y Privacidad**](docs/ETICA_IA_Y_PRIVACIDAD.md)
 *   [**Guía de Instalación**](docs/INSTALLATION.md)
+
+---
+
+## 📦 Instalación y Despliegue
 
 ```bash
 # Preparar entorno
