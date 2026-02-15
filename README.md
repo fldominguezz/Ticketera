@@ -15,7 +15,35 @@ Ticketera SOC es una plataforma integral desarrollada para la orquestación y se
 
 ## Arquitectura del Sistema
 
-El sistema se basa en una infraestructura de microservicios diseñada para alta disponibilidad:
+El sistema opera bajo una arquitectura de microservicios robusta y resiliente, diseñada para garantizar la integridad de los datos y la soberanía tecnológica:
+
+```mermaid
+graph LR
+    subgraph "Ingesta de Datos"
+        S1((FortiSIEM)) -- UDP 514 --> M1[SOC Module]
+        S1 -- Webhook --> B1[API Backend]
+    end
+
+    subgraph "Núcleo de Procesamiento"
+        M1 --> B1
+        B1 <--> DB[(PostgreSQL)]
+        B1 <--> IA{Analista IA}
+        B1 <--> R[(Redis)]
+    end
+
+    subgraph "Interfaces de Usuario"
+        B1 <--> F1[Frontend Next.js]
+        F1 --- A1((Analista SOC))
+        F1 --- A2((Autoridad))
+    end
+
+    style IA fill:#f9f,stroke:#333,stroke-width:2px
+    style B1 fill:#00d2ff,stroke:#000
+```
+
+---
+
+## Componentes del Sistema
 
 *   **Ingesta:** Ingesta de logs vía UDP/514 (Syslog) y procesamiento de incidentes XML desde FortiSIEM.
 *   **Procesamiento:** Núcleo desarrollado en FastAPI que gestiona la lógica de negocio, el motor de SLA y la integración con el Analista de IA local.
