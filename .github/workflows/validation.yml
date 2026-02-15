@@ -29,11 +29,11 @@ jobs:
 
       - name: Build and Start Services
         run: |
-          echo "POSTGRES_USER=postgres" > .env
-          echo "POSTGRES_PASSWORD=postgres" >> .env
-          echo "POSTGRES_DB=ticketera_db" >> .env
-          echo "DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/ticketera_db" >> .env
-          echo "SECRET_KEY=supersecret" >> .env
+          echo "POSTGRES_USER=ticketera_admin" > .env
+          echo "POSTGRES_PASSWORD=postgres_pass_test" >> .env
+          echo "POSTGRES_DB=ticketera_prod_db" >> .env
+          echo "DATABASE_URL=postgresql+asyncpg://ticketera_admin:postgres_pass_test@db:5432/ticketera_prod_db" >> .env
+          echo "SECRET_KEY=supersecret_key_for_testing_only" >> .env
           echo "ALGORITHM=HS256" >> .env
           echo "ACCESS_TOKEN_EXPIRE_MINUTES=60" >> .env
           echo "REFRESH_TOKEN_EXPIRE_DAYS=7" >> .env
@@ -41,38 +41,45 @@ jobs:
           echo "FIRST_SUPERUSER_PASSWORD=admin123" >> .env
           echo "MEILI_MASTER_KEY=masterKeyTicketeraSOC" >> .env
           echo "DOMAIN_NAME=localhost" >> .env
+          echo "DOCMOST_SECRET=some_docmost_secret" >> .env
+          echo "SIEM_API_PASSWORD=siem_pass_test" >> .env
           
           docker compose build
-          docker compose up -d db redis backend frontend nginx soc-module
+          docker compose up -d
           
-          echo "Waiting for backend healthcheck..."
-          MAX_RETRIES=60
-          COUNT=0
-          until [ "$(docker inspect -f '{{.State.Health.Status}}' ticketera-backend)" == "healthy" ]; do
-              COUNT=$((COUNT+1))
-              if [ $COUNT -ge $MAX_RETRIES ]; then
-                  echo "Backend healthcheck timeout"
-                  docker compose logs backend
-                  exit 1
-              fi
-              echo "Backend is $(docker inspect -f '{{.State.Health.Status}}' ticketera-backend)... ($COUNT/$MAX_RETRIES)"
-              sleep 10
+          echo "Waiting for services to be healthy..."
+          # Backend Wait
+          for i in {1..30}; do
+            STATUS=$(docker inspect -f '{{.State.Health.Status}}' ticketera-backend || echo "error")
+            if [ "$STATUS" == "healthy" ]; then
+              echo "✅ Backend is healthy!"
+              break
+            fi
+            echo "⏳ Backend status: $STATUS ($i/30)..."
+            sleep 10
+            if [ $i -eq 30 ]; then
+              echo "❌ Backend healthcheck TIMEOUT"
+              docker compose logs backend
+              exit 1
+            fi
           done
-          
-          echo "Waiting for nginx healthcheck..."
-          COUNT=0
-          until [ "$(docker inspect -f '{{.State.Health.Status}}' ticketera-nginx)" == "healthy" ]; do
-              COUNT=$((COUNT+1))
-              if [ $COUNT -ge $MAX_RETRIES ]; then
-                  echo "Nginx healthcheck timeout"
-                  docker compose logs nginx
-                  exit 1
-              fi
-              echo "Nginx is $(docker inspect -f '{{.State.Health.Status}}' ticketera-nginx)... ($COUNT/$MAX_RETRIES)"
-              sleep 10
+
+          # Nginx Wait
+          for i in {1..15}; do
+            STATUS=$(docker inspect -f '{{.State.Health.Status}}' ticketera-nginx || echo "error")
+            if [ "$STATUS" == "healthy" ]; then
+              echo "✅ Nginx is healthy!"
+              break
+            fi
+            echo "⏳ Nginx status: $STATUS ($i/15)..."
+            sleep 10
+            if [ $i -eq 15 ]; then
+              echo "❌ Nginx healthcheck TIMEOUT"
+              docker compose logs nginx
+              exit 1
+            fi
           done
 
       - name: Run Total Validation
         run: |
-          # Simular validación básica ya que el servicio validator es externo
           docker compose ps

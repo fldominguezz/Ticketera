@@ -1,20 +1,21 @@
-import socket
+import urllib.request
 import sys
 import time
 
-def check_port(host, port):
+def check_health():
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(1)
-        s.connect((host, port))
-        s.close()
-        return True
+        # Usamos la ruta completa del API
+        url = 'http://127.0.0.1:8000/api/v1/health'
+        with urllib.request.urlopen(url, timeout=5) as response:
+            if response.getcode() == 200:
+                return True
     except Exception:
         return False
+    return False
 
-# Reintentos internos para absorber el delay de inicio de FastAPI
-for _ in range(3):
-    if check_port('127.0.0.1', 8000):
+# Reintentos internos
+for i in range(5):
+    if check_health():
         sys.exit(0)
     time.sleep(2)
 
