@@ -103,7 +103,5 @@ make start
 
 ---
 
-## 📞 Institucional
 **Desarrollado por:** Ayudante Dominguez Fernando
-**Contacto:** [software-seguridad@pfa.gob.ar]
 **Estado:** Producción / Estable
