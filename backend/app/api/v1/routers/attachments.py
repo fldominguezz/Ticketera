@@ -8,6 +8,7 @@ from app.api.deps import get_db, get_current_active_user
 from app.core.config import settings
 from app.db.models.notifications import Attachment
 from app.db.models.user import User
+from app.utils.security import safe_join, sanitize_filename
 
 router = APIRouter()
 
@@ -27,34 +28,33 @@ async def download_attachment(
     if not attachment:
         raise HTTPException(status_code=404, detail="Archivo adjunto no encontrado")
         
-    # 2. Construir ruta física absoluta
-    # file_path en DB suele ser "tickets/ID_TICKET/ID_FILE.ext"
-    # El directorio base es /app/uploads
+    # 2. Construir ruta física absoluta segura
     base_uploads = "/app/uploads"
-    file_full_path = os.path.join(base_uploads, attachment.file_path)
+    # Usamos safe_join para prevenir Path Traversal si attachment.file_path tuviera ".."
+    try:
+        file_full_path = safe_join(base_uploads, attachment.file_path)
+    except HTTPException:
+        raise HTTPException(status_code=400, detail="Ruta de archivo inválida")
     
     if not os.path.exists(file_full_path):
-        # Intento fallback si la ruta guardada ya incluye el prefijo 'uploads/'
-        alt_path = os.path.join("/app", attachment.file_path)
-        if os.path.exists(alt_path):
-            file_full_path = alt_path
-        elif os.path.exists(attachment.file_path):
-            file_full_path = attachment.file_path
-        else:
-            raise HTTPException(status_code=404, detail=f"El archivo físico no existe en el servidor.")
+        raise HTTPException(status_code=404, detail=f"El archivo físico no existe.")
             
-    # 3. Retornar el archivo con su nombre original (soportando espacios y acentos)
+    # 3. Retornar el archivo
     return FileResponse(
         path=file_full_path,
-        filename=attachment.filename,
+        filename=sanitize_filename(attachment.filename),
         media_type="application/octet-stream"
     )
 
 @router.get("/{ticket_id}/{filename}")
 async def get_attachment_legacy(ticket_id: str, filename: str):
-    """Endpoint legacy preservado para compatibilidad interna simple"""
+    """Endpoint legacy sanitizado"""
     base_path = "/app/uploads"
-    safe_path = os.path.join(base_path, "tickets", ticket_id, filename)
+    try:
+        # Combinación de safe_join y sanitización de entrada
+        safe_path = safe_join(base_path, "tickets", sanitize_filename(ticket_id), sanitize_filename(filename))
+    except HTTPException:
+        raise HTTPException(status_code=400, detail="Parámetros inválidos")
     
     if not os.path.exists(safe_path):
         raise HTTPException(status_code=404, detail="Archivo no encontrado")

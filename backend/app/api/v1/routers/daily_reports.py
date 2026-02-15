@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, shutil
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func, delete
@@ -7,14 +8,18 @@ from uuid import UUID
 from datetime import datetime, date
 import logging
 import uuid as uuid_pkg
+import os
 
 from app.api.deps import get_db, require_permission
 from app.db.models.daily_report import DailyReport
 from app.db.models import User
 from app.schemas.daily_report import DailyReportCreate, DailyReport as DailyReportSchema, DailyReportUpdate
+from app.utils.security import safe_join, sanitize_filename
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+TEMPLATE_DIR = "/app/uploads/templates"
 
 # Definimos el esquema de lista aquí mismo para asegurar compatibilidad inmediata
 from pydantic import BaseModel
@@ -82,7 +87,7 @@ async def create_daily_report(
         report_data=report_in.report_data,
         created_by_id=current_user.id,
         group_id=current_user.group_id,
-        file_path=f"reports/{report_in.date}_{report_in.shift}.pdf" # Placeholder
+        file_path=f"reports/{report_in.date}_{report_in.shift}.pdf"
     )
     
     db.add(db_obj)
@@ -131,3 +136,25 @@ async def delete_daily_report(
     await db.execute(delete(DailyReport).where(DailyReport.id == report_id))
     await db.commit()
     return {"status": "success"}
+
+@router.post("/templates/upload")
+async def upload_report_template(
+    file: Any,
+    group_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_permission("admin:access"))]
+):
+    """Sube una plantilla personalizada de forma segura (Previene Path Traversal)."""
+    if not os.path.exists(TEMPLATE_DIR):
+        os.makedirs(TEMPLATE_DIR, exist_ok=True)
+    
+    filename = f"template_{str(group_id)}.docx"
+    try:
+        safe_path = safe_join(TEMPLATE_DIR, sanitize_filename(filename))
+    except Exception:
+        raise HTTPException(status_code=400, detail="ID de grupo inválido")
+
+    with open(safe_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    return {"status": "uploaded", "path": safe_path}
