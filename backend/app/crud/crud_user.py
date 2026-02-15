@@ -33,8 +33,12 @@ DOCMOST_MAPPING = {
 }
 class CRUDUser:
     def _get_wiki_engine(self):
-        db_url = os.getenv("DATABASE_URL", "").replace("ticketera_db", "docmost_db").replace("ticketing_dev_db", "docmost_db")
-        return create_async_engine(db_url)
+        import re
+        db_url = os.getenv("DATABASE_URL", "")
+        # Reemplazar el nombre de la base de datos (última parte de la URL después del último /)
+        # Esto es más robusto que buscar un nombre específico
+        new_url = re.sub(r'/[^/]+$', '/docmost_db', db_url)
+        return create_async_engine(new_url)
     async def get_by_email(self, db: AsyncSession, email: str) -> Optional[User]:
         result = await db.execute(select(User).filter(User.email == email))
         return result.scalar_one_or_none()
