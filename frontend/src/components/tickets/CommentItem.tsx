@@ -1,11 +1,16 @@
 import React from 'react';
 import { User, Clock } from 'lucide-react';
+import DOMPurify from 'dompurify';
 
 interface Props {
  comment: any;
 }
 
 export const CommentItem: React.FC<Props> = ({ comment }) => {
+ const sanitizedContent = typeof window !== 'undefined' 
+  ? DOMPurify.sanitize(comment.content || '') 
+  : comment.content;
+
  return (
   <div className="comment-item mb-4 animate-fade-in">
    <div className="d-flex justify-content-between align-items-center mb-2">
@@ -26,7 +31,7 @@ export const CommentItem: React.FC<Props> = ({ comment }) => {
    <div className="comment-bubble p-3 bg-surface-muted rounded-lg border border-subtle shadow-sm">
     <div 
      className="comment-content" 
-     dangerouslySetInnerHTML={{ __html: comment.content }} 
+     dangerouslySetInnerHTML={{ __html: sanitizedContent }} 
     />
    </div>
 

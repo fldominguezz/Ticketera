@@ -27,6 +27,7 @@ async def init_siem_config(session: AsyncSession, siem_user: User, group_objs: d
         await session.flush()
     res_config = await session.execute(select(SIEMConfiguration).limit(1))
     config = res_config.scalar_one_or_none()
+    siem_api_password = os.getenv("SIEM_API_PASSWORD", "!zmXwu*gEg0@") # Fallback to legacy if not set
     if not config:
         config = SIEMConfiguration(
             id=uuid.uuid4(),
@@ -34,7 +35,7 @@ async def init_siem_config(session: AsyncSession, siem_user: User, group_objs: d
             default_group_id=group_objs["Area SOC"].id,
             ticket_type_id=ttype.id,
             api_username=siem_user.email,
-            api_password="!zmXwu*gEg0@",
+            api_password=siem_api_password,
             allowed_ips="10.1.78.10",
             is_active=True
         )
@@ -46,7 +47,7 @@ async def init_siem_config(session: AsyncSession, siem_user: User, group_objs: d
         config.default_group_id = group_objs["Area SOC"].id
         config.ticket_type_id = ttype.id
         config.api_username = siem_user.email
-        config.api_password = "!zmXwu*gEg0@"
+        config.api_password = siem_api_password
         config.allowed_ips = "10.1.78.10"
         session.add(config)
         logger.info("SIEM integration configuration updated/verified")
@@ -226,26 +227,12 @@ async def init_db() -> None:
         await session.commit()
         # 4. Create/Ensure Superuser
         superuser_user = await user.get_by_email(session, email=settings.FIRST_SUPERUSER)
-        if not superuser_user:
-            user_in = UserCreate(
-                email=settings.FIRST_SUPERUSER,
-                username="admin",
-                password=settings.FIRST_SUPERUSER_PASSWORD,
-                is_superuser=True,
-                group_id=group_objs["Admin"].id,
-                first_name="Admin", last_name="User",
-                role_ids=[role_map["SuperAdmin"].id]
-            )
-            superuser_user = await user.create(session, obj_in=user_in)
-            logger.info(f"Superuser created: {settings.FIRST_SUPERUSER}")
-        # 4.1 Create FortiSIEM Service Account
-        siem_email = "fortisiem@example.com"
-        siem_user = await user.get_by_email(session, email=siem_email)
         if not siem_user:
+            siem_api_password = os.getenv("SIEM_API_PASSWORD", "!zmXwu*gEg0@")
             siem_in = UserCreate(
                 email=siem_email,
                 username="fortisiem",
-                password="!zmXwu*gEg0@", # Contraseña fija solicitada
+                password=siem_api_password,
                 is_superuser=False,
                 group_id=group_objs["Area SOC"].id,
                 first_name="FortiSIEM", last_name="Connector",
@@ -256,7 +243,8 @@ async def init_db() -> None:
         else:
             # Asegurar la contraseña si ya existe
             from app.core.security import get_password_hash
-            siem_user.hashed_password = get_password_hash("!zmXwu*gEg0@")
+            siem_api_password = os.getenv("SIEM_API_PASSWORD", "!zmXwu*gEg0@")
+            siem_user.hashed_password = get_password_hash(siem_api_password)
             session.add(siem_user)
             await session.commit()
             logger.info(f"FortiSIEM password updated/verified")

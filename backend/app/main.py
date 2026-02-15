@@ -21,9 +21,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await engine.dispose()
 app = FastAPI(title=settings.PROJECT_NAME, version="1.0.0", lifespan=lifespan)
 # Configuración de CORS
+origins = [
+    f"http://{settings.DOMAIN_NAME}",
+    f"https://{settings.DOMAIN_NAME}",
+    "http://localhost",
+    "http://localhost:3000",
+    "http://localhost:3006",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

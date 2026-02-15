@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import DOMPurify from 'dompurify';
 import { Card, Button, Form, Badge, Table, Tabs, Tab, Spinner, Modal, Row, Col, Alert } from 'react-bootstrap';
 import { User, Clock, Paperclip, Download as DownloadIcon, Eye, AlertCircle, Monitor, Send, Lock, MapPin, Ticket, Search as Lupa, FileText } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
@@ -366,7 +367,11 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
 
         <div 
          className="mb-4 text-main opacity-90 lh-base ql-editor p-0 ticket-description-content" 
-         dangerouslySetInnerHTML={{ __html: (ticket.description || 'No description provided.').replace(/\n/g, '<br/>') }} 
+         dangerouslySetInnerHTML={{ 
+          __html: typeof window !== 'undefined' 
+            ? DOMPurify.sanitize((ticket.description || 'No description provided.').replace(/\n/g, '<br/>'))
+            : (ticket.description || 'No description provided.').replace(/\n/g, '<br/>')
+         }} 
         />
         
         <div className="d-flex gap-4 text-muted x-small border-top border-subtle pt-3 flex-wrap text-uppercase fw-bold tracking-wider align-items-center">
