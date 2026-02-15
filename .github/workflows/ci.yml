@@ -10,28 +10,28 @@ jobs:
   backend-check:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
-    - name: Install basic dependencies
+        python-version: '3.11'
+    - name: Install dependencies
       run: |
-        pip install fastapi sqlalchemy pydantic slowapi
+        pip install -r backend/requirements.txt
     - name: Syntax Check
       run: |
-        find backend/app -name "*.py" | xargs python -m py_compile
+        python -m py_compile $(find backend/app -name "*.py")
 
   frontend-build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: 20
     - name: Install dependencies
-      run: cd frontend && npm install --legacy-peer-deps --no-audit --legacy-peer-deps
+      run: cd frontend && npm install --legacy-peer-deps
     - name: Build Check
       run: cd frontend && npm run build
       env:
