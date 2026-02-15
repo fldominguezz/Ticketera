@@ -61,9 +61,10 @@ def verify_totp(secret: str, code: str) -> bool:
     return totp.verify(code, valid_window=1)
 # --- Recovery Codes ---
 def generate_recovery_codes(k: int = 10, length: int = 10) -> List[str]:
-    """Generate a list of single-use recovery codes."""
+    """Generate a list of single-use recovery codes using cryptographically secure random."""
+    import secrets
     codes = []
     chars = string.ascii_uppercase + string.digits
     for _ in range(k):
-        codes.append("".join(random.choice(chars) for _ in range(length)))
+        codes.append("".join(secrets.choice(chars) for _ in range(length)))
     return codes

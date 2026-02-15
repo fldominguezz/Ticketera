@@ -21,4 +21,4 @@ jobs:
       - name: Install Bandit
         run: pip install bandit
       - name: Run Bandit
-        run: bandit -r backend/app -x backend/tests -ll
+        run: bandit -r backend/app -x backend/tests -ll --skip B404

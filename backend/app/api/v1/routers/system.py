@@ -59,11 +59,13 @@ async def create_backup(
         env = os.environ.copy()
         env["PGPASSWORD"] = db_pass
         with open(filepath, "w") as f:
+            # Use full path for pg_dump to avoid PATH manipulation risks
             subprocess.run(
-                ["pg_dump", "-h", db_host, "-U", db_user, db_name],
+                ["/usr/bin/pg_dump", "-h", db_host, "-U", db_user, db_name],
                 env=env,
                 stdout=f,
-                check=True
+                check=True,
+                shell=False
             )
         return {"message": "Backup created successfully", "filename": filename}
     except Exception as e:
