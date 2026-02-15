@@ -23,12 +23,22 @@ services:
     container_name: ticketera-redis
     image: redis:7-alpine
     restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks: [app-network]
 
   meilisearch:
     container_name: ticketera-meilisearch
     image: getmeili/meilisearch:v1.6
     restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       - MEILI_MASTER_KEY=masterKeyTicketeraSOC
       - MEILI_NO_ANALYTICS=true
@@ -40,6 +50,11 @@ services:
     container_name: ticketera-backend
     build: { context: ./backend, dockerfile: Dockerfile }
     restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     env_file: [.env]
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
@@ -57,6 +72,11 @@ services:
     container_name: ticketera-frontend
     build: { context: ./frontend, dockerfile: Dockerfile }
     restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports: ["3006:3000"]
     depends_on:
       backend: { condition: service_healthy }
@@ -66,6 +86,11 @@ services:
     container_name: ticketera-nginx
     build: { context: ./nginx, dockerfile: Dockerfile }
     restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports: ["80:80", "443:443", "3005:3005"]
     depends_on: [backend, frontend, docmost]
     volumes: [./uploads:/app/uploads, ./nginx/conf.d:/etc/nginx/conf.d]
@@ -80,6 +105,11 @@ services:
     container_name: ticketera-docmost
     image: docmost/docmost:latest
     depends_on: [db, redis]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       - APP_URL=https://10.1.9.240:3005
       - APP_SECRET=${DOCMOST_SECRET}
@@ -102,6 +132,11 @@ services:
   soc-module:
     container_name: ticketera-soc-module
     build: { context: ./soc-module, dockerfile: Dockerfile }
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports: ["514:514/udp"]
     depends_on: [backend]
     env_file: [.env]
