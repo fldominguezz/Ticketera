@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int
     FIRST_SUPERUSER: str = "admin@example.com"
     FIRST_SUPERUSER_PASSWORD: str = "adminpassword"
+    DOMAIN_NAME: str = "localhost"
     # Email
     SMTP_SERVER: str = "smtp.gmail.com"
     SMTP_PORT: int = 587

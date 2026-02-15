@@ -104,6 +104,7 @@ services:
     build: { context: ./soc-module, dockerfile: Dockerfile }
     ports: ["514:514/udp"]
     depends_on: [backend]
+    env_file: [.env]
     networks: [app-network]
     restart: always
 

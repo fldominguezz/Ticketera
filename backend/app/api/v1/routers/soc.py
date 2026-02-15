@@ -181,7 +181,7 @@ async def promote_to_ticket(
     )
     # Aplicar SLA inmediatamente
     from app.services.sla_service import sla_service
-    await sla_service.assign_sla_to_ticket(db, ticket.id)
+    await sla_service.apply_policy_to_ticket(db, ticket)
     # Vincular alerta con ticket
     alert.ticket_id = ticket.id
     alert.status = "promoted"

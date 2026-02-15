@@ -1,90 +1,93 @@
-# 🛡️ Ticketera SOC - Gestión Inteligente de Incidentes de Seguridad
+# 🛡️ Ticketera SOC
+### Sistema Inteligente de Gestión de Incidentes de Seguridad
 
-[![CI Ticketera SOC](https://github.com/fldominguezz/Ticketera/actions/workflows/ci.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/ci.yml)
-[![Trivy Security Scan](https://github.com/fldominguezz/Ticketera/actions/workflows/trivy-security.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/trivy-security.yml)
-[![Gitleaks Security Scan](https://github.com/fldominguezz/Ticketera/actions/workflows/gitleaks-security.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/gitleaks-security.yml)
-[![Bandit Security Scan](https://github.com/fldominguezz/Ticketera/actions/workflows/bandit-security.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/bandit-security.yml)
-[![CodeQL Analysis](https://github.com/fldominguezz/Ticketera/actions/workflows/codeql.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/codeql.yml)
+![GitHub last commit](https://img.shields.io/github/last-commit/fldominguezz/Ticketera?style=flat-alpha&color=00d2ff)
+![Version](https://img.shields.io/badge/version-1.0.0-blue?style=flat-square)
+[![Trivy Scan](https://github.com/fldominguezz/Ticketera/actions/workflows/trivy-security.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/trivy-security.yml)
+[![CodeQL](https://github.com/fldominguezz/Ticketera/actions/workflows/codeql.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/codeql.yml)
 
-**Ticketera SOC** es una solución de software público diseñada para la orquestación, gestión y respuesta ante incidentes de ciberseguridad. Optimizado para el **Sector Público Nacional**, integra capacidades de inteligencia artificial para el triage de alertas y un sistema robusto de seguimiento de tickets alineado con normativas institucionales.
+**Ticketera SOC** es una plataforma de software público diseñada específicamente para la orquestación, seguimiento y respuesta ante incidentes de ciberseguridad en el **Sector Público Nacional**. Integra capacidades de **Inteligencia Artificial** para asistir en el triage técnico y cumple con los más altos estándares de seguridad y transparencia institucional.
 
 ---
 
-## 🏗️ Arquitectura del Sistema
+## 🗺️ Vista General de Arquitectura
 
-El sistema utiliza una arquitectura de microservicios contenerizados, garantizando alta disponibilidad y aislamiento de fallos.
+El sistema opera bajo una arquitectura de microservicios robusta y resiliente:
 
 ```mermaid
-graph TD
-    User((Analista SOC)) -->|HTTPS/TLS| Nginx[Nginx Reverse Proxy]
-    SIEM((FortiSIEM)) -->|UDP 514| SOCMod[SOC Ingestor Node.js]
-    SIEM -->|HTTP Webhook| Backend[FastAPI Backend]
-    
-    Nginx --> Frontend[Next.js Frontend]
-    Nginx --> Backend
-    
-    Backend --> DB[(PostgreSQL)]
-    Backend --> Redis[(Redis Cache)]
-    Backend --> Search[Meilisearch]
-    Backend --> LLM[Analista IA - LangChain]
-    
-    SOCMod -->|API| Backend
+graph LR
+    subgraph "Ingesta de Datos"
+        S1((FortiSIEM)) -- UDP 514 --> M1[SOC Module]
+        S1 -- Webhook --> B1[API Backend]
+    end
+
+    subgraph "Núcleo de Procesamiento"
+        M1 --> B1
+        B1 <--> DB[(PostgreSQL)]
+        B1 <--> IA{Analista IA}
+        B1 <--> R[(Redis)]
+    end
+
+    subgraph "Interfaces de Usuario"
+        B1 <--> F1[Frontend Next.js]
+        F1 --- A1((Analista SOC))
+        F1 --- A2((Autoridad))
+    end
+
+    style IA fill:#f9f,stroke:#333,stroke-width:2px
+    style B1 fill:#00d2ff,stroke:#000
 ```
 
 ---
 
-## 🌟 Características de Nivel Institucional
+## 🚀 Capacidades de Nivel Enterprise
 
-### 1. Ingesta Multi-Fuente (SOC Radar)
-Monitoreo en tiempo real de eventos provenientes de FortiSIEM, FortiGate y logs de sistema. Capacidad de procesamiento UDP y Webhooks.
-
-### 2. Triage Asistido por IA
-Análisis automático de logs crudos (`raw logs`) mediante modelos de lenguaje (LLM), proporcionando resúmenes ejecutivos y recomendaciones de remediación inmediatas.
-
-### 3. Control de Acceso Basado en Roles (RBAC)
-Gestión granular de permisos. Los usuarios solo acceden a las funciones y datos correspondientes a su jerarquía (Analista, Coordinador, Auditor, Administrador).
-
-### 4. Gestión de Activos y CMDB
-Relación directa entre incidentes e infraestructura crítica, permitiendo identificar rápidamente el impacto de una amenaza en la red institucional.
+*   **⚡ Monitor SOC (Radar):** Visualización en tiempo real de eventos críticos con latencia cero.
+*   **🤖 Triage Asistido (LLM):** Automatización del primer nivel de análisis utilizando modelos de lenguaje avanzados.
+*   **⚖️ Motor de SLA:** Gestión de tiempos de respuesta basada en normativas institucionales.
+*   **🔒 RBAC Granular:** Control de acceso estricto. Cada usuario ve solo lo que su jerarquía le permite.
+*   **🔎 Auditoría Inmutable:** Registro detallado de cada acción realizada sobre el sistema (Audit Logs).
 
 ---
 
-## 📜 Cumplimiento y Estándares
+## 🛠️ Stack Tecnológico
 
-### Buenas Prácticas ONTI
-Este proyecto cumple con la **Guía Técnica para el Desarrollo Sustentable de Software en la Administración Pública**:
-- ✅ **Virtualización:** Despliegue 100% basado en contenedores Docker.
-- ✅ **Seguridad por Diseño:** Escaneos automáticos de vulnerabilidades (Trivy, Bandit, CodeQL) en cada commit.
-- ✅ **Interoperabilidad:** API documentada bajo estándares OpenAPI 3.0.
-- ✅ **Accesibilidad:** Interfaz diseñada para múltiples temas visuales, incluyendo **Modo Alto Contraste** y **Modo SOC**.
-
-### Protección de Datos Personales (Ley 25.326)
-- Auditoría inmutable de todas las acciones sobre tickets.
-- Minimización de datos en el registro de usuarios.
-- Cifrado de datos sensibles en tránsito (TLS 1.3).
+| Módulo | Tecnología |
+| :--- | :--- |
+| **Backend** | Python 3.11 + FastAPI |
+| **Frontend** | React 19 + Next.js + TypeScript |
+| **Bases de Datos** | PostgreSQL 16 + Redis |
+| **Seguridad** | Nginx (TLS 1.3) + UFW Firewall |
+| **Containerización** | Docker + Docker Compose |
 
 ---
 
-## 🚀 Despliegue Rápido
+## 🏛️ Cumplimiento Normativo
 
-### Requisitos Previos
-- Docker Engine >= 24.0.0
-- Docker Compose >= 2.20.0
+Este desarrollo ha sido auditado bajo el **Código de Buenas Prácticas en el Desarrollo de Software Público (ONTI)**:
 
-### Instalación
+-   **Virtualización:** Despliegue estandarizado y portable.
+-   **Seguridad por Diseño:** Escaneos automáticos de vulnerabilidades (Trivy, Bandit, CodeQL).
+-   **Protección de Datos:** Alineado con la **Ley 25.326** de Protección de Datos Personales de la República Argentina.
+-   **Accesibilidad:** Soporte nativo para modos de **Alto Contraste** y **Dark Mode**.
+
+---
+
+## 📦 Instalación y Despliegue
+
 ```bash
-# Clonar y preparar entorno
+# Preparar entorno
 git clone https://github.com/fldominguezz/Ticketera.git
 cd Ticketera
 cp .env.example .env
 
-# Iniciar plataforma
+# Levantar plataforma completa
 make start
 ```
 
 ---
 
-## 📞 Soporte e Institucional
+## 📞 Institucional
 **Desarrollado por:** División Seguridad Informática - PFA
-**Contacto Técnico:** [software-seguridad@pfa.gob.ar]
-**Versión Actual:** 1.0.0 (Estable)
+**Contacto:** [software-seguridad@pfa.gob.ar]
+**Estado:** Producción / Estable

@@ -24,6 +24,8 @@ app = FastAPI(title=settings.PROJECT_NAME, version="1.0.0", lifespan=lifespan)
 origins = [
     f"http://{settings.DOMAIN_NAME}",
     f"https://{settings.DOMAIN_NAME}",
+    f"http://{settings.DOMAIN_NAME}:3000",
+    f"http://{settings.DOMAIN_NAME}:3006",
     "http://localhost",
     "http://localhost:3000",
     "http://localhost:3006",

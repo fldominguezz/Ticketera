@@ -13,7 +13,7 @@ BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000/api/v1/integrations/
 
 # Credenciales SIEM
 SIEM_USER = os.getenv("SIEM_USER", "fortisiem@example.com")
-SIEM_PASS = os.getenv("SIEM_PASS", r"9y\;)P[s}obNd3W-")
+SIEM_PASS = os.getenv("SIEM_API_PASSWORD", "b19876e0b0caf3ce6095e57a7c3e3249")
 
 def forward_to_backend(data, addr):
     try:
