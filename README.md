@@ -1,85 +1,90 @@
-# Ticketera SOC - Sistema de Gestión de Incidentes de Seguridad
+# 🛡️ Ticketera SOC - Gestión Inteligente de Incidentes de Seguridad
 
-**Versión:** 1.0.0
-**Clasificación:** Software Público / Seguridad
-**Estado:** Producción
+[![CI Ticketera SOC](https://github.com/fldominguezz/Ticketera/actions/workflows/ci.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/ci.yml)
+[![Trivy Security Scan](https://github.com/fldominguezz/Ticketera/actions/workflows/trivy-security.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/trivy-security.yml)
+[![Gitleaks Security Scan](https://github.com/fldominguezz/Ticketera/actions/workflows/gitleaks-security.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/gitleaks-security.yml)
+[![Bandit Security Scan](https://github.com/fldominguezz/Ticketera/actions/workflows/bandit-security.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/bandit-security.yml)
+[![CodeQL Analysis](https://github.com/fldominguezz/Ticketera/actions/workflows/codeql.yml/badge.svg)](https://github.com/fldominguezz/Ticketera/actions/workflows/codeql.yml)
 
-## Descripción General
+**Ticketera SOC** es una solución de software público diseñada para la orquestación, gestión y respuesta ante incidentes de ciberseguridad. Optimizado para el **Sector Público Nacional**, integra capacidades de inteligencia artificial para el triage de alertas y un sistema robusto de seguimiento de tickets alineado con normativas institucionales.
 
-**Ticketera SOC** es una plataforma integral para la gestión, seguimiento y resolución de incidentes de seguridad informática. Diseñada específicamente para Centros de Operaciones de Seguridad (SOC), permite la orquestación de alertas provenientes de sistemas SIEM (FortiSIEM), la gestión de tickets con flujos de trabajo definidos y la administración de inventarios de activos críticos.
+---
 
-El sistema está construido siguiendo los estándares de **Microservicios** y **Contenedores**, asegurando escalabilidad, portabilidad y cumplimiento con las normativas de seguridad de la información del Sector Público Nacional.
+## 🏗️ Arquitectura del Sistema
 
-## Características Principales
+El sistema utiliza una arquitectura de microservicios contenerizados, garantizando alta disponibilidad y aislamiento de fallos.
 
-*   **Gestión de Incidentes:** Ciclo de vida completo del ticket (Detección -> Análisis -> Contención -> Resolución).
-*   **Integración SIEM:** Ingesta automática de alertas vía Webhook/API desde FortiSIEM y otros orquestadores.
-*   **Seguridad y Auditoría:** Control de acceso basado en roles (RBAC), autenticación JWT y registro inmutable de acciones (Audit Logs).
-*   **Inventario de Activos:** Base de datos de configuración (CMDB) para correlacionar incidentes con infraestructura.
-*   **Dashboards Operativos:** Visualización en tiempo real de métricas de seguridad y SLAs.
+```mermaid
+graph TD
+    User((Analista SOC)) -->|HTTPS/TLS| Nginx[Nginx Reverse Proxy]
+    SIEM((FortiSIEM)) -->|UDP 514| SOCMod[SOC Ingestor Node.js]
+    SIEM -->|HTTP Webhook| Backend[FastAPI Backend]
+    
+    Nginx --> Frontend[Next.js Frontend]
+    Nginx --> Backend
+    
+    Backend --> DB[(PostgreSQL)]
+    Backend --> Redis[(Redis Cache)]
+    Backend --> Search[Meilisearch]
+    Backend --> LLM[Analista IA - LangChain]
+    
+    SOCMod -->|API| Backend
+```
 
-## Arquitectura Técnica
+---
 
-El sistema se compone de los siguientes módulos contenerizados:
+## 🌟 Características de Nivel Institucional
 
-*   **Frontend:** SPA desarrollada en **React (Next.js)** con TypeScript. Interfaz moderna y responsiva.
-*   **Backend:** API RESTful de alto rendimiento en **Python (FastAPI)**.
-*   **Base de Datos:** **PostgreSQL** para persistencia transaccional y relacional.
-*   **Gateway:** **Nginx** como Reverse Proxy y terminación TLS.
-*   **Módulo SOC:** Servicio especializado en Node.js para ingesta de eventos syslog/UDP (puerto 514).
-*   **Monitoreo:** Stack Prometheus + Grafana para observabilidad de contenedores.
-*   **Validación:** Tests E2E (End-to-End) automatizados para asegurar flujos críticos.
+### 1. Ingesta Multi-Fuente (SOC Radar)
+Monitoreo en tiempo real de eventos provenientes de FortiSIEM, FortiGate y logs de sistema. Capacidad de procesamiento UDP y Webhooks.
 
-## Documentación Oficial
+### 2. Triage Asistido por IA
+Análisis automático de logs crudos (`raw logs`) mediante modelos de lenguaje (LLM), proporcionando resúmenes ejecutivos y recomendaciones de remediación inmediatas.
 
-La documentación técnica detallada se encuentra en el directorio `docs/`:
+### 3. Control de Acceso Basado en Roles (RBAC)
+Gestión granular de permisos. Los usuarios solo acceden a las funciones y datos correspondientes a su jerarquía (Analista, Coordinador, Auditor, Administrador).
 
-*   [**Arquitectura del Sistema**](docs/ARCHITECTURE.md): Diagramas, stack tecnológico y flujo de datos.
-*   [**Guía de Instalación y Despliegue**](docs/INSTALLATION.md): Requisitos previos, despliegue con Docker Compose y configuración de variables de entorno.
-*   [**Seguridad y Cumplimiento**](SECURITY.md): Implementación de RBAC, cifrado, protección de datos (Ley 25.326) y política de contraseñas.
-*   [**Manual de Operaciones**](docs/OPERATIONS.md): Procedimientos de backup, rotación de logs, monitoreo y disaster recovery.
-*   [**Guía de Usuario**](docs/USER_GUIDE.md): Manual para operadores, analistas y administradores.
-* [**Guía de Integraciones**](docs/INTEGRATIONS.md): Detalle técnico de conexiones con FortiSIEM y Docmost.
-* [**Modelo de Datos**](docs/DATABASE.md): Estructura de tablas y relaciones de la base de datos.
-*   [**Registro de Cambios (Changelog)**](CHANGELOG.md): Historial de versiones y actualizaciones.
+### 4. Gestión de Activos y CMDB
+Relación directa entre incidentes e infraestructura crítica, permitiendo identificar rápidamente el impacto de una amenaza en la red institucional.
 
-## Inicio Rápido (Quick Start)
+---
 
-Para levantar el entorno completo en un servidor de desarrollo:
-O simplemente use el Makefile:
+## 📜 Cumplimiento y Estándares
 
+### Buenas Prácticas ONTI
+Este proyecto cumple con la **Guía Técnica para el Desarrollo Sustentable de Software en la Administración Pública**:
+- ✅ **Virtualización:** Despliegue 100% basado en contenedores Docker.
+- ✅ **Seguridad por Diseño:** Escaneos automáticos de vulnerabilidades (Trivy, Bandit, CodeQL) en cada commit.
+- ✅ **Interoperabilidad:** API documentada bajo estándares OpenAPI 3.0.
+- ✅ **Accesibilidad:** Interfaz diseñada para múltiples temas visuales, incluyendo **Modo Alto Contraste** y **Modo SOC**.
+
+### Protección de Datos Personales (Ley 25.326)
+- Auditoría inmutable de todas las acciones sobre tickets.
+- Minimización de datos en el registro de usuarios.
+- Cifrado de datos sensibles en tránsito (TLS 1.3).
+
+---
+
+## 🚀 Despliegue Rápido
+
+### Requisitos Previos
+- Docker Engine >= 24.0.0
+- Docker Compose >= 2.20.0
+
+### Instalación
 ```bash
+# Clonar y preparar entorno
+git clone https://github.com/fldominguezz/Ticketera.git
+cd Ticketera
+cp .env.example .env
+
+# Iniciar plataforma
 make start
 ```
 
-
-```bash
-# 1. Clonar el repositorio
-git clone <url-del-repo>
-cd Ticketera
-
-# 2. Configurar variables de entorno
-cp .env.example .env
-# (Editar .env con las credenciales correspondientes)
-
-# 3. Iniciar servicios con Docker Compose
-docker-compose up -d --build
-
-# 4. Acceder al sistema
-# Frontend: https://localhost (o IP del servidor)
-# Backend API Docs: https://localhost/api/docs
-```
-
-## Cumplimiento Normativo ONTI
-
-Este desarrollo adhiere al **Código de Buenas Prácticas en el Desarrollo de Software Público**:
-
-*   **Contenedores:** Despliegue estandarizado vía Docker.
-*   **Estándares Abiertos:** API REST documentada (OpenAPI/Swagger).
-*   **Seguridad:** Hashing de contraseñas (Argon2), JWT para sesiones, validación estricta de esquemas (Pydantic).
-*   **Datos:** Respeto por la minimización de datos y privacidad de usuarios.
-
 ---
-**Desarrollado por:** División Seguridad Informática
-**Licencia:** Propietaria / Uso Interno Gubernamental
- 
+
+## 📞 Soporte e Institucional
+**Desarrollado por:** División Seguridad Informática - PFA
+**Contacto Técnico:** [software-seguridad@pfa.gob.ar]
+**Versión Actual:** 1.0.0 (Estable)
