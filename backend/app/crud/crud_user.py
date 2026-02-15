@@ -129,7 +129,7 @@ class CRUDUser:
                             import bcrypt
                             wiki_hash = bcrypt.hashpw(plain_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                         except Exception as e:
-                            pass
+                            logger.warning(f"Wiki sync failed during user creation: {e}")
                     res = await conn.execute(text("SELECT id FROM users WHERE email = :email"), {"email": target_email})
                     exists_id = res.scalar()
                     if not exists_id:

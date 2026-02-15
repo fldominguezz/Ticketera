@@ -5,7 +5,7 @@ from jose import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 import pyotp
 import string
-import random
+import secrets
 from app.core.config import settings
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 ALGORITHM = settings.ALGORITHM

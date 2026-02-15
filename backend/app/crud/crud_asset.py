@@ -42,10 +42,10 @@ class CRUDAsset:
                 "status", "criticality", "av_product", "device_type", "os_name", "os_version", "observations", "last_seen",
                 "created_at", "updated_at", "deleted_at"
             ])
-            # Eliminar de Meilisearch
             try:
                 search_service.delete_asset(str(db_obj.id))
-            except Exception: pass
+            except Exception as e:
+                logger.warning(f"Failed to delete asset from search: {e}")
         return db_obj
 
     async def hard_delete(self, db: AsyncSession, id: UUID) -> bool:
@@ -57,10 +57,10 @@ class CRUDAsset:
         if db_obj:
             await db.delete(db_obj)
             await db.commit()
-            # Eliminar de Meilisearch
             try:
                 search_service.delete_asset(str(id))
-            except Exception: pass
+            except Exception as e:
+                logger.warning(f"Failed to hard delete asset from search: {e}")
             return True
         return False
 
@@ -93,7 +93,8 @@ class CRUDAsset:
                 "last_seen": db_obj.last_seen.isoformat() if db_obj.last_seen else None
             }
             search_service.index_asset(asset_data)
-        except Exception: pass
+        except Exception as e:
+            logger.warning(f"Failed to index asset: {e}")
 
         if db_obj.location_node_id:
             loc_history = AssetLocationHistory(
@@ -190,7 +191,8 @@ class CRUDAsset:
                 "last_seen": db_obj.last_seen.isoformat() if db_obj.last_seen else None
             }
             search_service.index_asset(asset_data)
-        except Exception: pass
+        except Exception as e:
+            logger.warning(f"Failed to index asset: {e}")
 
         return db_obj
     async def find_existing_asset(self, db: AsyncSession, serial: str = None, mac: str = None, hostname: str = None, ip: str = None) -> Optional[Asset]:

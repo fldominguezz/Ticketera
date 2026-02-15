@@ -69,30 +69,21 @@ class ConnectionManager:
                     "user": user_info,
                     "active_users": list(self.rooms[room_id].values())
                 })
-    async def send_personal_message(self, message: dict, websocket: WebSocket):
-        try:
-            await websocket.send_json(message)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"WS send failed: {e}")
     async def broadcast(self, message: dict):
         for connection in self.active_connections:
-            try:
-                await connection.send_json(message)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"WS broadcast item failed: {e}")
     async def broadcast_to_room(self, room_id: str, message: dict, exclude: WebSocket = None):
         if room_id in self.rooms:
             for connection in self.rooms[room_id]:
                 if connection != exclude:
-                    try:
-                        await connection.send_json(message)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"WS room broadcast failed: {e}")
     async def send_to_user(self, message: dict, user_id: str):
         if user_id in self.user_connections:
             for connection in self.user_connections[user_id]:
-                try:
-                    await connection.send_json(message)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"WS send_to_user failed: {e}")
 manager = ConnectionManager()
