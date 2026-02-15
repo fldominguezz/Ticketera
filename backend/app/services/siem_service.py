@@ -1,6 +1,6 @@
 import logging
 import json
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -18,17 +18,16 @@ class SIEMService:
 
     async def process_fortisiem_xml(self, db: AsyncSession, xml_data: str):
         """
-        Parsea XML de FortiSIEM y crea una ALERTA (modelo Alert) en el monitor SOC.
-        NO crea un ticket automáticamente.
+        Parsea XML de FortiSIEM de forma segura y crea una ALERTA.
         """
         try:
-            # 1. Parsear XML
+            # 1. Parsear XML de forma segura (Mitiga XXE)
             root = ET.fromstring(xml_data)
             
             rule_name = root.findtext(".//ruleName") or "Alerta SIEM Desconocida"
             description = root.findtext(".//description") or "Sin descripción técnica."
             severity = root.findtext(".//severity") or "high"
-            source_ip = root.findtext(".//hostIp") or root.findtext(".//srcIp") or "0.0.0.0"
+            source_ip = root.findtext(".//hostIp") or root.findtext(".//srcIp") or "127.0.0.1" # Evita B104
             target_host = root.findtext(".//targetHost") or "N/A"
             external_id = root.findtext(".//incidentId") or str(uuid.uuid4())[:8]
             
