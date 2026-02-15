@@ -158,6 +158,10 @@ export default function SIEMEventsPage() {
    }
    setShowRemediate(false);
    fetchEvents();
+   // Redirigir al ticket recien creado/actualizado
+   if (targetId) {
+     router.push(`/tickets/${targetId}`);
+   }
   } catch (e) { console.error(e); }
   finally { setSaving(false); }
  };

@@ -78,6 +78,14 @@ export default function InventoryPage() {
  };
 
  useEffect(() => {
+  if (router.isReady) {
+    if (router.query.show_decommissioned === 'true') setShowDecommissioned(true);
+    if (router.query.status) setStatusFilter(router.query.status as string);
+    if (router.query.search) setSearchTerm(router.query.search as string);
+  }
+ }, [router.isReady, router.query]);
+
+ useEffect(() => {
   const timer = setTimeout(() => {
     fetchAssets();
   }, 300);

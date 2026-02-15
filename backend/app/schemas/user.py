@@ -3,6 +3,7 @@ from uuid import UUID
 from typing import Optional, List, Any
 from .iam import Role
 from .group import Group as GroupSchema # Import GroupSchema
+from datetime import datetime
 import enum
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
@@ -26,6 +27,7 @@ class UserBase(BaseModel):
     preferred_language: Optional[str] = "es"
     avatar_url: Optional[str] = None
     dashboard_layout: Optional[List[dict]] = []
+    created_at: Optional[datetime] = None
 class UserCreate(UserBase):
     password: str
     role_ids: Optional[List[UUID]] = []
@@ -85,6 +87,7 @@ class User(UserInDBBase):
                 "group_id": data.group_id,
                 "group_name": data.group.name if hasattr(data, "group") and data.group else None,
                 "preferred_language": data.preferred_language,
+                "created_at": getattr(data, "created_at", None),
                 "roles": roles,
                 "permissions": list(permissions_set)
             }

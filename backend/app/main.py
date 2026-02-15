@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.async_session_local = AsyncSessionLocal
     yield
     await engine.dispose()
-app = FastAPI(title=settings.PROJECT_NAME, version="v1.0.0", lifespan=lifespan)
+app = FastAPI(title=settings.PROJECT_NAME, version="v2.0.0", lifespan=lifespan)
 # Configuración de CORS
 origins = [
     f"http://{settings.DOMAIN_NAME}",

@@ -107,14 +107,14 @@ export default function RolesPermissionsPage() {
   finally { setSaving(false); }
  };
 
- const groupedPermissions = allPermissions.reduce((acc: any, perm) => {
-  const mod = (perm.module || 'OTROS').toUpperCase();
+ const groupedPermissions = (allPermissions || []).reduce((acc: any, perm) => {
+  const mod = (perm.module || 'OTROS').toString().toUpperCase();
   if (!acc[mod]) acc[mod] = [];
   acc[mod].push(perm);
   return acc;
  }, {});
 
- const categories = Object.keys(groupedPermissions).sort();
+ const categories = Object.keys(groupedPermissions).sort((a, b) => a.localeCompare(b));
 
  return (
   <Layout title="Matriz de Roles">
@@ -152,8 +152,8 @@ export default function RolesPermissionsPage() {
     </Card>
    </Container>
 
-   <Modal show={showModal} onHide={() => setShowModal(false)} size="xl" centered scrollable contentClassName="border-primary border-opacity-25">
-    <Modal.Header closeButton className="bg-surface-muted">
+   <Modal show={showModal} onHide={() => setShowModal(false)} size="xl" centered scrollable contentClassName="border-primary border-opacity-25 bg-surface border-0">
+    <Modal.Header closeButton className="bg-surface-muted border-bottom">
       <Modal.Title className="small fw-black uppercase text-primary tracking-widest">
        EDITOR DE ROL: {roleName || 'NUEVO'}
       </Modal.Title>

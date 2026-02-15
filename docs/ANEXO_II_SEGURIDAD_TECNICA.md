@@ -1,5 +1,4 @@
 # ANEXO II: ESPECIFICACIONES DE SEGURIDAD Y HARDENING
-**DOCUMENTO TÉCNICO INTERNO** | Referencia: SSI-2026-SEC-002
 
 ## 1. CONTROL DE ACCESO E IDENTIDADES
 Se ha implementado un esquema de control de acceso basado en el principio de menor privilegio (Need-to-Know). El módulo de IAM (Identity and Access Management) opera bajo un modelo **RBAC** robusto.

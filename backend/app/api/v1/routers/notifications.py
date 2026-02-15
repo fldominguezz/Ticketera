@@ -58,3 +58,29 @@ async def mark_as_read(
     notif.is_read = True
     await db.commit()
     return {"status": "success"}
+
+@router.delete("/clear-read")
+async def clear_read_notifications(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    from sqlalchemy import delete
+    await db.execute(
+        delete(NotificationModel)
+        .filter(NotificationModel.user_id == current_user.id, NotificationModel.is_read == True)
+    )
+    await db.commit()
+    return {"status": "success"}
+
+@router.delete("/delete-all")
+async def delete_all_notifications(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    from sqlalchemy import delete
+    await db.execute(
+        delete(NotificationModel)
+        .filter(NotificationModel.user_id == current_user.id)
+    )
+    await db.commit()
+    return {"status": "success"}

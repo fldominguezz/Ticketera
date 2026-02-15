@@ -131,16 +131,39 @@ async def get_dashboard_stats(
         and_(*asset_filters)
     ).group_by(LocationNode.name).order_by(func.count(Asset.id).desc()).limit(5)
     res_locs = await db.execute(loc_q)
-    # 3. Top Analistas (Asignaciones activas + resueltas)
-    res_analysts = await db.execute(
-        select(User.username, func.count(Ticket.id).label("total"))
-        .join(Ticket, Ticket.assigned_to_id == User.id)
-        .where(Ticket.status.in_(['open', 'in_progress', 'resolved']))
+    # 3. Top Analistas (Híbrido: Alertas SIEM Asignadas + Tickets)
+    # Contamos alertas ACTIVAS
+    res_alerts_active = await db.execute(
+        select(User.username, func.count(Alert.id).label("total"))
+        .join(Alert, Alert.assigned_to_id == User.id)
+        .where(Alert.status.in_(['new', 'acknowledged', 'pending', 'open']))
         .group_by(User.username)
-        .order_by(func.count(Ticket.id).desc())
-        .limit(5)
     )
-    top_analysts = [{"name": r.username, "count": r.total} for r in res_analysts]
+    alerts_active = {r.username: r.total for r in res_alerts_active}
+
+    # Contamos alertas RESUELTAS
+    res_alerts_resolved = await db.execute(
+        select(User.username, func.count(Alert.id).label("total"))
+        .join(Alert, Alert.assigned_to_id == User.id)
+        .where(Alert.status.in_(['resolved', 'closed', 'promoted']))
+        .group_by(User.username)
+    )
+    alerts_resolved = {r.username: r.total for r in res_alerts_resolved}
+
+    # Combinamos para el Top
+    all_usernames = set(alerts_active.keys()) | set(alerts_resolved.keys())
+    combined_stats = []
+    for uname in all_usernames:
+        active = alerts_active.get(uname, 0)
+        resolved = alerts_resolved.get(uname, 0)
+        combined_stats.append({
+            "name": uname, 
+            "active": active,
+            "resolved": resolved,
+            "total_score": active + resolved # Para el orden del ranking
+        })
+    
+    top_analysts = sorted(combined_stats, key=lambda x: x["total_score"], reverse=True)[:5]
 
     # 4. Equipos con más incidencias (Híbrido: Tickets vinculados + Detecciones en Logs)
     res_top_assets = await db.execute(
@@ -183,7 +206,7 @@ async def get_dashboard_stats(
             "operative": a_stats.get("operative", 0),
             "pending_tagging": a_stats.get("tagging_pending", 0),
             "installing": a_stats.get("maintenance", 0),
-            "no_folder": a_stats.get("no_folder", 0),
+            "decommissioned": a_stats.get("decommissioned", 0),
             "by_location": [{"name": r.name, "count": r.count} for r in res_locs],
             "top_affected": assets_with_tickets,
             "maintenance_cycles": maintenance_count

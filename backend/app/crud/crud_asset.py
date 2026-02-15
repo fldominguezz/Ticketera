@@ -260,6 +260,27 @@ class CRUDAsset:
             snapshot_url=install_record_data.get("snapshot_url")
         )
         db.add(install_record)
+
+        # Vincular como Expediente GDE oficial para que aparezca en la solapa correspondiente
+        if install_record_data.get('gde_number'):
+            from app.db.models.expediente import Expediente
+            gde_num = install_record_data.get('gde_number')
+            res_exp = await db.execute(select(Expediente).where(Expediente.number == gde_num))
+            exp_obj = res_exp.scalar_one_or_none()
+            if not exp_obj:
+                exp_obj = Expediente(
+                    number=gde_num,
+                    title=f"Instalación de {asset.hostname}",
+                    description=f"Expediente de instalación registrado por {user_id}"
+                )
+                db.add(exp_obj)
+                await db.flush()
+            
+            # Cargar relación si no está
+            await db.refresh(asset, attribute_names=["expedientes"])
+            if exp_obj not in asset.expedientes:
+                asset.expedientes.append(exp_obj)
+
         # Log de Evento: Instalación
         install_event = AssetEventLog(
             asset_id=asset.id,

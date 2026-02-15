@@ -1,5 +1,4 @@
 # ANEXO I — ARQUITECTURA DE INGENIERÍA Y DISEÑO DE SISTEMA
-**REFERENCIA:** SSI-2026-ANEXO-I-DETALLADO  
 
 ## 1. PARADIGMA DE DISEÑO
 Se informa que el sistema "Ticketera" ha sido diseñado bajo el paradigma de **Arquitectura de Microservicios Desacoplados**. Este enfoque permite que cada componente sea independiente en términos de recursos, actualizaciones y escalabilidad.

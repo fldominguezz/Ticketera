@@ -1,67 +1,61 @@
 import asyncio
 import logging
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from sqlalchemy import delete
 import uuid
+from sqlalchemy.future import select
 from app.db.session import AsyncSessionLocal
 from app.db.models.iam import Role, Permission, RolePermission
-from app.core.permissions import PermissionEnum
+from app.core.permissions import ALL_PERMISSIONS
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-async def sync_permissions() -> None:
+
+async def sync_permissions():
     async with AsyncSessionLocal() as session:
-        # 1. Eliminar permisos antiguos o redundantes que no están en el Enum actual
-        valid_keys = [p.value for p in PermissionEnum]
-        # Opcional: Eliminar los que no son válidos (CUIDADO con CUSTOM permissions si existieran)
-        # Por ahora solo limpiaremos los de ticket: que no tengan scope si el enum dice que deben tenerlo
-        # result = await session.execute(delete(Permission).where(Permission.key.like('ticket:%')).where(Permission.key.notin_(valid_keys)))
-        # 2. Asegurar que todos los permisos del Enum existan con los metadatos correctos
-        permissions_to_sync = [
-            {"key": PermissionEnum.TICKET_READ_GLOBAL, "name": "Tickets: Leer Global", "module": "TICKETS", "scope_type": "global"},
-            {"key": PermissionEnum.TICKET_READ_GROUP, "name": "Tickets: Leer Grupo", "module": "TICKETS", "scope_type": "group"},
-            {"key": PermissionEnum.TICKET_READ_OWN, "name": "Tickets: Leer Propios", "module": "TICKETS", "scope_type": "own"},
-            {"key": PermissionEnum.TICKET_CREATE, "name": "Tickets: Crear", "module": "TICKETS", "scope_type": "none"},
-            {"key": PermissionEnum.TICKET_UPDATE_OWN, "name": "Tickets: Editar Propios", "module": "TICKETS", "scope_type": "own"},
-            {"key": PermissionEnum.TICKET_UPDATE_ASSIGNED, "name": "Tickets: Editar Asignados", "module": "TICKETS", "scope_type": "own"},
-            {"key": PermissionEnum.TICKET_ASSIGN_GROUP, "name": "Tickets: Asignar en Grupo", "module": "TICKETS", "scope_type": "group"},
-            {"key": PermissionEnum.TICKET_CLOSE_GROUP, "name": "Tickets: Cerrar en Grupo", "module": "TICKETS", "scope_type": "group"},
-            {"key": "ticket:comment", "name": "Tickets: Comentar (Maestro)", "module": "TICKETS", "scope_type": "none"},
-            {"key": "ticket:watch", "name": "Tickets: Observar/Seguir (Maestro)", "module": "TICKETS", "scope_type": "none"},
-            {"key": PermissionEnum.TICKET_COMMENT_GLOBAL, "name": "Tickets: Comentar Global", "module": "TICKETS", "scope_type": "global"},
-            {"key": PermissionEnum.TICKET_COMMENT_GROUP, "name": "Tickets: Comentar en Grupo", "module": "TICKETS", "scope_type": "group"},
-            {"key": PermissionEnum.TICKET_COMMENT_OWN, "name": "Tickets: Comentar Propios", "module": "TICKETS", "scope_type": "own"},
-            {"key": PermissionEnum.TICKET_WATCH_GLOBAL, "name": "Tickets: Observar Global", "module": "TICKETS", "scope_type": "global"},
-            {"key": PermissionEnum.TICKET_WATCH_GROUP, "name": "Tickets: Observar en Grupo", "module": "TICKETS", "scope_type": "group"},
-            {"key": PermissionEnum.TICKET_WATCH_OWN, "name": "Tickets: Observar Propios", "module": "TICKETS", "scope_type": "own"},
-        ]
-        for p_data in permissions_to_sync:
-            result = await session.execute(select(Permission).filter(Permission.key == p_data["key"]))
-            perm = result.scalar_one_or_none()
-            if not perm:
-                session.add(Permission(id=uuid.uuid4(), **p_data))
-                logger.info(f"Creado permiso: {p_data['key']}")
-            else:
-                perm.name = p_data["name"]
-                perm.module = p_data["module"]
-                perm.scope_type = p_data["scope_type"]
-                logger.info(f"Actualizado permiso: {p_data['key']}")
+        # 1. Obtener el rol SuperAdmin
+        res_role = await session.execute(select(Role).filter(Role.name == "SuperAdmin"))
+        role_sa = res_role.scalar_one_or_none()
+        
+        if not role_sa:
+            logger.error("No se encontró el rol SuperAdmin. Ejecute initial_data primero.")
+            return
+
+        # 2. Sincronizar Permisos
+        count_new = 0
+        current_perms = {}
+        
+        for perm_key in ALL_PERMISSIONS:
+            result = await session.execute(select(Permission).filter(Permission.key == perm_key))
+            permission = result.scalar_one_or_none()
+            
+            if not permission:
+                permission = Permission(
+                    id=uuid.uuid4(), 
+                    key=perm_key, 
+                    name=perm_key.replace(":", " ").title(), 
+                    module=perm_key.split(":")[0].upper()
+                )
+                session.add(permission)
+                await session.flush()
+                count_new += 1
+                logger.info(f"Nuevo permiso registrado: {perm_key}")
+            
+            current_perms[perm_key] = permission
+
+        # 3. Asegurar que SuperAdmin tenga TODOS los permisos (incluyendo los nuevos)
+        count_linked = 0
+        for perm in current_perms.values():
+            res_link = await session.execute(
+                select(RolePermission).filter(
+                    RolePermission.role_id == role_sa.id,
+                    RolePermission.permission_id == perm.id
+                )
+            )
+            if not res_link.scalar_one_or_none():
+                session.add(RolePermission(role_id=role_sa.id, permission_id=perm.id))
+                count_linked += 1
+
         await session.commit()
-        # 3. Asignar todos los permisos al rol Administrator
-        result = await session.execute(select(Role).filter(Role.name == "Administrator"))
-        admin_role = result.scalar_one_or_none()
-        if admin_role:
-            # Obtener todos los permisos actuales
-            result = await session.execute(select(Permission))
-            all_perms = result.scalars().all()
-            # Obtener permisos ya asignados
-            result = await session.execute(select(RolePermission.permission_id).where(RolePermission.role_id == admin_role.id))
-            assigned_ids = set(result.scalars().all())
-            for p in all_perms:
-                if p.id not in assigned_ids:
-                    session.add(RolePermission(role_id=admin_role.id, permission_id=p.id))
-                    logger.info(f"Asignado {p.key} a Administrator")
-            await session.commit()
-            logger.info("Rol Administrator actualizado con todas las capacidades.")
+        logger.info(f"Sincronización completada. {count_new} permisos creados, {count_linked} nuevos vínculos con SuperAdmin.")
+
 if __name__ == "__main__":
     asyncio.run(sync_permissions())

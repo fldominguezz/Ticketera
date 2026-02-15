@@ -1,5 +1,4 @@
 # ANEXO IV — INTELIGENCIA DE DATOS, KPIs Y REPORTES
-**REFERENCIA:** SSI-2026-ANEXO-IV-DETALLADO  
 
 ## 1. INDICADORES CLAVE DE GESTIÓN (KPIs)
 Se informa que el sistema procesa y visualiza métricas de rendimiento operacional en tiempo real:

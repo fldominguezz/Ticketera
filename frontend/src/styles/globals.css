@@ -86,6 +86,15 @@ html, body {
 .bg-muted { background-color: var(--bg-muted) !important; }
 .border-border { border-color: var(--border-border) !important; }
 
+.border {
+  border-color: var(--border-border) !important;
+}
+
+hr {
+  border-color: var(--border-border) !important;
+  opacity: 0.2;
+}
+
 /* Legacy mappings */
 .text-main { color: var(--text-foreground) !important; }
 .text-muted { color: var(--text-muted-foreground) !important; }
@@ -95,6 +104,72 @@ html, body {
 .lucide, svg { stroke: currentColor; }
 
 /* --- COMPONENT STYLES --- */
+.modal-content {
+  background-color: var(--bg-card) !important;
+  color: var(--text-foreground) !important;
+  border: 1px solid var(--border-border) !important;
+}
+
+/* Quill / Rich Text Editor Dark Mode Fix */
+.ql-toolbar.ql-snow, 
+.ql-container.ql-snow {
+  border-color: var(--border-border) !important;
+}
+
+.ql-snow .ql-stroke {
+  stroke: var(--text-foreground) !important;
+}
+
+.ql-snow .ql-fill {
+  fill: var(--text-foreground) !important;
+}
+
+.ql-snow .ql-picker {
+  color: var(--text-foreground) !important;
+}
+
+.ql-snow .ql-picker-options {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-border) !important;
+}
+
+.ql-snow .ql-active .ql-stroke {
+  stroke: var(--primary) !important;
+}
+
+.ql-snow .ql-active .ql-fill {
+  fill: var(--primary) !important;
+}
+
+.ql-snow.ql-toolbar button:hover .ql-stroke,
+.ql-snow.ql-toolbar button:focus .ql-stroke {
+  stroke: var(--primary) !important;
+}
+
+.modal-header {
+  border-bottom: 1px solid var(--border-border) !important;
+  background-color: var(--bg-muted) !important;
+}
+
+.modal-footer {
+  border-top: 1px solid var(--border-border) !important;
+  background-color: var(--bg-muted) !important;
+}
+
+.modal-body {
+  background-color: var(--bg-card) !important;
+}
+
+.btn-close {
+  filter: var(--theme-close-button-filter, none);
+}
+
+[data-theme='dark'] .btn-close,
+[data-theme='soc'] .btn-close,
+[data-theme='high-contrast'] .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
 .card {
   background-color: var(--bg-card) !important;
   border: 1px solid var(--border-border) !important;
@@ -150,9 +225,72 @@ html, body {
   background-color: var(--bg-card) !important;
 }
 
+.input-group-text {
+  background-color: var(--bg-muted) !important;
+  color: var(--text-foreground) !important;
+  border-color: var(--border-border) !important;
+}
+
+.form-check-input {
+  background-color: var(--bg-input) !important;
+  border-color: var(--border-border) !important;
+}
+
+.form-check-input:checked {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+.form-check-label {
+  color: var(--text-foreground) !important;
+}
+
+.form-switch .form-check-input {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba(0,0,0,0.25)'/%3e%3c/svg%3e") !important;
+}
+
+[data-theme='dark'] .form-switch .form-check-input,
+[data-theme='soc'] .form-switch .form-check-input,
+[data-theme='high-contrast'] .form-switch .form-check-input {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba(255,255,255,0.25)'/%3e%3c/svg%3e") !important;
+}
+
+.form-switch .form-check-input:checked {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e") !important;
+}
+
+/* Accordion theme fix */
+.accordion-item {
+  background-color: var(--bg-card) !important;
+  color: var(--text-foreground) !important;
+  border-color: var(--border-border) !important;
+}
+
+.accordion-button {
+  background-color: var(--bg-muted) !important;
+  color: var(--text-foreground) !important;
+}
+
+.accordion-button:not(.collapsed) {
+  background-color: var(--primary-muted) !important;
+  color: var(--primary) !important;
+}
+
 .btn {
   border-radius: 8px !important;
   font-weight: 600 !important;
+}
+
+.btn-outline-secondary {
+  color: var(--text-muted-foreground) !important;
+  border-color: var(--border-border) !important;
+  background-color: transparent !important;
+}
+
+.btn-outline-secondary:hover {
+  background-color: var(--bg-muted) !important;
+  border-color: var(--border-border) !important;
+  color: var(--text-foreground) !important;
 }
 
 /* --- TICKET TABLE STYLES (ENTERPRISE) --- */

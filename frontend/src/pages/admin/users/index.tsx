@@ -199,8 +199,8 @@ export default function AdminUsersPage() {
     </Card>
    </Container>
 
-   <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered contentClassName="shadow-2xl">
-    <Modal.Header closeButton className="bg-surface-muted">
+   <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered contentClassName="shadow-2xl bg-surface border-0">
+    <Modal.Header closeButton className="bg-surface-muted border-bottom">
       <Modal.Title className="x-small fw-black uppercase text-primary tracking-widest">
        Ficha de Identidad: {editingUserId ? 'Actualización' : 'Nuevo Registro'}
       </Modal.Title>

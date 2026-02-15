@@ -186,24 +186,24 @@ async def bulk_delete(
     current_user: Annotated[User, Depends(require_permission("assets:delete"))]
 ):
     from app.db.models.asset import Asset as AssetModel
-    if hard:
-        query = delete(AssetModel).where(AssetModel.id.in_(asset_ids))
-        await db.execute(query) # Use await with execute
-    else:
-        # Soft delete
-        query = sa_select(AssetModel).where(AssetModel.id.in_(asset_ids))
-        res_db = await db.execute(query)
-        assets = res_db.scalars().all()
-        for a in assets:
-            a.deleted_at = func.now()
-            a.status = "decommissioned"
-            db.add(a)
+    
+    # Incluso si piden 'hard', hacemos soft delete para preservar historial 
+    # y evitar errores de integridad (ForeignKeyViolation)
+    query = sa_select(AssetModel).where(AssetModel.id.in_(asset_ids))
+    res_db = await db.execute(query)
+    assets = res_db.scalars().all()
+    
+    for a in assets:
+        a.deleted_at = func.now()
+        a.status = "decommissioned"
+        db.add(a)
+        
     await crud_audit.audit_log.create_log(
         db,
         user_id=current_user.id,
         event_type="assets_bulk_deleted",
         ip_address=None,
-        details={"count": len(asset_ids)}
+        details={"count": len(asset_ids), "mode": "soft_enforced"}
     )
     await db.commit()
     return {"status": "ok", "deleted_count": len(asset_ids)}
@@ -241,13 +241,15 @@ async def read_assets(
         LocationNode, AssetModel.location_node_id == LocationNode.id
     )
     
-    # Filtrar eliminados solo si NO se piden las bajas
+    # Filtrar eliminados: Si deleted_at NO es nulo, el equipo está "fuera de sistema" (borrado lógico total)
+    query = query.filter(AssetModel.deleted_at == None)
+
     if not show_decommissioned:
-        query = query.filter(AssetModel.deleted_at == None)
+        # Vista normal: No mostrar los que están de baja
         query = query.filter(AssetModel.status != "decommissioned")
     else:
-        # Si se piden las bajas, mostramos SOLO los que tienen deleted_at O status decommissioned
-        query = query.filter(or_(AssetModel.deleted_at != None, AssetModel.status == "decommissioned"))
+        # Vista de bajas: Mostrar SOLO los que están de baja pero NO están borrados lógicamente
+        query = query.filter(AssetModel.status == "decommissioned")
     if status:
         query = query.filter(AssetModel.status == status)
     if device_type:

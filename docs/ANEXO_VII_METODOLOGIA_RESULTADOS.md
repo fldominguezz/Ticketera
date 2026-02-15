@@ -1,5 +1,4 @@
 # ANEXO VII — METODOLOGÍA, REGISTROS TÉCNICOS Y RESULTADOS
-**REFERENCIA:** SSI-2026-ANEXO-VII-DETALLADO  
 
 ## 1. METODOLOGÍA TÉCNICA APLICADA
 Se informa que la implementación se realizó siguiendo un enfoque de **Despliegue Controlado y Validado**. Cada componente fue testeado individualmente antes de su integración final en la red del SOC.

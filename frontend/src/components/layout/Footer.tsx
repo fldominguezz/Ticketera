@@ -11,7 +11,7 @@ const Footer: React.FC = () => {
    fontSize: '0.875rem',
    backgroundColor: 'var(--bg-surface)'
   }}>
-   Sistema creado y configurado por el Ayudante Domínguez Fernando
+   Sistema creado y configurado por el Ayudante Domínguez Fernando | v2.0.0
   </footer>
  );
 };

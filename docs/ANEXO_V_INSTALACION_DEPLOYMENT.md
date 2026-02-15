@@ -1,5 +1,4 @@
 # ANEXO V — DESPLIEGUE, MANTENIMIENTO Y CONTINUIDAD (DRP)
-**REFERENCIA:** SSI-2026-ANEXO-V-DETALLADO  
 
 ## 1. PROCEDIMIENTO DE DESPLIEGUE (DEPLOYMENT)
 Se informa que el proceso de despliegue se encuentra totalmente automatizado y estandarizado:

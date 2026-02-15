@@ -1,5 +1,4 @@
 # ANEXO VI — BUENAS PRÁCTICAS, CALIDAD Y ÉTICA EN IA
-**REFERENCIA:** SSI-2026-ANEXO-VI-DETALLADO  
 
 ## 1. ESTÁNDARES DE DESARROLLO (ONTI)
 Se informa que el desarrollo del sistema se ajusta a las directrices de la ONTI para el Sector Público Nacional:

@@ -1,5 +1,4 @@
 # ANEXO III — MANUAL DE PROCEDIMIENTOS OPERATIVOS (SOC)
-**REFERENCIA:** SSI-2026-ANEXO-III-DETALLADO  
 
 ## 1. FLUJO DE GESTIÓN DE INCIDENTES
 Se establece el protocolo de actuación para el personal de guardia:

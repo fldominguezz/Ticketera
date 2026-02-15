@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Row, Col, Card, Table, Spinner, Badge, Alert, Button } from 'react-bootstrap';
 import { 
  ShieldAlert, Clock, CheckCircle2, AlertCircle, HardDrive, 
- BarChart3, Activity, Server, Folder, Layers, RefreshCw, User
+ BarChart3, Activity, Server, Folder, Layers, RefreshCw, User, Trash2
 } from 'lucide-react';
 import Layout from '../components/Layout';
 import { useTheme } from '../context/ThemeContext';
@@ -25,7 +25,7 @@ interface DashboardStats {
    operative: number; 
    pending_tagging: number; 
    installing: number; 
-   no_folder: number; 
+   decommissioned: number; 
    by_location: { name: string; count: number }[] 
  } | null;
 }
@@ -308,21 +308,28 @@ export default function Dashboard() {
           <div className="flex-grow-1">
             {stats.top_analysts && stats.top_analysts.length > 0 ? (
               stats.top_analysts.map((analyst: any, idx: number) => (
-                <div key={idx} className="d-flex justify-content-between align-items-center mb-2 p-2 bg-muted bg-opacity-50 rounded border border-color ">
-                  <div className="d-flex align-items-center gap-2">
-                    <div className="avatar-xs" style={{ background: COLORS[idx % COLORS.length], color: '#fff', width: '28px', height: '28px', fontSize: '12px', fontWeight: '900', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyCenter: 'center' }}>
-                      <span className="w-100 text-center">{analyst.name.charAt(0).toUpperCase()}</span>
+                <div key={idx} className="mb-3 p-3 bg-muted bg-opacity-50 rounded border border-color">
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <div className="d-flex align-items-center gap-2">
+                      <div className="avatar-xs" style={{ background: COLORS[idx % COLORS.length], color: '#fff', width: '28px', height: '28px', fontSize: '12px', fontWeight: '900', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span className="w-100 text-center">{analyst.name.charAt(0).toUpperCase()}</span>
+                      </div>
+                      <span className="small fw-black text-main">{analyst.name}</span>
                     </div>
-                    <span className="small fw-black text-main">{analyst.name}</span>
                   </div>
-                  <Badge bg="transparent" className="text-info border border-info px-2 py-1 x-small fw-black">
-                    {analyst.count} TICKETS
-                  </Badge>
+                  <div className="d-flex gap-2">
+                    <Badge bg="transparent" className="text-info border border-info px-2 py-1 x-small fw-black flex-fill">
+                      {analyst.active} ASIGNADAS
+                    </Badge>
+                    <Badge bg="transparent" className="text-success border border-success px-2 py-1 x-small fw-black flex-fill">
+                      {analyst.resolved} RESUELTAS
+                    </Badge>
+                  </div>
                 </div>
               ))
             ) : (
               <div className="text-center py-5 text-muted small italic opacity-50 uppercase fw-bold tracking-wider">
-                Sin asignaciones activas
+                Sin alertas asignadas
               </div>
             )}
           </div>
@@ -405,12 +412,12 @@ export default function Dashboard() {
       <Col md={3}>
          <Card 
           className="p-3 border-0 shadow-sm text-center interactive-card"
-          onClick={() => navigateTo('/inventory?state=no_folder')}
+          onClick={() => navigateTo('/inventory?show_decommissioned=true')}
           role="button"
         >
-          <div className="text-danger mb-2"><Folder size={24} /></div>
-          <h3 className="fw-bold m-0">{stats.assets!.no_folder}</h3>
-          <small className="text-muted fw-bold x-small text-uppercase">Sin Carpeta</small>
+          <div className="text-danger mb-2"><Trash2 size={24} /></div>
+          <h3 className="fw-bold m-0">{stats.assets!.decommissioned}</h3>
+          <small className="text-muted fw-bold x-small text-uppercase">En Baja</small>
          </Card>
       </Col>
 

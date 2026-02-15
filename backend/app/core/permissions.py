@@ -52,6 +52,23 @@ class PermissionEnum(str, Enum):
     ASSETS_IMPORT = "assets:import"
     ASSETS_INSTALL = "assets:install"
     ASSETS_DELETE = "assets:delete"
+    # --- ENDPOINTS / INVENTARIO RED ---
+    ENDPOINTS_READ_ALL = "endpoints:read:all"
+    ENDPOINTS_CREATE = "endpoints:create"
+    ENDPOINTS_UPDATE = "endpoints:update"
+    ENDPOINTS_DELETE = "endpoints:delete"
+    # --- FORMS ---
+    FORMS_READ_ALL = "forms:read:all"
+    FORMS_CREATE = "forms:create"
+    FORMS_UPDATE = "forms:update"
+    FORMS_DELETE = "forms:delete"
+    FORMS_SUBMIT = "forms:submit"
+    # --- SLA ---
+    SLA_READ_ALL = "sla:read:all"
+    SLA_MANAGE = "sla:manage"
+    # --- PLUGINS ---
+    PLUGINS_READ_ALL = "plugins:read:all"
+    PLUGINS_MANAGE = "plugins:manage"
     # --- PARTES (Gestión Avanzada) ---
     PARTES_MANAGE = "partes:manage" # Eliminar, editar cualquiera, etc.
 ALL_PERMISSIONS = [p.value for p in PermissionEnum]

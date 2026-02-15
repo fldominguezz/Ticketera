@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dropdown, Badge, Button } from 'react-bootstrap';
-import { Bell, BellOff, Circle, Check, Clock, ShieldAlert, Activity } from 'lucide-react';
+import { Bell, BellOff, Circle, Check, Clock, ShieldAlert, Activity, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/router';
 import api from '../lib/api';
 
@@ -66,6 +66,13 @@ export default function NotificationBell() {
     setUnreadCount(0);
    } catch (e) { console.error(e); }
   };
+
+  const clearRead = async () => {
+   try {
+    await api.delete('/notifications/clear-read');
+    setNotifications(prev => prev.filter(n => !n.is_read));
+   } catch (e) { console.error(e); }
+  };
  
   const markAsRead = async (id: string, e: React.MouseEvent) => {
    e.stopPropagation();
@@ -108,11 +115,18 @@ export default function NotificationBell() {
        <span className="fw-black x-small text-uppercase tracking-widest text-primary">Notificaciones</span>
        {unreadCount > 0 && <Badge bg="primary" className="bg-opacity-10 text-primary rounded-pill x-small px-2">{unreadCount}</Badge>}
       </div>
-      {unreadCount > 0 && (
-       <Button variant="link" className="p-0 text-decoration-none x-small fw-bold text-muted hover-text-primary" onClick={markAllAsRead}>
-        <Check size={12} className="me-1" /> Marcar todas
-       </Button>
-      )}
+      <div className="d-flex gap-2 align-items-center">
+       {notifications.some(n => n.is_read) && (
+        <Button variant="link" className="p-0 text-decoration-none x-small fw-bold text-danger hover-opacity-100" onClick={clearRead} title="Eliminar leídas">
+         <Trash2 size={12} />
+        </Button>
+       )}
+       {unreadCount > 0 && (
+        <Button variant="link" className="p-0 text-decoration-none x-small fw-bold text-muted hover-text-primary" onClick={markAllAsRead}>
+         <Check size={12} className="me-1" /> Marcar todas
+        </Button>
+       )}
+      </div>
      </div>
      
      <div style={{ maxHeight: '480px', overflowY: 'auto' }} className="custom-scrollbar bg-card">

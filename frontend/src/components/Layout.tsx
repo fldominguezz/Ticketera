@@ -165,7 +165,12 @@ export default function Layout({ children, title = 'TICKETERA SOC' }: LayoutProp
    <aside className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
     <div className="sidebar-header d-flex align-items-center px-3 border-bottom " style={{ height: 64 }}>
      <ShieldAlert size={24} className="me-2 text-primary" />
-     {sidebarOpen && <span className="fw-bold text-uppercase letter-spacing-1">TICKETERA <small className="text-primary">SOC</small></span>}
+     {sidebarOpen && (
+      <div className="d-flex flex-column">
+        <span className="fw-bold text-uppercase letter-spacing-1" style={{ lineHeight: 1 }}>TICKETERA <small className="text-primary">SOC</small></span>
+        <span className="x-tiny text-muted fw-bold" style={{ fontSize: '10px' }}>v2.0.0</span>
+      </div>
+     )}
     </div>
     
     <div className="py-3 flex-grow-1 overflow-auto custom-scrollbar">
