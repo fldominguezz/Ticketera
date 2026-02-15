@@ -78,6 +78,7 @@ Este desarrollo ha sido auditado bajo el **Código de Buenas Prácticas en el De
 
 Para más detalles sobre la operación y el cumplimiento del sistema, consulte:
 *   [**Manual Operativo SOC**](docs/MANUAL_OPERATIVO_SOC.md)
+*   [**Marco Legal y Normativo (Argentina)**](docs/MARCO_LEGAL_Y_NORMATIVO_AR.md)
 *   [**Plan de Contingencia y Backup**](docs/CONTINGENCIA_Y_BACKUP.md)
 *   [**Ética de IA y Privacidad**](docs/ETICA_IA_Y_PRIVACIDAD.md)
 *   [**Guía de Instalación**](docs/INSTALLATION.md)
