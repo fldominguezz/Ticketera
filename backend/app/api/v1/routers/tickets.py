@@ -186,13 +186,9 @@ async def read_tickets(
         selectinload(TicketModel.group),
         selectinload(TicketModel.assigned_to),
         selectinload(TicketModel.created_by),
-        selectinload(TicketModel.sla_metric),
-        selectinload(TicketModel.asset).selectinload(Asset.location),
-        selectinload(TicketModel.assets).selectinload(Asset.location),
-        selectinload(TicketModel.location),
-        selectinload(TicketModel.attachments)
     ]
     query = select(TicketModel).options(*options)
+    
     if q:
         query = query.filter(
             or_(
@@ -200,40 +196,37 @@ async def read_tickets(
                 TicketModel.description.ilike(f"%{q}%")
             )
         )
-    if status:
-        query = query.filter(TicketModel.status == status)
-    if priority:
-        query = query.filter(TicketModel.priority == priority)
-    if group_id:
-        query = query.filter(TicketModel.group_id == group_id)
-    if asset_id:
-        query = query.filter(TicketModel.asset_id == asset_id)
+    
     # Permission Logic
-    has_global = current_user.has_permission("ticket:read:global")
-    has_group = current_user.has_permission("ticket:read:group")
-    has_own = current_user.has_permission("ticket:read:own")
-    # Condición de Privacidad: Un ticket privado SOLO lo ve el creador o el asignado
-    # Esta condición es transversal y se aplica incluso a quienes tienen permisos de grupo/global
-    private_condition = or_(
-        TicketModel.is_private.isnot(True), # Tratar NULL y False como públicos
-        TicketModel.created_by_id == current_user.id,
-        TicketModel.assigned_to_id == current_user.id
-    )
-    query = query.filter(private_condition)
-    if current_user.is_superuser or has_global:
-        pass # Full Access (dentro del filtro de privacidad aplicado arriba)
+    if current_user.is_superuser:
+        pass # Full Access para admin
     else:
-        # Build Access Conditions
-        access_conditions = [TicketModel.is_global == True]
-        if has_group:
-            child_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
-            access_conditions.append(TicketModel.group_id.in_(child_ids))
-            access_conditions.append(TicketModel.owner_group_id.in_(child_ids))
-        if has_own:
-            access_conditions.append(TicketModel.created_by_id == current_user.id)
-            access_conditions.append(TicketModel.assigned_to_id == current_user.id)
+        # Filtros normales para usuarios no-admin
+        private_condition = or_(
+            TicketModel.is_private.isnot(True), 
+            TicketModel.created_by_id == current_user.id,
+            TicketModel.assigned_to_id == current_user.id
+        )
+        query = query.filter(private_condition)
         
-        query = query.filter(or_(*access_conditions))
+        has_global = current_user.has_permission("ticket:read:global")
+        has_group = current_user.has_permission("ticket:read:group")
+        has_own = current_user.has_permission("ticket:read:own")
+
+        if has_global:
+            pass # Access to all public tickets
+        else:
+            # Build Access Conditions
+            access_conditions = [TicketModel.is_global == True]
+            if has_group:
+                child_ids = await group_service.get_all_child_group_ids(db, current_user.group_id)
+                access_conditions.append(TicketModel.group_id.in_(child_ids))
+                access_conditions.append(TicketModel.owner_group_id.in_(child_ids))
+            if has_own:
+                access_conditions.append(TicketModel.created_by_id == current_user.id)
+                access_conditions.append(TicketModel.assigned_to_id == current_user.id)
+            
+            query = query.filter(or_(*access_conditions))
     # Count total
     total_query = select(func.count()).select_from(query.subquery())
     total_res = await db.execute(total_query)

@@ -3,7 +3,8 @@ import Layout from '../../components/Layout';
 import { Spinner, Button, Badge, Form, InputGroup } from 'react-bootstrap';
 import { 
   Book, Plus, Save, FileText, ChevronRight, Folder, 
-  ChevronDown, Edit3, Trash2, ArrowLeft, Maximize2, Minimize2, Download, Upload, Eye, X, Search
+  ChevronDown, Edit3, Trash2, ArrowLeft, Maximize2, Minimize2, Download, Upload, Eye, X, Search,
+  PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
@@ -24,6 +25,7 @@ export default function WikiSpacePage() {
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isNavCollapsed, setIsNavCollapsed] = useState(false);
   
   // Modales y Estados de acción
   const [showFolderModal, setShowFolderModal] = useState(false);
@@ -157,11 +159,14 @@ export default function WikiSpacePage() {
       setOfficeConfig(null);
       const res = await api.get(`/wiki/pages/${page.id}`);
       const fullPage = res.data;
-      console.log("Wiki Debug: Selected Page Data:", fullPage); // LOG DE DEPURACIÓN
+      console.log("Wiki Debug: Selected Page Data:", fullPage);
       setSelectedPage(fullPage);
       setEditContent(fullPage.content || "");
       setIsEditMode(false);
       
+      // Auto-contraer panel lateral al seleccionar documento
+      setIsNavCollapsed(true);
+
       if (fullPage.original_file_path) {
         const path = fullPage.original_file_path.toLowerCase();
         if (path.endsWith('.docx') || path.endsWith('.doc') || path.endsWith('.xlsx')) {
@@ -283,8 +288,8 @@ export default function WikiSpacePage() {
   return (
     <Layout title="Wiki SSI">
       <div className="wiki-master-container">
-        {!isFullScreen && (
-          <aside className="wiki-nav-panel">
+        {!isFullScreen && !isNavCollapsed && (
+          <aside className="wiki-nav-panel animate-fade-in">
             <div className="nav-header">
               <div className="d-flex flex-column w-100">
                 <div className="d-flex justify-content-between align-items-center mb-3">
@@ -320,6 +325,14 @@ export default function WikiSpacePage() {
             <div className="d-flex flex-column h-100 animate-slide-up">
               <header className="content-toolbar shadow-sm border-bottom border-subtle">
                 <div className="d-flex align-items-center gap-3">
+                  <Button 
+                    variant="link" 
+                    className="p-0 text-tertiary hover-text-primary transition-all d-flex align-items-center" 
+                    onClick={() => setIsNavCollapsed(!isNavCollapsed)}
+                    title={isNavCollapsed ? "Mostrar Navegación" : "Ocultar Navegación"}
+                  >
+                    {isNavCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+                  </Button>
                   {isFullScreen && <Button variant="outline-primary" size="sm" className="rounded-circle p-1" onClick={handleExpandToggle}><ArrowLeft size={18}/></Button>}
                   <div className="d-flex flex-column">
                     <h6 className="m-0 fw-black text-uppercase text-truncate tracking-tighter text-primary" style={{ maxWidth: '400px' }}>{selectedPage.title}</h6>
@@ -388,8 +401,11 @@ export default function WikiSpacePage() {
         .nav-tree-area { flex: 1; overflow-y: auto; }
         .wiki-content-panel { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
         .content-toolbar { height: 60px; min-height: 60px; padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; background: var(--bg-surface); z-index: 100; border-bottom: 1px solid var(--border-subtle); }
-        .content-viewport-mesa { flex: 1; min-height: 0; background: var(--bg-main); padding: 2rem; overflow: hidden; display: flex; justify-content: center; }
-        .document-container-wrapper { width: 100%; max-width: 1400px; height: 100%; background: var(--bg-surface); border-radius: 12px; overflow: hidden; border: 1px solid var(--border-subtle); transition: all 0.3s ease; }
+        
+        /* MODO DOCUMENT WORKSPACE: Sin márgenes, altura dinámica */
+        .content-viewport-mesa { flex: 1; min-height: 0; background: var(--bg-surface-raised); padding: 0; overflow: hidden; display: flex; justify-content: center; }
+        .document-container-wrapper { width: 100%; height: 100%; background: var(--bg-surface); border-radius: 0; overflow: hidden; border: none; transition: all 0.3s ease; }
+        
         .nav-item-wiki { border-left: 3px solid transparent; }
         .nav-item-wiki.selected-nav { background: var(--primary-glow) !important; color: var(--primary) !important; border-left-color: var(--primary); }
         .nav-item-wiki:hover:not(.selected-nav) { background: var(--bg-surface-raised); }

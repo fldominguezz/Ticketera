@@ -29,6 +29,7 @@
     "react-dom": "^19.2.4",
     "react-grid-layout": "2.2.2",
     "react-i18next": "14.0.5",
+    "react-pdf": "^10.3.0",
     "react-quill": "^2.0.0",
     "react-quill-new": "^3.8.3",
     "recharts": "2.12.0",

@@ -24,3 +24,4 @@ from app.db.models.iam import Role, Permission, UserRole, RolePermission  # noqa
 from app.db.models.dashboard import DashboardConfig  # noqa
 from app.db.models.views import SavedView  # noqa
 from app.db.models.settings import SystemSettings  # noqa
+from app.db.models.wiki import WikiSpace, WikiPage  # noqa

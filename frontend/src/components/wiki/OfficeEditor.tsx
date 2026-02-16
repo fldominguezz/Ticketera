@@ -23,11 +23,26 @@ const OfficeEditor: React.FC<Props> = ({ config, documentServerUrl }) => {
         containerRef.current.id = editorId;
 
         try {
-          new DocsAPI.DocEditor(editorId, {
+          // Configuración optimizada para IP y SSL auto-firmado
+          const editorConfig = {
             ...config,
             width: '100%',
             height: '100%',
-          });
+            editorConfig: {
+              ...config.editorConfig,
+              customization: {
+                ...config.editorConfig?.customization,
+                forcesave: true,
+                help: false
+              }
+            },
+            events: {
+              "onAppReady": () => { console.log("OnlyOffice: App Ready"); },
+              "onError": (e: any) => { console.error("OnlyOffice Error Event:", e); }
+            }
+          };
+
+          new DocsAPI.DocEditor(editorId, editorConfig);
         } catch (e) {
           console.error("OnlyOffice Init Error:", e);
         }
@@ -37,7 +52,7 @@ const OfficeEditor: React.FC<Props> = ({ config, documentServerUrl }) => {
     if (!script) {
       script = document.createElement('script');
       script.id = scriptId;
-      script.src = `${documentServerUrl}/web-apps/apps/api/documents/api.js`;
+      script.src = `${window.location.origin}/office/web-apps/apps/api/documents/api.js`;
       script.onload = initEditor;
       document.head.appendChild(script);
     } else {

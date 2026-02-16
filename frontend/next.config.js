@@ -3,9 +3,6 @@ const nextConfig = {
   output: 'standalone',
   reactStrictMode: false,
   poweredByHeader: false, // Seguridad: Ocultar header X-Powered-By
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     ignoreBuildErrors: true,
   },

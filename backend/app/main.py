@@ -52,11 +52,12 @@ from app.api.v1.routers import (
     notifications, ai_assistant, workflows, settings as sys_settings, 
     sla, iam, dashboard, system, forms, assets, ticket_types, 
     locations, expedientes, admin_configs, daily_reports, soc, soc_ws,
-    attachments, endpoints, forensics, plugins, search, oidc, health
+    attachments, endpoints, forensics, plugins, search, oidc, health, wiki
 )
 v1 = settings.API_V1_STR # /api/v1
 # Registro de Rutas
 app.include_router(health.router, prefix=v1, tags=["system"])
+app.include_router(wiki.router, prefix=f"{v1}/wiki", tags=["wiki"])
 app.include_router(auth.router, prefix=f"{v1}/auth", tags=["auth"])
 app.include_router(users.router, prefix=f"{v1}/users", tags=["users"])
 app.include_router(groups.router, prefix=f"{v1}/groups", tags=["groups"])

@@ -193,6 +193,7 @@ async def get_office_config(
 ):
     """
     Genera la configuración FIRMADA para OnlyOffice según el modo solicitado.
+    MODO: Document Workspace Institucional.
     """
     page = await db.get(WikiPage, page_id)
     if not page or not page.original_file_path:
@@ -200,28 +201,30 @@ async def get_office_config(
 
     file_ext = os.path.splitext(page.original_file_path)[1].replace(".", "")
     domain = os.getenv("DOMAIN_NAME", "10.1.9.240")
-    secret = os.getenv("ONLYOFFICE_JWT_SECRET", "secret_ssi_2026")
+    secret = os.getenv("ONLYOFFICE_JWT_SECRET", "ssi_pfa_2026_ticketera_key_fixed")
 
     is_edit = (mode == "edit")
-    zoom = 100
-
+    
+    import urllib.parse
+    encoded_path = urllib.parse.quote(page.original_file_path)
+    
     # IMPORTANTE: doc_key debe ser único para forzar refresco de permisos
     import time
-    doc_key = f"{page.id}-{int(time.time())}" # Forzamos llave nueva siempre
+    doc_key = f"{page.id}-{int(time.time())}"
 
     config = {
         "document": {
             "fileType": file_ext,
             "key": doc_key,
             "title": f"{page.title}.{file_ext}",
-            "url": f"http://backend:8000{page.original_file_path}",
+            "url": f"http://backend:8000{encoded_path}",
             "permissions": {
                 "edit": True if mode == "edit" else False,
                 "download": True,
                 "print": True,
                 "fillForms": True,
-                "comment": True,
-                "review": True if mode == "edit" else False,
+                "comment": is_edit,
+                "review": is_edit,
                 "copy": True,
                 "modifyFilter": True,
                 "modifyContentControl": True
@@ -238,14 +241,25 @@ async def get_office_config(
             "customization": {
                 "forcesave": True,
                 "autosave": True,
-                "zoom": zoom,
-                "compactHeader": not is_edit,
-                "toolbarNoTabs": not is_edit,
+                "zoom": 100, 
+                "compactHeader": True,
+                "compactToolbar": not is_edit,
                 "help": False,
                 "feedback": False,
                 "goback": False,
                 "chat": False,
-                "unit": "cm"
+                "toolbarNoTabs": not is_edit,
+                "hideRightMenu": not is_edit,
+                "hideRulers": not is_edit,
+                "unit": "cm",
+                "customer": {
+                    "address": "División Seguridad Informática",
+                    "info": "SSI Corporativo - Repositorio de Procedimientos",
+                    "logo": "https://10.1.9.240/favicon.svg",
+                    "mail": "ssi@pfa.gob.ar",
+                    "name": "SSI Corporativo",
+                    "www": "https://10.1.9.240"
+                }
             }
         },
         "type": "desktop",
@@ -345,51 +359,37 @@ async def get_page_pdf(
     current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     """
-    Convierte el archivo .docx original a PDF dinámicamente para visualización WYSIWYG.
+    Sirve el PDF directamente o convierte DOCX a PDF si es necesario.
     """
     page_query = await db.execute(select(WikiPage).where(WikiPage.id == page_id))
     page = page_query.scalar_one_or_none()
     
     if not page or not page.original_file_path:
-        raise HTTPException(404, "Documento original no encontrado")
+        raise HTTPException(404, "Documento no encontrado o no tiene archivo asociado")
 
-    docx_path = f"/app{page.original_file_path}"
-    pdf_path = docx_path.replace(".docx", ".pdf")
+    # Ruta absoluta dentro del contenedor
+    orig_path = f"/app{page.original_file_path}"
+    
+    if not os.path.exists(orig_path):
+        logger.error(f"Wiki PDF: No existe el archivo en disco: {orig_path}")
+        raise HTTPException(404, f"Archivo original no encontrado en disco: {page.title}")
 
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.info(f"Wiki PDF Request: Page={page_id} Title={page.title}")
+    # Si ya es un PDF, lo servimos directamente
+    if orig_path.lower().endswith('.pdf'):
+        return FileResponse(orig_path, media_type='application/pdf', filename=f"{page.title}.pdf")
 
-    # Si no existe el PDF, lo generamos
+    # Si es un DOCX, intentamos servir el PDF pre-generado o convertirlo
+    pdf_path = orig_path.replace(".docx", ".pdf").replace(".doc", ".pdf")
+
     if not os.path.exists(pdf_path):
-        if not os.path.exists(docx_path):
-            logger.error(f"Wiki PDF: No existe el archivo DOCX en disco: {docx_path}")
-            raise HTTPException(404, f"Archivo Word original no encontrado en disco: {page.title}")
-            
         try:
             output_dir = os.path.dirname(pdf_path)
-            logger.info(f"Wiki PDF: Iniciando conversión con LibreOffice. DOCX: {docx_path}")
-            
-            # Usamos un timeout para no bloquear el worker de uvicorn infinitamente
-            cmd = [
-                'libreoffice', '--headless', '--convert-to', 'pdf', 
-                '--outdir', output_dir, docx_path
-            ]
-            process = subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=60)
-            
-            if not os.path.exists(pdf_path):
-                logger.error(f"Wiki PDF: LibreOffice terminó pero el archivo no se creó en {pdf_path}")
-                raise HTTPException(500, "El motor de conversión no generó el archivo a tiempo")
-                
-        except subprocess.TimeoutExpired:
-            logger.error(f"Wiki PDF: Timeout agotado (60s) convirtiendo {docx_path}")
-            raise HTTPException(504, "El documento es demasiado grande y la conversión tardó demasiado. Reintente en unos segundos.")
-        except subprocess.Called_ProcessError as e:
-            logger.error(f"Wiki PDF: Error de LibreOffice (Exit Code {e.returncode}). Stderr: {e.stderr}")
-            raise HTTPException(500, f"Error en el motor de conversión: {e.stderr[:100]}")
+            logger.info(f"Wiki PDF: Convirtiendo DOCX a PDF: {orig_path}")
+            cmd = ['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', output_dir, orig_path]
+            subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=60)
         except Exception as e:
-            logger.error(f"Wiki PDF: Error inesperado: {str(e)}")
-            raise HTTPException(500, f"Error interno: {str(e)}")
+            logger.error(f"Wiki PDF: Error convirtiendo: {str(e)}")
+            raise HTTPException(500, "Error al generar vista previa del documento Word")
 
     return FileResponse(pdf_path, media_type='application/pdf', filename=f"{page.title}.pdf")
 
@@ -400,7 +400,7 @@ async def convert_to_editable(
     current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     """
-    Crea una COPIA editable (.docx) de un PDF existente.
+    Crea una COPIA editable (.docx) de un PDF existente con alta fidelidad.
     """
     page = await db.get(WikiPage, page_id)
     if not page or not page.original_file_path:
@@ -408,30 +408,40 @@ async def convert_to_editable(
 
     pdf_path = f"/app{page.original_file_path}"
     if not os.path.exists(pdf_path):
-        raise HTTPException(404, "El archivo PDF físico no existe")
+        raise HTTPException(404, f"El archivo PDF físico no existe en disco: {page.original_file_path}")
 
-    # Generar nueva ruta para el DOCX
+    # Generar nueva ruta para el DOCX en wiki_media (compartido)
+    upload_dir = "/app/uploads/wiki_media/Convertidos"
+    os.makedirs(upload_dir, exist_ok=True)
+    
     new_filename = f"{uuid.uuid4().hex}.docx"
-    new_rel_path = f"/uploads/wiki_files/{new_filename}"
-    docx_path = f"/app{new_rel_path}"
+    docx_rel_path = f"/uploads/wiki_media/Convertidos/{new_filename}"
+    docx_abs_path = f"/app{docx_rel_path}"
 
     try:
         from pdf2docx import Converter
+        logger.info(f"Wiki: Iniciando conversión fiel de PDF a Word. Origen: {pdf_path}")
+        
         cv = Converter(pdf_path)
-        cv.convert(docx_path, start=0, end=None)
+        # Convertir con parámetros de alta fidelidad
+        cv.convert(docx_abs_path, start=0, end=None)
         cv.close()
 
-        # Crear nueva página en la DB como copia
+        if not os.path.exists(docx_abs_path):
+            raise Exception("El archivo Word no fue generado por el motor de conversión.")
+
+        # Crear nueva página en la DB como COPIA separada
         new_page = WikiPage(
+            id=uuid.uuid4(),
             title=f"[EDITABLE] {page.title}",
-            slug=slugify(f"editable-{page.title}-{uuid.uuid4().hex[:4]}"),
+            slug=slugify(f"edit-{uuid.uuid4().hex[:4]}-{page.title}"),
             space_id=page.space_id,
-            parent_id=page.parent_id,
+            parent_id=page.parent_id, # La ponemos en la misma carpeta
             creator_id=current_user.id,
             last_updated_by_id=current_user.id,
-            original_file_path=new_rel_path,
+            original_file_path=docx_rel_path,
             is_folder=False,
-            content=f"<p>Copia editable generada desde {page.title}</p>"
+            content=f"<p>Copia editable generada desde el PDF original: <b>{page.title}</b></p>"
         )
         
         db.add(new_page)
@@ -440,12 +450,12 @@ async def convert_to_editable(
 
         return {
             "status": "success", 
-            "message": "Copia editable creada", 
+            "message": "Copia editable creada con éxito", 
             "new_page_id": str(new_page.id)
         }
     except Exception as e:
-        logger.error(f"Error creando copia editable: {str(e)}")
-        raise HTTPException(500, f"Error en la conversión: {str(e)}")
+        logger.error(f"Error crítico en conversión PDF->DOCX: {str(e)}")
+        raise HTTPException(500, f"Error en el motor de conversión: {str(e)}")
 
 @router.get("/pages/{page_id}")
 async def read_page(

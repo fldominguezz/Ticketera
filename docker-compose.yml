@@ -58,7 +58,10 @@ services:
     env_file: [.env]
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-    volumes: [./backend:/app, ./uploads:/app/uploads]
+    volumes: 
+      - ./backend:/app
+      - ./uploads:/app/uploads
+      - /root/archivo_mantenimiento:/root/archivo_mantenimiento
     networks: [app-network]
     extra_hosts: ["host.docker.internal:host-gateway"]
     healthcheck:
@@ -91,43 +94,18 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    ports: ["80:80", "443:443", "3005:3005"]
-    depends_on: [backend, frontend, docmost]
-    volumes: [./uploads:/app/uploads, ./nginx/conf.d:/etc/nginx/conf.d]
+    ports: ["80:80", "443:443"]
+    depends_on: [backend, frontend]
+    volumes: 
+      - ./uploads:/app/uploads
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./frontend/public/pdfjs:/app/public/pdfjs
     networks: [app-network]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/api/v1/health"]
       interval: 30s
       timeout: 5s
       retries: 3
-
-  docmost:
-    container_name: ticketera-docmost
-    image: docmost/docmost:latest
-    depends_on: [db, redis]
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    environment:
-      - APP_URL=https://10.1.9.240:3005
-      - APP_SECRET=${DOCMOST_SECRET}
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/docmost_db
-      - REDIS_URL=redis://redis:6379/2
-      - NODE_TLS_REJECT_UNAUTHORIZED=0
-      - AUTH_OIDC_ENABLED=true
-      - AUTH_OIDC_CLIENT_ID=ticketera_wiki
-      - AUTH_OIDC_CLIENT_SECRET=super_secreto_ssi_2026
-      - AUTH_OIDC_ISSUER=https://10.1.9.240/api/v1/oidc
-      - AUTH_OIDC_AUTHORIZATION_ENDPOINT=https://10.1.9.240/api/v1/oidc/authorize
-      - AUTH_OIDC_TOKEN_ENDPOINT=http://backend:8000/api/v1/oidc/token
-      - AUTH_OIDC_USERINFO_ENDPOINT=http://backend:8000/api/v1/oidc/userinfo
-      - AUTH_OIDC_SCOPE=openid profile email
-      - AUTH_OIDC_AUTO_REGISTER=true
-      - AUTH_OIDC_AUTO_LOGIN=true
-    networks: [app-network]
-    restart: always
 
   soc-module:
     container_name: ticketera-soc-module
@@ -143,9 +121,40 @@ services:
     networks: [app-network]
     restart: always
 
+  onlyoffice:
+    container_name: ticketera-onlyoffice
+    image: onlyoffice/documentserver:latest
+    restart: always
+    environment:
+      - JWT_ENABLED=true
+      - JWT_SECRET=ssi_pfa_2026_ticketera_key_fixed
+      - JWT_HEADER=Authorization
+      - USE_AS_LOCALHOST=false
+      - VERIFY_PEER_OFF=true
+      - ALLOW_PRIVATE_IP_ADDRESS=true
+      - ALLOW_HTTP_FOR_COMMUNICATION=true
+    networks: [app-network]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  ollama:
+    container_name: ticketera-ollama
+    image: ollama/ollama:latest
+    restart: always
+    environment:
+      - OLLAMA_KEEP_ALIVE=5m
+    volumes:
+      - ollama_data:/root/.ollama
+    networks: [app-network]
+
 volumes:
   db_data:
   meilisearch_data:
+  ollama_data:
 
 networks:
   app-network: { driver: bridge }

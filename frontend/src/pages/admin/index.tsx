@@ -59,14 +59,14 @@ const AdminDashboard = () => {
     if (perm && !can(perm)) return null;
 
     const content = (
-      <Card className="border-0 shadow-sm h-100 admin-card-hover transition-all">
+      <Card className="border-subtle shadow-sm h-100 admin-card-hover transition-all bg-surface">
         <Card.Body className="d-flex align-items-center p-4">
           <div className={`bg-${color} bg-opacity-10 p-3 rounded-3 me-4`}>
             <Icon size={24} className={`text-${color}`}/>
           </div>
           <div>
-            <h6 className="fw-bold mb-1 ">{title}</h6>
-            <p className="small text-muted mb-0">{desc}</p>
+            <h6 className="fw-black mb-1 text-primary text-uppercase small">{title}</h6>
+            <p className="small text-secondary mb-0">{desc}</p>
           </div>
         </Card.Body>
       </Card>
@@ -85,26 +85,26 @@ const AdminDashboard = () => {
     );
   };
 
-  if (loading) return <div className="text-center py-5"><Spinner animation="border" /></div>;
+  if (loading) return <div className="text-center py-5"><Spinner animation="border" variant="primary" /></div>;
 
   return (
     <Layout title="Panel de Administración">
       <ToastContainer position="top-end" className="p-3">
-        <Toast show={showToast} onClose={() => setShowToast(false)} delay={3000} autohide bg="success">
-          <Toast.Body className="fw-bold">Configuración actualizada</Toast.Body>
+        <Toast show={showToast} onClose={() => setShowToast(false)} delay={3000} autohide bg="success" className="border-0">
+          <Toast.Body className="fw-bold text-white">Configuración actualizada exitosamente</Toast.Body>
         </Toast>
       </ToastContainer>
 
       <div className="mb-5">
-        <h4 className="fw-black text-uppercase m-0 d-flex align-items-center gap-2 text-main">
+        <h4 className="fw-black text-uppercase m-0 d-flex align-items-center gap-2 text-primary">
           <Settings className="text-primary" size={24}/> Administración del Sistema
         </h4>
-        <p className="text-muted-foreground small m-0 text-uppercase tracking-widest fw-bold opacity-75">
+        <p className="text-secondary small m-0 text-uppercase tracking-widest fw-bold opacity-75">
           Control Centralizado de Infraestructura y Procesos SOC
         </p>
       </div>
 
-      <h6 className="fw-black text-uppercase mb-4 small tracking-widest text-primary d-flex align-items-center gap-2 opacity-75">
+      <h6 className="fw-black text-uppercase mb-4 x-small tracking-widest text-primary d-flex align-items-center gap-2 opacity-75">
         <Server size={18} /> Módulos de Gestión Técnica
       </h6>
       <Row className="g-4 mb-5">
@@ -124,17 +124,18 @@ const AdminDashboard = () => {
         <AdminCard title="Integración SIEM" desc="Configurar FortiSIEM y Webhooks" icon={ShieldAlert} href="/admin/integrations/siem" color="danger" perm="admin:settings:manage"/>
       </Row>
 
-      <h6 className="fw-black text-uppercase mb-4 small tracking-widest text-primary d-flex align-items-center gap-2 opacity-75">
+      <h6 className="fw-black text-uppercase mb-4 x-small tracking-widest text-primary d-flex align-items-center gap-2 opacity-75">
         <Palette size={18} /> Personalización y Marca (White Label)
       </h6>
-      <Card className="border-0 shadow-sm">
+      <Card className="border-subtle shadow-sm bg-surface">
         <Card.Body className="p-4">
           <Form onSubmit={handleSave}>
             <Row className="g-4">
               <Col md={6}>
                 <Form.Group controlId="app-name">
-                  <Form.Label className="small fw-bold">Nombre de la Aplicación</Form.Label>
+                  <Form.Label className="x-small fw-black text-label uppercase">Nombre de la Aplicación</Form.Label>
                   <Form.Control 
+                    className="border-subtle bg-surface-raised text-primary fw-bold"
                     id="app-name"
                     name="app_name"
                     value={settings.app_name} 
@@ -144,8 +145,9 @@ const AdminDashboard = () => {
               </Col>
               <Col md={3}>
                 <Form.Group controlId="primary-color">
-                  <Form.Label className="small fw-bold">Color Primario</Form.Label>
+                  <Form.Label className="x-small fw-black text-label uppercase">Color Primario</Form.Label>
                   <Form.Control 
+                    className="border-subtle bg-surface-raised p-1"
                     id="primary-color"
                     name="primary_color"
                     type="color" 
@@ -155,8 +157,9 @@ const AdminDashboard = () => {
                 </Form.Group>
               </Col>
               <Col md={3}>
-                <Form.Group controlId="require-2fa-global" className="d-flex flex-column h-100 justify-content-end">
+                <Form.Group controlId="require-2fa-global" className="d-flex flex-column h-100 justify-content-end pb-2">
                   <Form.Check 
+                    className="x-small fw-black text-secondary uppercase"
                     id="require-2fa-global"
                     name="require_2fa_all_users"
                     type="switch"
@@ -168,8 +171,9 @@ const AdminDashboard = () => {
               </Col>
               <Col md={12}>
                 <Form.Group controlId="login-footer-text">
-                  <Form.Label className="small fw-bold">Texto de Pie de Página (Login)</Form.Label>
+                  <Form.Label className="x-small fw-black text-label uppercase">Texto de Pie de Página (Login)</Form.Label>
                   <Form.Control 
+                    className="border-subtle bg-surface-raised text-primary small fw-bold"
                     id="login-footer-text"
                     name="login_footer_text"
                     value={settings.login_footer_text} 
@@ -179,8 +183,8 @@ const AdminDashboard = () => {
               </Col>
             </Row>
             <div className="mt-4 text-end">
-              <Button variant="primary" type="submit" disabled={saving} className="px-4 fw-bold">
-                {saving ? <Spinner animation="border" size="sm" className="me-2"/> : <Settings size={18} className="me-2"/>}
+              <Button variant="primary" type="submit" disabled={saving} className="px-4 fw-black x-small uppercase rounded-pill premium-btn border-0 shadow">
+                {saving ? <Spinner animation="border" size="sm" className="me-2"/> : <Settings size={16} className="me-2"/>}
                 GUARDAR CONFIGURACIÓN GLOBAL
               </Button>
             </div>

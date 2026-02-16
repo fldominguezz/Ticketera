@@ -76,7 +76,7 @@ export default function Layout({ children, title = 'TICKETERA SOC' }: LayoutProp
   { id: 'inventory', name: 'Inventario de Activos', path: '/inventory', icon: Database },
   { id: 'forensics', name: 'Análisis de EML', path: '/forensics/eml', icon: FileSearch },
   { id: 'daily-report', name: 'Parte Informativo', path: '/reports/daily', icon: FileText },
-  { id: 'wiki', name: 'Documentación Wiki', path: 'external:wiki', icon: BookOpen },
+  { id: 'wiki', name: 'Wiki Corporativa', path: '/wiki', icon: BookOpen },
   { id: 'audit', name: 'Auditoría Global', path: '/audit', icon: Shield },
  ];
 
@@ -122,18 +122,6 @@ export default function Layout({ children, title = 'TICKETERA SOC' }: LayoutProp
   if (path === 'external:grafana') {
    const host = window.location.hostname;
    window.open(`http://${host}:3002`, '_blank');
-  } else if (path === 'external:wiki') {
-   // Priorizamos el email real del usuario, si no existe usamos el username
-   const email = user?.email || (user?.username ? `${user.username}@example.com` : '');
-   const password = typeof window !== 'undefined' ? sessionStorage.getItem('temp_pc') : '';
-   
-   if (email && password) {
-    // Redirigimos al login con las credenciales en el hash (#)
-    const wikiUrl = `https://10.1.9.240:3005/login#e=${encodeURIComponent(email)}&p=${encodeURIComponent(password)}`;
-    window.open(wikiUrl, '_blank');
-   } else {
-    window.open('https://10.1.9.240:3005/login', '_blank');
-   }
   } else {
    router.push(path);
   }

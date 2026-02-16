@@ -8,6 +8,11 @@ RUN npm install --legacy-peer-deps
 
 COPY . .
 
+# Instalar curl para descargar el worker real
+RUN apk add --no-cache curl && \
+    mkdir -p public/pdfjs && \
+    curl -L https://unpkg.com/pdfjs-dist@5.4.296/build/pdf.worker.min.mjs -o public/pdfjs/pdf.worker.5.4.296.js
+
 # Construir la aplicación Next.js
 ENV NEXT_PUBLIC_API_URL=http://localhost/api/v1
 ENV NEXT_TELEMETRY_DISABLED=1
