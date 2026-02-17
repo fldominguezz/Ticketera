@@ -30,10 +30,13 @@
     "react-grid-layout": "2.2.2",
     "react-i18next": "14.0.5",
     "react-pdf": "^10.3.0",
-    "react-quill": "^2.0.0",
-    "react-quill-new": "^3.8.3",
+    "react-quill-new": "^3.7.0",
     "recharts": "2.12.0",
     "tailwind-merge": "2.2.1"
+  },
+  "overrides": {
+    "lodash": "^4.17.21",
+    "react-quill": "$react-quill-new"
   },
   "devDependencies": {
     "@types/node": "20.11.17",
