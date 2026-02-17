@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +27,7 @@ import io
 from app.services.pdf_service import pdf_service
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 @router.get("/{ticket_id}/export")
 async def export_ticket_pdf(
@@ -63,8 +65,7 @@ def index_ticket_task(ticket: TicketModel):
         }
         search_service.index_ticket(data)
     except Exception as e:
-        pass
-    pass
+        logger.error(f"Error indexando ticket {ticket.id} en Meilisearch: {e}")
 @router.get("/search", response_model=dict)
 async def search_tickets_endpoint(
     current_user: Annotated[User, Depends(get_current_active_user)],
@@ -310,10 +311,11 @@ async def create_ticket(
             db.add(asset_event)
             await db.commit()
     except Exception as e:
-        pass
-    pass
+        logger.warning(f"Error en tareas secundarias al crear ticket: {e}")
+    
     # Return the created ticket using the correct CRUD call to avoid TypeError
     return await crud_ticket.ticket.get(db, id=ticket.id, current_user=current_user, permission_key="read")
+
 @router.get("/{ticket_id}", response_model=Optional[Ticket])
 async def read_ticket(
     ticket: Annotated[Optional[TicketModel], Depends(require_ticket_permission("read"))]

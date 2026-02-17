@@ -84,6 +84,6 @@ class LDAPService:
             if conn:
                 try:
                     conn.unbind_s()
-                except:
-                    pass
+                except Exception as e:
+                    logger.debug(f"LDAP unbind failed (usually already closed): {e}")
 ldap_service = LDAPService()

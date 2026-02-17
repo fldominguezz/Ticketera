@@ -1,3 +1,4 @@
+import logging
 from app.utils.security import safe_join, sanitize_filename
 from typing import Annotated, List, Any
 import string
@@ -26,6 +27,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Body, Fi
 import os
 import shutil
 router = APIRouter()
+logger = logging.getLogger(__name__)
 @router.post("/me/avatar", response_model=UserSchema)
 async def update_user_avatar(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -210,8 +212,7 @@ async def change_my_password(
     try:
         await crud_user.user.sync_to_wiki(current_user, action="update", plain_password=password_data.new_password)
     except Exception as e:
-        pass
-    pass
+        logger.warning(f"Error sincronizando password con Wiki: {e}")
     return {"message": "Success"}
 @router.post("/me/2fa/setup", response_model=TotpSetupResponse)
 async def setup_2fa(
@@ -394,8 +395,7 @@ async def reset_password_admin(
     try:
         await crud_user.user.sync_to_wiki(db_user, action="update", plain_password=new_password)
     except Exception as e:
-        pass
-    pass
+        logger.warning(f"Error sincronizando password con Wiki (Admin Reset): {e}")
     await crud_audit.audit_log.create_log(
         db,
         user_id=current_user.id,

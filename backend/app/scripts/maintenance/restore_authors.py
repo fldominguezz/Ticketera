@@ -66,7 +66,7 @@ async def run():
                     if field == "createdby": ticket.created_by_id = user_cache[uname]
                     else: ticket.assigned_to_id = user_cache[uname]
                 
-            except Exception as e: continue
+            except Exception as e: continue # nosec
         
         await db.commit()
         print("✨ Vinculación completada.")

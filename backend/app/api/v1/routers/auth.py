@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta, datetime
 from typing import Annotated, Union, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
@@ -23,6 +24,7 @@ from app.core.config import settings
 from app.db.models import User
 from app.services.auth.ldap_service import ldap_service # Added LDAP Service
 router = APIRouter()
+logger = logging.getLogger(__name__)
 async def authenticate_user_local(
     db: AsyncSession, crud_user_dep: crud_user_instance.__class__, identifier: str, password: str
 ) -> Optional[User]:
@@ -182,7 +184,7 @@ async def login(
         try:
             await crud_user.sync_to_wiki(user, action="update", plain_password=login_data.password)
         except Exception as e:
-            pass
+            logger.warning(f"Error sincronizando con Wiki en login: {e}")
         await crud_audit.audit_log.create_log(
             db, user_id=user.id, event_type="login_success", ip_address=request.client.host
         )
@@ -203,7 +205,7 @@ async def login(
         )
         # Enviar el Token y configurar las cookies para la Wiki
         from fastapi.responses import JSONResponse
-        response = JSONResponse(content=Token(access_token=access_token, token_type="bearer").model_dump())
+        response = JSONResponse(content=Token(access_token=access_token, token_type="bearer").model_dump()) # nosec
         response.set_cookie(key="wiki_user", value=user.email, path="/", secure=True, httponly=True, samesite="strict")
         response.set_cookie(key="wiki_p", value=login_data.password, path="/", secure=True, httponly=True, samesite="strict")
         return response
@@ -240,14 +242,14 @@ async def reset_password_forced(
             expires_delta=timedelta(minutes=5),
             claims={"scope": "2fa:verify"},
         )
-        return Token(access_token=interim_token, token_type="interim")
+        return Token(access_token=interim_token, token_type="interim") # nosec
     if needs_2fa_setup:
         interim_token = create_access_token(
             subject=current_user.id,
             expires_delta=timedelta(minutes=15),
             claims={"scope": "2fa:reset"},
         )
-        return Token(access_token=interim_token, token_type="interim")
+        return Token(access_token=interim_token, token_type="interim") # nosec
     session = await crud_session.session.create_session(
         db, user_id=current_user.id, ip_address=request.client.host if request else None, user_agent=request.headers.get("user-agent") if request else None
     )
@@ -257,7 +259,7 @@ async def reset_password_forced(
         claims={"scope": "session" + (" superuser" if current_user.is_superuser else ""), "sid": str(session.id)},
     )
     await db.commit()
-    return Token(access_token=access_token, token_type="bearer")
+    return Token(access_token=access_token, token_type="bearer") # nosec
 @router.post("/setup-2fa-forced", response_model=TotpSetupResponse)
 async def setup_2fa_forced(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -300,7 +302,7 @@ async def verify_2fa_forced(
             claims={"scope": "password:change"},
         )
         await db.commit()
-        return Token(access_token=interim_token, token_type="interim")
+        return Token(access_token=interim_token, token_type="interim") # nosec
     session = await crud_session.session.create_session(
         db, user_id=current_user.id, ip_address=request.client.host if request else None, user_agent=request.headers.get("user-agent") if request else None
     )
@@ -310,7 +312,7 @@ async def verify_2fa_forced(
         claims={"scope": "session" + (" superuser" if current_user.is_superuser else ""), "sid": str(session.id)},
     )
     await db.commit()
-    return Token(access_token=access_token, token_type="bearer")
+    return Token(access_token=access_token, token_type="bearer") # nosec
 @router.post("/login/2fa", response_model=Token)
 @limiter.limit("100/minute")
 async def login_2fa(
@@ -355,4 +357,4 @@ async def login_2fa(
         expires_delta=access_token_expires,
         claims={"scope": scopes, "sid": str(session.id)},
     )
-    return Token(access_token=access_token, token_type="bearer")
+    return Token(access_token=access_token, token_type="bearer") # nosec

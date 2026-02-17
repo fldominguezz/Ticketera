@@ -1,12 +1,16 @@
 import os
 import shutil
 import re
+import logging
 from datetime import date
 from docxtpl import DocxTemplate
 from docx import Document
 from docx.oxml import OxmlElement
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from typing import Dict, Any, List
+
+logger = logging.getLogger(__name__)
+
 # Constants for License Maxs
 LICENSE_MAXS = {
     "ESET_SOC_LIC_MAX": 700,
@@ -28,8 +32,8 @@ class DailyReportGenerator:
         if not src_p or not dst_p: return
         try:
             dst_p.style = src_p.style
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"Could not copy paragraph style: {e}")
         dst_fmt = dst_p.paragraph_format
         src_fmt = src_p.paragraph_format
         # Align left to avoid "huge spaces" from justification
