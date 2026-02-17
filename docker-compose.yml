@@ -23,22 +23,12 @@ services:
     container_name: ticketera-redis
     image: redis:7-alpine
     restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
     networks: [app-network]
 
   meilisearch:
     container_name: ticketera-meilisearch
     image: getmeili/meilisearch:v1.6
     restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
     environment:
       - MEILI_MASTER_KEY=masterKeyTicketeraSOC
       - MEILI_NO_ANALYTICS=true
@@ -61,7 +51,6 @@ services:
     volumes: 
       - ./backend:/app
       - ./uploads:/app/uploads
-      - /root/archivo_mantenimiento:/root/archivo_mantenimiento
     networks: [app-network]
     extra_hosts: ["host.docker.internal:host-gateway"]
     healthcheck:
@@ -75,12 +64,6 @@ services:
     container_name: ticketera-frontend
     build: { context: ./frontend, dockerfile: Dockerfile }
     restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    ports: ["3006:3000"]
     depends_on:
       backend: { condition: service_healthy }
     networks: [app-network]
@@ -89,17 +72,13 @@ services:
     container_name: ticketera-nginx
     build: { context: ./nginx, dockerfile: Dockerfile }
     restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
     ports: ["80:80", "443:443"]
     depends_on: [backend, frontend]
     volumes: 
-      - ./uploads:/app/uploads
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./uploads:/app/uploads:ro
       - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./frontend/public/pdfjs:/app/public/pdfjs
+      - ./frontend/public/pdfjs:/app/public/pdfjs:ro
     networks: [app-network]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/api/v1/health"]
@@ -110,11 +89,6 @@ services:
   soc-module:
     container_name: ticketera-soc-module
     build: { context: ./soc-module, dockerfile: Dockerfile }
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
     ports: ["514:514/udp"]
     depends_on: [backend]
     env_file: [.env]
@@ -134,19 +108,11 @@ services:
       - ALLOW_PRIVATE_IP_ADDRESS=true
       - ALLOW_HTTP_FOR_COMMUNICATION=true
     networks: [app-network]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/healthcheck"]
-      interval: 30s
-      timeout: 10s
-      retries: 10
-      start_period: 60s
 
   ollama:
     container_name: ticketera-ollama
     image: ollama/ollama:latest
     restart: always
-    environment:
-      - OLLAMA_KEEP_ALIVE=5m
     volumes:
       - ollama_data:/root/.ollama
     networks: [app-network]

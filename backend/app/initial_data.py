@@ -27,7 +27,12 @@ async def init_siem_config(session: AsyncSession, siem_user: User, group_objs: d
         session.add(ttype)
         await session.flush()
 
-    siem_api_password = os.getenv("SIEM_API_PASSWORD", "!zmXwu*gEg0@")
+    # Secretos desde el entorno (sin valores por defecto inseguros)
+    siem_api_password = os.getenv("SIEM_API_PASSWORD")
+    if not siem_api_password:
+        import secrets
+        siem_api_password = secrets.token_urlsafe(32)
+        logger.warning("SIEM_API_PASSWORD no configurado. Generando clave aleatoria temporal.")
     res_config = await session.execute(select(SIEMConfiguration).limit(1))
     config = res_config.scalar_one_or_none()
     
