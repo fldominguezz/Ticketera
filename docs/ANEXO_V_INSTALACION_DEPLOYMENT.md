@@ -1,9 +1,22 @@
 # ANEXO V — DESPLIEGUE, MANTENIMIENTO Y CONTINUIDAD (DRP)
 
 ## 1. PROCEDIMIENTO DE DESPLIEGUE (DEPLOYMENT)
-Se informa que el proceso de despliegue se encuentra totalmente automatizado y estandarizado:
-1.  **Aprovisionamiento:** Configuración de host Linux con Docker Engine y Docker Compose.
-2.  **Inyección de Configuración:** Preparación del archivo `.env` con las variables de entorno institucionales.
+
+### 1.1 Preparación del Host (Hardening)
+Antes del despliegue de contenedores, es MANDATORIO configurar la seguridad perimetral del servidor:
+1.  **Firewall (UFW):**
+    ```bash
+    ufw default deny incoming
+    ufw allow 22/tcp  # SSH
+    ufw allow 80/tcp  # HTTP (Redirect)
+    ufw allow 443/tcp # HTTPS
+    ufw allow from 10.1.78.10 to any port 514 proto udp # SIEM Syslog
+    ufw enable
+    ```
+2.  **Sincronización:** Asegurar que `ntpdate` o `systemd-timesyncd` estén activos para evitar errores de expiración en tokens JWT.
+
+### 1.2 Aprovisionamiento de Contenedores
+1.  **Inyección de Configuración:** Preparación del archivo `.env` con las variables de entorno institucionales.
 3.  **Compilación y Despliegue:** Ejecución de `docker-compose up --build -d`.
 4.  **Migración Automática:** El contenedor del backend ejecuta `alembic upgrade head` para asegurar la paridad de la base de datos.
 5.  **Inicialización de Datos:** Ejecución de scripts de carga de roles y usuarios iniciales.

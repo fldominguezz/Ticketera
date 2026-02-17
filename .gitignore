@@ -41,6 +41,4 @@ backups/*
 build_log.txt
 *.tsbuildinfo
 .next/
-ANEXO_VIII_RESULTADOS_TESTING.md
-IF_ELEVACION_PROYECTO_TICKETERA.md
 *.docx
