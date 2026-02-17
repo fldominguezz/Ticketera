@@ -5,26 +5,25 @@ Este documento describe las medidas de seguridad técnicas y administrativas imp
 ## 1. Control de Acceso y Autenticación
 
 ### Gestión de Identidad (IAM)
-*   **Protocolo:** El sistema utiliza **OAuth2** con flujo de contraseña (Password Flow) para la autenticación inicial.
-*   **Tokens:** Se emiten **JSON Web Tokens (JWT)** firmados con algoritmo `HS256`.
-    *   **Access Token:** Vida corta (ej: 30-120 minutos).
-    *   Los tokens contienen el ID de usuario y sus roles (Scopes), evitando consultas excesivas a la base de datos para validar permisos.
-*   **Contraseñas:**
-    *   No se almacenan contraseñas en texto plano.
-    *   Se utiliza **Passlib** con el algoritmo **Argon2** o **BCrypt** para el hashing, garantizando resistencia ante ataques de fuerza bruta y rainbow tables.
+*   **Protocolo:** El sistema utiliza **OAuth2** con flujo de contraseña (Password Flow).
+*   **Autenticación Multifactor (2FA):** Implementación obligatoria/opcional de TOTP (Time-based One-Time Password) mediante Google Authenticator o apps similares.
+*   **Tokens:** Se emiten **JSON Web Tokens (JWT)** firmados con algoritmo `HS256` y vida útil configurable.
+*   **Contraseñas:** Hashing con **Argon2** (vía Passlib), garantizando resistencia ante ataques modernos.
 
-### Control Basado en Roles (RBAC)
-El acceso a recursos (endpoints API y vistas Frontend) está restringido por roles:
-*   **Admin:** Acceso total a configuración, usuarios y logs de auditoría.
-*   **Analista SOC:** Gestión de tickets, visualización de alertas.
-*   **Operador:** Vista limitada, creación de tickets básicos.
-*   **Auditor:** Acceso de solo lectura a reportes y logs.
+### Control de Acceso Basado en Roles (RBAC)
+El sistema utiliza un motor de permisos granulares:
+*   **Roles Dinámicos:** Los permisos se asignan a roles que luego se vinculan a usuarios.
+*   **Permisos por Módulo:** Control total sobre quién puede Ver, Crear, Editar o Eliminar en cada sección (Tickets, Usuarios, Grupos, SLA, etc.).
 
-## 2. Protección de Datos
+## 2. Protección de Datos y Red
 
-### Tránsito
-*   Todas las comunicaciones cliente-servidor se realizan obligatoriamente sobre **HTTPS/TLS 1.2+**.
-*   El proxy inverso (Nginx) se encarga de la terminación SSL y fuerza la redirección de HTTP a HTTPS.
+### Hardening de Red
+*   **Firewall (UFW):** Configuración de política "Deny by Default". Solo puertos 22 (SSH), 80/443 (Web) y 514 (Syslog restringido) están permitidos.
+*   **Aislamiento:** La base de datos y servicios internos operan en redes Docker privadas (`internal`) sin exposición al host.
+
+### Tránsito y Reposo
+*   **TLS 1.3:** Nginx configurado con Ciphers modernos y HSTS activo.
+*   **Backups Cifrados:** Copias de seguridad diarias protegidas por permisos `600` en el sistema de archivos.
 
 ### Reposo (At Rest)
 *   La base de datos PostgreSQL se encuentra en un volumen Docker aislado, no expuesto directamente a Internet.

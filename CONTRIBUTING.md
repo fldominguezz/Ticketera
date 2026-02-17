@@ -3,9 +3,10 @@
 Bienvenido al equipo de desarrollo. Para mantener la calidad y seguridad del sistema, solicitamos seguir estos lineamientos.
 
 ## Estándares de Código
-*   **Backend (Python):** Seguir PEP 8. Usar Type Hints y validación vía Pydantic.
-*   **Frontend (React):** TypeScript obligatorio. Componentes funcionales y Hooks.
-*   **Documentación:** Todo cambio en la API debe reflejarse en `docs/ARCHITECTURE.md`.
+*   **Backend (Python):** Seguir PEP 8. Usar Type Hints y validación vía Pydantic v1.x (actualmente en transición).
+*   **Frontend (React):** TypeScript obligatorio. Uso de componentes funcionales y Material UI/Bootstrap.
+*   **Temas Visuales:** Es OBLIGATORIO validar cualquier cambio de UI en los 4 modos: **SOC**, **Dark**, **Light** y **Alto Contraste**.
+*   **Documentación:** Todo cambio funcional debe reflejarse en el `CHANGELOG.md` y en la carpeta `docs/`.
 
 ## Flujo de Trabajo (Git)
 1.  Crear una rama descriptiva: `feature/nueva-funcionalidad` o `fix/error-especifico`.

@@ -54,8 +54,10 @@ graph LR
 
 ## Capacidades Operativas
 
-*   **Gestión de SLA:** Control automático de tiempos de respuesta según la criticidad del incidente.
-*   **Control de Acceso:** Implementación estricta de RBAC (Role-Based Access Control).
+*   **Gestión de SLA:** Control automático de tiempos de respuesta según la criticidad del incidente con alertas visuales.
+*   **Control de Acceso (RBAC):** Sistema de permisos granulares y autenticación multifactor (2FA) integrada.
+*   **Estructura Organizacional:** Gestión jerárquica de Grupos y Ubicaciones mediante estructuras de árbol expandibles.
+*   **Interfaz Adaptativa:** Soporte para 4 temas visuales: **SOC Mode**, **Dark**, **Light** y **Alto Contraste**.
 *   **Módulo Forense:** Herramientas para el análisis de archivos EML y búsqueda de indicadores de compromiso (IoC).
 *   **IA Soberana:** Procesamiento de lenguaje natural mediante modelos locales para evitar la fuga de información sensible.
 

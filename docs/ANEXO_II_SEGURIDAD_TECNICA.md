@@ -17,4 +17,12 @@ Se detalla la implementación de controles de acceso:
 ## 3. GESTIÓN DE SECRETO Y VARIABLES
 Se deja constancia de que todas las credenciales críticas (Base de Datos, JWT, API Keys) residen exclusivamente en archivos de entorno (`.env`) protegidos con permisos de sistema `600`, evitando su exposición en el código fuente o repositorios de versiones.
 
+## 4. VALIDACIÓN DE CÓDIGO SEGURO (SAST/SCA)
+El sistema ha sido sometido y aprobado bajo estándares estrictos de análisis estático:
+- **Bandit Scan (Python):** 0 Vulnerabilidades detectadas (High/Medium/Low). Se implementaron:
+    - Validación SSL estricta en integraciones externas.
+    - Protección contra inyecciones XML mediante `defusedxml`.
+    - Manejo robusto de excepciones y timeouts en peticiones HTTP.
+- **Auditoría de Dependencias (SCA):** Actualización proactiva de librerías en Backend (FastAPI, Cryptography) y Frontend (React, Lodash) para mitigar CVEs conocidos.
+
 **ÁREA DE SEGURIDAD INFORMÁTICA --- PROTOCOLO DE BLINDAJE v2.0**
