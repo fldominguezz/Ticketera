@@ -36,7 +36,8 @@
   },
   "overrides": {
     "lodash": "^4.17.21",
-    "react-quill": "$react-quill-new"
+    "react-quill": "$react-quill-new",
+    "quill": "^2.0.3"
   },
   "devDependencies": {
     "@types/node": "20.11.17",
