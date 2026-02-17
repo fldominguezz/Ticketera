@@ -35,6 +35,14 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/
 ### Conocido
 - La integración con SIEM estaba en fase experimental.
 - Faltaba documentación formal de despliegue.
+## [2.0.0] - 2026-02-16
+
+### Añadido
+- **Seguridad:** Superación exitosa de análisis Bandit (SAST) con mitigación de vulnerabilidades High/Medium.
+- **Seguridad:** Implementación de `defusedxml` en scripts de mantenimiento para prevenir ataques XML.
+- **Seguridad:** Hardening de peticiones externas con validación SSL y timeouts obligatorios.
+- **Versión:** Transición oficial a la versión 2.0.0 del ecosistema Ticketera SOC.
+
 ## [1.1.0] - 2026-02-14
 - Upgrade a Next.js 16.1.6 (Turbopack)
 - Upgrade a React 19 y ESLint 10

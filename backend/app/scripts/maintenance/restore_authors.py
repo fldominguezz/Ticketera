@@ -1,4 +1,4 @@
-import os, sys, uuid, asyncio, xml.etree.ElementTree as ET
+import os, sys, uuid, asyncio, defusedxml.ElementTree as ET
 sys.path.append("/app")
 from app.db.session import AsyncSessionLocal
 from app.db.models.user import User

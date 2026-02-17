@@ -2,7 +2,7 @@ import os
 import sys
 import uuid
 import asyncio
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 

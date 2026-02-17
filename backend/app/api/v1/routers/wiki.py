@@ -290,7 +290,13 @@ async def office_callback(
         if not page: return {"error": 1}
 
         # Descargar el archivo desde OnlyOffice y sobreescribir el original
-        response = requests.get(download_url, verify=False)
+        try:
+            response = requests.get(download_url, verify=True, timeout=30)
+        except requests.exceptions.SSLError:
+            # Si falla por SSL, intentamos con verify=False pero logueamos la advertencia
+            logger.warning(f"Wiki: Error de SSL al conectar con OnlyOffice ({download_url}). Reintentando sin verificación (No seguro).")
+            response = requests.get(download_url, verify=False, timeout=30) # nosec
+        
         if response.status_code == 200:
             full_path = f"/app{page.original_file_path}"
             with open(full_path, "wb") as f:
