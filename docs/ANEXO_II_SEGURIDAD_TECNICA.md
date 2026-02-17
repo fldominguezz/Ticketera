@@ -1,23 +1,20 @@
-# ANEXO II: ESPECIFICACIONES DE SEGURIDAD Y HARDENING
+# ANEXO II --- PROTOCOLO DE SEGURIDAD Y ENDURECIMIENTO TÉCNICO
 
-## 1. CONTROL DE ACCESO E IDENTIDADES
-Se ha implementado un esquema de control de acceso basado en el principio de menor privilegio (Need-to-Know). El módulo de IAM (Identity and Access Management) opera bajo un modelo **RBAC** robusto.
+## 1. SEGURIDAD A NIVEL DE APLICACIÓN
+Se detalla la implementación de controles de acceso:
+- **RBAC (Role Based Access Control):** Gestión granular de permisos por módulo (Tickets, SIEM, Inventario, Wiki).
+- **MFA Requerido:** Uso obligatorio de tokens TOTP (Google Authenticator) para el acceso al panel de control.
+- **Seguridad Documental:** Los documentos DOCX son protegidos mediante firmas **JWT (JSON Web Tokens)** con secretos de alta entropía (64 chars hex).
 
-*   **Gestión de Permisos:** Se han definido scopes granulares a nivel de API. Los perfiles (Analista, Líder, Administrador) poseen permisos restrictivos sobre las operaciones de lectura, escritura y borrado en cada módulo.
-*   **Autenticación:** El sistema integra soporte nativo para **2FA (TOTP)**. El enrolamiento es obligatorio para cuentas con privilegios elevados, asegurando la integridad de las credenciales incluso ante compromisos de contraseñas.
+## 2. HARDENING DE RED Y SERVIDOR (LINUX)
+- **Firewall Estricto (UFW):** Política de denegación por defecto. Solo se permiten puertos 22 (SSH), 80/443 (Web) y 514 (Syslog entrante de SIEM).
+- **Aislamiento Docker:** Los contenedores de Base de Datos y Backend no exponen puertos al exterior, comunicándose únicamente a través de la red interna de Docker.
+- **Nginx Proxy Endurecido:**
+    - Deshabilitación de firmas de servidor (Server Tokens).
+    - Implementación de **HSTS (Strict-Transport-Security)** por un periodo de 1 año.
+    - Protección contra Clickjacking y Sniffing de MIME-types.
 
-## 2. AUDITORÍA Y TRAZABILIDAD (LOGGING)
-En cumplimiento con los estándares de auditoría informática, se deja constancia de que el sistema mantiene un registro inalterable de eventos en la tabla `audit_logs`.
+## 3. GESTIÓN DE SECRETO Y VARIABLES
+Se deja constancia de que todas las credenciales críticas (Base de Datos, JWT, API Keys) residen exclusivamente en archivos de entorno (`.env`) protegidos con permisos de sistema `600`, evitando su exposición en el código fuente o repositorios de versiones.
 
-*   **Detalle de Registros:** Cada transacción queda vinculada a un ID de usuario, una dirección IP de origen y un payload detallando los cambios realizados sobre el recurso (valor anterior vs. valor nuevo).
-*   **Zonas Horarias:** Todos los registros operan bajo el estándar **UTC** para garantizar la correlación temporal precisa en investigaciones forenses.
-
-## 3. SEGURIDAD EN CAPA DE TRANSPORTE Y RED
-El endurecimiento (hardening) de la infraestructura se ha realizado siguiendo las recomendaciones de la ONTI:
-
-*   **Nginx:** Actúa como terminación SSL/TLS restringiendo el uso de protocolos obsoletos. Solo se permiten conexiones vía **TLS 1.2 y 1.3** con suites de cifrado de alta seguridad.
-*   **Perímetro:** Se ha configurado el firewall de sistema (**UFW**) en modo preventivo, bloqueando todo tráfico entrante por defecto, exceptuando los puertos estrictamente necesarios para la operación (80, 443, 514/UDP).
-
----
-**CONTROLADO POR:** DEPARTAMENTO DE SEGURIDAD INFORMÁTICA
-**FECHA DE REVISIÓN:** 15/02/2026
+**ÁREA DE SEGURIDAD INFORMÁTICA --- PROTOCOLO DE BLINDAJE v2.0**
