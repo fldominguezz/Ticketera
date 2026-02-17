@@ -1,34 +1,28 @@
-# ANEXO I — ARQUITECTURA DE INGENIERÍA Y DISEÑO DE SISTEMA
+# ANEXO I --- ARQUITECTURA DE INGENIERÍA Y DISEÑO DE SISTEMA (v2.0)
 
 ## 1. PARADIGMA DE DISEÑO
-Se informa que el sistema "Ticketera" ha sido diseñado bajo el paradigma de **Arquitectura de Microservicios Desacoplados**. Este enfoque permite que cada componente sea independiente en términos de recursos, actualizaciones y escalabilidad.
+Se informa que el sistema "Ticketera" ha sido elevado a la versión 2.0 bajo un paradigma de **Arquitectura de Microservicios Endurecidos**. Este enfoque garantiza la independencia operativa de los módulos de Gestión de Incidentes, Inventario Técnico y Repositorio de Conocimiento.
 
-## 2. DESCRIPCIÓN DEL STACK TECNOLÓGICO (DEEP DIVE)
+## 2. DESCRIPCIÓN DEL STACK TECNOLÓGICO ACTUALIZADO
 
 ### 2.1. Capa de Lógica de Negocio (Backend)
-*   **Framework:** **FastAPI v0.109.2**. Se optó por este framework debido a su soporte nativo para `asyncio`, lo que permite manejar miles de conexiones simultáneas (necesario para la ingesta masiva de logs y WebSockets).
-*   **ORM y Acceso a Datos:** **SQLAlchemy 2.0 (Async)**. Garantiza la integridad referencial y previene inyecciones SQL mediante consultas parametrizadas automáticas.
-*   **Validación de Datos:** **Pydantic v2**. Se utiliza para la definición de esquemas de entrada/salida (DTOs), asegurando que ningún dato malformado ingrese a la lógica de negocio.
+- **Framework:** **FastAPI v0.109.2**. Soporte nativo para `asyncio`, optimizado para la ingesta masiva de eventos SIEM.
+- **Seguridad JWT:** Implementación de firmas RS256 y HS256 (64-bit entropy) para la comunicación segura con el motor de documentos.
+- **ORM:** **SQLAlchemy 2.0 (Async)** con gestión de migraciones vía **Alembic**, consolidando un esquema de base de datos prolijo y escalable.
 
 ### 2.2. Capa de Interfaz de Usuario (Frontend)
-*   **Biblioteca:** **React v18**. Implementa un modelo de reconciliación de DOM virtual que optimiza las actualizaciones de los tableros de control en tiempo real.
-*   **Gestión de Estado:** **React Context & Hooks**. Permite una fluidez absoluta en la navegación sin recargas, manteniendo la conexión de WebSocket activa de forma persistente.
-*   **Estilos:** **Bootstrap 5 & Custom CSS**. Siguiendo las guías de diseño institucional para legibilidad y profesionalismo.
+- **Biblioteca:** **React v18** con **Next.js**.
+- **Sistema de Diseño SOC:** Implementación de una jerarquía de tokens de color optimizada para entornos operativos (SOC Mode, Dark Mode, High Contrast) cumpliendo estándares **WCAG AA**.
+- **Visores Integrados:** Integración nativa de `pdf.js` para visualización técnica y **OnlyOffice API** para edición de documentos institucionales.
 
-### 2.3. Capa de Datos y Búsqueda
-*   **PostgreSQL 16:** Motor de base de datos relacional de nivel corporativo. Almacena la estructura de tickets, usuarios, grupos y políticas de SLA.
-*   **Redis 7:** Broker de mensajes in-memory. Fundamental para la propagación de notificaciones instantáneas a los analistas conectados.
-*   **Meilisearch v1.6:** Motor de búsqueda por relevancia. Indexa el contenido de los tickets y activos para permitir búsquedas instantáneas similares a un motor de búsqueda web.
+### 2.3. Capa de Datos y Soporte
+- **PostgreSQL 16:** Almacenamiento relacional con integridad referencial completa para Tickets y Activos.
+- **Meilisearch v1.6:** Motor de búsqueda instantánea para localización de activos por Hostname, IP o Serial.
+- **OnlyOffice DocumentServer:** Motor de edición de nivel corporativo para la gestión de procedimientos en formato DOCX.
+- **Ollama AI:** Inteligencia Artificial local para el análisis de incidentes y generación de resúmenes técnicos.
 
-## 3. TOPOLOGÍA DE RED Y ORQUESTACIÓN
-Se indica que el sistema se despliega mediante **Docker Compose**. Los contenedores se comunican a través de una red virtual interna aislada (`app-network`).
-*   **Proxy Inverso (Nginx):** Único punto de entrada al sistema. Gestiona certificados SSL, cabeceras de seguridad (HSTS, CSP) y el enrutamiento hacia el puerto 8000 (Backend) o 3000 (Frontend).
-
-## 4. FLUJO DE DATOS DEL INCIDENTE
-1.  **Ingesta:** FortiSIEM envía un XML al endpoint `/fortisiem-incident`.
-2.  **Validación:** El backend valida credenciales (HTTP Basic) e IP de origen.
-3.  **Procesamiento:** El `SiemService` parsea el XML, extrae indicadores (IPs, Hostnames) y crea el ticket.
-4.  **Notificación:** Se envía un mensaje a Redis, el cual es captado por el `NotificationService` y propagado vía WebSocket al Frontend de todos los analistas conectados.
-
----
-**DOCUMENTACIÓN TÉCNICA DE REFERENCIA — INGENIERÍA DE SOFTWARE**
+## 3. SEGURIDAD Y HARDENING DE INFRAESTRUCTURA
+Se deja constancia de que el sistema ha sido endurecido mediante:
+1. **Aislamiento de Red:** Cierre de puertos innecesarios; solo los puertos 80/443 (Nginx) y 514 (Syslog restringido) están expuestos.
+2. **Nginx Hardening:** Implementación de **HSTS**, CSP restrictivas y neutralización de ServiceWorkers para operar de forma segura con certificados auto-firmados.
+3. **Control de Acceso:** RBAC estricto con **2FA obligatorio** en el proceso de Onboarding de personal.
