@@ -1,5 +1,5 @@
 from typing import List, Annotated, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from uuid import UUID
@@ -64,17 +64,36 @@ async def read_soc_events(
     current_user: Annotated[User, Depends(require_permission("siem:view"))],
     page: int = 1,
     size: int = 20,
+    sort_by: str = Query("created_at"),
+    order: str = Query("desc")
 ):
     """Listado de alertas SOC puras con paginación."""
     skip = (page - 1) * size
+    
+    # Base Query
+    query = select(Alert)
+    
+    # Ordenamiento
+    sort_map = {
+        "rule_name": Alert.rule_name,
+        "severity": Alert.severity,
+        "source_ip": Alert.source_ip,
+        "created_at": Alert.created_at,
+        "status": Alert.status
+    }
+    column = sort_map.get(sort_by.lower(), Alert.created_at)
+    if order.lower() == "asc":
+        query = query.order_by(column.asc())
+    else:
+        query = query.order_by(column.desc())
+
     # Contar total
     from sqlalchemy import func
-    total_res = await db.execute(select(func.count(Alert.id)))
+    total_res = await db.execute(select(func.count()).select_from(query.subquery()))
     total = total_res.scalar_one()
+    
     # Obtener items
-    result = await db.execute(
-        select(Alert).order_by(Alert.created_at.desc()).offset(skip).limit(size)
-    )
+    result = await db.execute(query.offset(skip).limit(size))
     items = result.scalars().all()
     import math
     return {

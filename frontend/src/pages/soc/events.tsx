@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Layout from '../../components/Layout';
 import { Table, Badge, Card, Spinner, Button, Modal, Form, Row, Col, InputGroup, Accordion, Dropdown } from 'react-bootstrap';
-import { Activity, Search, ShieldCheck, ShieldAlert, Send, Target, FileText, Settings, User, Download as DownloadIcon } from 'lucide-react';
+import { Activity, Search, ShieldCheck, ShieldAlert, Send, Target, FileText, Settings, User, Download as DownloadIcon, ChevronUp, ChevronDown } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../lib/api';
 
@@ -55,15 +55,37 @@ export default function SIEMEventsPage() {
  const [usersToAssign, setUsersToAssign] = useState<any[]>([]);
  const [selectedAssignee, setSelectedAssignee] = useState('');
 
+ // Sorting
+ const [sortField, setSortField] = useState<string>('created_at');
+ const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+ const handleSort = (field: string) => {
+  if (sortField === field) {
+    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+  } else {
+    setSortField(field);
+    setSortOrder('desc');
+  }
+  setPage(1);
+ };
+
  const fetchEvents = useCallback(async () => {
+  setLoading(true);
   try {
-   const res = await api.get(encodeURI(`/soc/alerts?page=${page}&size=${pageSize}`));
+   const res = await api.get('/soc/alerts', {
+    params: {
+      page,
+      size: pageSize,
+      sort_by: sortField,
+      order: sortOrder
+    }
+   });
    setAllSiemEvents(res.data.items); 
    setTotalPages(res.data.pages);
    setTotalItems(res.data.total);
   } catch (e) { console.error(e); }
   finally { setLoading(false); }
- }, [page, pageSize]);
+ }, [page, pageSize, sortField, sortOrder]);
 
  useEffect(() => {
   fetchEvents();
@@ -128,6 +150,30 @@ export default function SIEMEventsPage() {
   }
   setShowRemediate(true);
  };
+
+ // Efecto para cargar IA automáticamente al entrar en la pestaña 'ia'
+ useEffect(() => {
+   if (activeTab === 'ia' && selectedTicket && !aiAnalysis) {
+     const loadAI = async () => {
+       try {
+         const res = await api.post(`/soc/alerts/${selectedTicket.id}/reanalyze`);
+         if (res.data.ai_summary) {
+           setAiAnalysis({
+             summary: res.data.ai_summary,
+             remediation: res.data.ai_remediation
+           });
+         }
+       } catch (e) {
+         console.error("Error cargando IA:", e);
+         setAiAnalysis({
+           summary: "Error al conectar con el motor de IA local.",
+           remediation: "Verifique que el servicio Ollama esté activo y el modelo llama3.2:1b cargado."
+         });
+       }
+     };
+     loadAI();
+   }
+ }, [activeTab, selectedTicket, aiAnalysis]);
 
  const saveRemediation = async () => {
   if (!selectedTicket || !remediationText.trim()) return;
@@ -251,10 +297,24 @@ export default function SIEMEventsPage() {
      <Table hover className="m-0 align-middle">
       <thead>
        <tr>
-        <th className="ps-4">ALERTA</th>
-        {visibleCols.includes('source') && <th>ORIGEN</th>}
-        {visibleCols.includes('arrival') && <th>LLEGADA</th>}
-        {visibleCols.includes('severity') && <th>SEVERIDAD</th>}
+        <th className="ps-4 sortable-header" onClick={() => handleSort('rule_name')}>
+          ALERTA {sortField === 'rule_name' && (sortOrder === 'asc' ? <ChevronUp size={14} className="sort-icon active" /> : <ChevronDown size={14} className="sort-icon active" />)}
+        </th>
+        {visibleCols.includes('source') && (
+          <th className="sortable-header" onClick={() => handleSort('source_ip')}>
+            ORIGEN {sortField === 'source_ip' && (sortOrder === 'asc' ? <ChevronUp size={14} className="sort-icon active" /> : <ChevronDown size={14} className="sort-icon active" />)}
+          </th>
+        )}
+        {visibleCols.includes('arrival') && (
+          <th className="sortable-header" onClick={() => handleSort('created_at')}>
+            LLEGADA {sortField === 'created_at' && (sortOrder === 'asc' ? <ChevronUp size={14} className="sort-icon active" /> : <ChevronDown size={14} className="sort-icon active" />)}
+          </th>
+        )}
+        {visibleCols.includes('severity') && (
+          <th className="sortable-header" onClick={() => handleSort('severity')}>
+            SEVERIDAD {sortField === 'severity' && (sortOrder === 'asc' ? <ChevronUp size={14} className="sort-icon active" /> : <ChevronDown size={14} className="sort-icon active" />)}
+          </th>
+        )}
         <th className="text-end pe-4">COMANDO</th>
        </tr>
       </thead>
@@ -344,12 +404,13 @@ export default function SIEMEventsPage() {
        )}
        {activeTab === 'raw' && (
         <div>
-         <div className="d-flex gap-2 mb-3">
-          <InputGroup size="sm" className="bg-surface-muted border-0 rounded-pill px-3 py-1 flex-grow-1">
-           <InputGroup.Text className="bg-transparent border-0"><Search size={14} /></InputGroup.Text>
+         {/* Buscador de Log (Lupita) */}
+         <div className="d-flex gap-2 mb-4">
+          <InputGroup size="sm" className="bg-surface-muted border-0 rounded-pill px-3 py-1 flex-grow-1 shadow-inner">
+           <InputGroup.Text className="bg-transparent border-0 text-primary"><Search size={14} /></InputGroup.Text>
            <Form.Control 
-            placeholder="Buscar en el log original..." 
-            className="bg-transparent border-0 shadow-none" 
+            placeholder="Filtrar atributos o contenido del log..." 
+            className="bg-transparent border-0 shadow-none x-small fw-bold" 
             value={rawSearchTerm} 
             onChange={e => setRawSearchTerm(e.target.value)} 
            />
@@ -358,26 +419,100 @@ export default function SIEMEventsPage() {
            <DownloadIcon size={14} className="me-2" /> DESCARGAR
           </Button>
          </div>
-         <div className="rounded-4 overflow-hidden border border-secondary border-opacity-25">
-          <div className="p-3 overflow-auto" style={{ maxHeight: '450px' }}>
-           <pre className="m-0 x-small font-monospace text-success lh-base" style={{ whiteSpace: 'pre-wrap' }}>
-            {selectedTicket?.raw_log ? (
-             selectedTicket.raw_log
-              .split(/\s+/) // Dividir por espacios para separar pares clave=valor
-              .filter((part: string) => 
-               !rawSearchTerm || part.toLowerCase().includes(rawSearchTerm.toLowerCase())
-              )
-              .join('\n') // Unir con saltos de línea para crear la lista
-             || 'No hay coincidencias para la búsqueda.'
-            ) : 'Sin log disponible.'}
+
+         {/* Tabla de Atributos del RAW (Filtrada) */}
+         <div className="rounded-4 overflow-hidden border border-secondary border-opacity-25 bg-surface-muted p-0 mb-4 shadow-sm">
+          <div className="bg-surface p-2 border-bottom border-color d-flex justify-content-between align-items-center">
+            <span className="x-small fw-black text-primary uppercase ms-2">Atributos Técnicos</span>
+            <span className="x-small text-muted me-2">Campos: {
+              selectedTicket?.extra_data 
+                ? Object.keys(selectedTicket.extra_data).filter(k => 
+                    !['Incident', 'Organization', 'Rule', 'Description', 'Category', 'Name', 'Remediation'].some(exclude => k.toLowerCase().includes(exclude.toLowerCase()))
+                  ).length 
+                : 0
+            }</span>
+          </div>
+          <div className="table-responsive" style={{ maxHeight: '250px' }}>
+           <table className="table table-hover table-sm m-0 x-small">
+            <tbody className="bg-transparent">
+             {selectedTicket?.extra_data ? (
+              Object.entries(selectedTicket.extra_data)
+                .filter(([key, val]) => {
+                  const isExcluded = ['Incident', 'Organization', 'Rule', 'Description', 'Category', 'Name', 'Remediation'].some(exclude => key.toLowerCase().includes(exclude.toLowerCase()));
+                  const matchesSearch = !rawSearchTerm || 
+                    key.toLowerCase().includes(rawSearchTerm.toLowerCase()) || 
+                    String(val).toLowerCase().includes(rawSearchTerm.toLowerCase());
+                  return !isExcluded && matchesSearch;
+                })
+                .map(([key, value]) => (
+                 <tr key={key} className="border-bottom border-color">
+                  <td className="p-2 fw-bold text-main" style={{ width: '35%', backgroundColor: 'rgba(0,0,0,0.02)' }}>{key}</td>
+                  <td className="p-2 font-monospace text-success">{String(value)}</td>
+                 </tr>
+                ))
+             ) : (
+              <tr><td className="p-3 text-center text-muted">No hay atributos disponibles.</td></tr>
+             )}
+            </tbody>
+           </table>
+          </div>
+         </div>
+
+         {/* RAW Log Limpio */}
+         <div className="d-flex justify-content-between align-items-center mb-2 px-1">
+           <span className="x-small fw-black text-muted uppercase tracking-wider">Contenido Raw Log</span>
+         </div>
+         <div className="rounded-4 overflow-hidden border border-secondary border-opacity-25 bg-dark shadow-lg">
+          <div className="p-3 overflow-auto" style={{ maxHeight: '300px' }}>
+           <pre className="m-0 x-small font-monospace text-success lh-sm" style={{ whiteSpace: 'pre-wrap' }}>
+            {(() => {
+              const rawContent = selectedTicket?.raw_log?.includes('<rawEvents>') 
+                ? selectedTicket.raw_log.split('<rawEvents>')[1]?.split('</rawEvents>')[0]?.trim() || selectedTicket.raw_log
+                : selectedTicket?.raw_log;
+              
+              if (!rawSearchTerm) return rawContent;
+              
+              // Si hay búsqueda, resaltar o filtrar el contenido del raw
+              return rawContent
+                ?.split('\n')
+                .filter(line => line.toLowerCase().includes(rawSearchTerm.toLowerCase()))
+                .join('\n') || 'No hay coincidencias en el log.';
+            })()}
            </pre>
           </div>
          </div>
         </div>
        )}
-       {activeTab === 'ia' && (<div className="p-4 rounded-4 border border-primary border-opacity-25 bg-surface-muted">
-         {aiAnalysis ? (<><div className="bg-surface p-3 rounded-3 small text-success font-monospace mb-3">{aiAnalysis.summary}</div><div className="bg-surface p-3 rounded-3 small text-warning font-monospace">{aiAnalysis.remediation}</div></>) : <p className="small text-muted mt-2 uppercase fw-bold opacity-50">Cargando...</p>}
-       </div>)}
+       {activeTab === 'ia' && (
+        <div className="p-4 rounded-4 border border-primary border-opacity-25 bg-surface-muted shadow-inner">
+         {aiAnalysis ? (
+          <>
+            <div className="mb-4">
+              <div className="x-small fw-black text-primary uppercase mb-2 d-flex align-items-center gap-2">
+                <ShieldCheck size={14} /> ¿POR QUÉ SE DIO LA ALERTA?
+              </div>
+              <div className="bg-surface p-3 rounded-3 small text-main font-monospace border border-color shadow-sm lh-base">
+                {aiAnalysis.summary}
+              </div>
+            </div>
+            
+            <div>
+              <div className="x-small fw-black text-warning uppercase mb-2 d-flex align-items-center gap-2">
+                <Target size={14} /> ACCIONES RECOMENDADAS
+              </div>
+              <div className="bg-surface p-3 rounded-3 small text-warning font-monospace border border-color shadow-sm white-space-pre-wrap">
+                {aiAnalysis.remediation}
+              </div>
+            </div>
+          </>
+         ) : (
+          <div className="text-center py-4">
+            <Spinner animation="border" size="sm" variant="primary" className="mb-3" />
+            <p className="small text-muted fw-bold uppercase opacity-50">Analizando log con IA...</p>
+          </div>
+         )}
+        </div>
+       )}
      </div>
      <div className="bg-surface-muted p-3 rounded-4 border border-color mb-4 shadow-inner">
       <Form.Group>

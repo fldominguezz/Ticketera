@@ -227,7 +227,9 @@ async def read_assets(
     search: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     device_type: Optional[str] = Query(None),
-    av_product: Optional[str] = Query(None)
+    av_product: Optional[str] = Query(None),
+    sort_by: str = Query("hostname"),
+    order: str = Query("asc"),
 ):
     from app.db.models.asset import Asset as AssetModel
     from app.db.models.location import LocationNode
@@ -282,11 +284,27 @@ async def read_assets(
                     (AssetModel.serial.ilike(search_filter)) |
                     (LocationNode.name.ilike(search_filter))
                 )
+
+    # Ordenamiento
+    sort_map = {
+        "hostname": AssetModel.hostname,
+        "ip_address": AssetModel.ip_address,
+        "status": AssetModel.status,
+        "av_product": AssetModel.av_product,
+        "criticality": AssetModel.criticality
+    }
+    column = sort_map.get(sort_by.lower(), AssetModel.hostname)
+    if order.lower() == "desc":
+        query = query.order_by(column.desc())
+    else:
+        query = query.order_by(column.asc())
+
     # Count total
     total_query = sa_select(func.count()).select_from(query.subquery())
     total_res = await db.execute(total_query)
     total = total_res.scalar_one()
-    result = await db.execute(query.order_by(AssetModel.hostname.asc()).offset(skip).limit(size))
+    
+    result = await db.execute(query.offset(skip).limit(size))
     rows = result.all()
     import math
     assets_list = []

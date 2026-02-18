@@ -1,19 +1,24 @@
 @import './soc-theme.css';
 
 :root {
-  /* --- SEMANTIC TOKENS (LIGHT ENTERPRISE) --- */
-  --bg-background: #f8fafc;       /* Fondo de app (Slate 50) */
-  --bg-card: #ffffff;             /* Contenido y Cards (Blanco Puro) */
-  --bg-muted: #f1f5f9;            /* Headers de tablas y áreas secundarias (Slate 100) */
-  --bg-input: #ffffff;            /* Fondo de inputs */
-  --text-foreground: #0f172a;     /* Texto Principal (Slate 900) - Máximo Contraste */
-  --text-muted-foreground: #64748b; /* Texto Secundario (Slate 500) - Accesible */
-  --border-border: #e2e8f0;       /* Bordes definidos (Slate 200) */
-  --primary: #2563eb;             /* Azul Enterprise */
-  --primary-muted: rgba(37, 99, 235, 0.08);
-  --color-danger: #dc2626;
-  --color-warning: #d97706;
-  --color-success: #16a34a;
+  /* --- SEMANTIC TOKENS (LIGHT REFINED) --- */
+  --bg-background: #f3f4f6;       /* Fondo suave grisáceo */
+  --bg-card: rgba(255, 255, 255, 0.95); /* Blanco con ligerísima opacidad */
+  --bg-muted: #e5e7eb;            /* Áreas secundarias */
+  --bg-input: #ffffff;
+  --text-foreground: #111827;
+  --text-muted-foreground: #4b5563;
+  --border-border: rgba(0, 0, 0, 0.06); /* Bordes muy suaves */
+  --primary: #3b82f6;
+  --primary-muted: rgba(59, 130, 246, 0.1);
+  --color-danger: #ef4444;
+  --color-warning: #f59e0b;
+  --color-success: #10b981;
+
+  /* Glassmorphism Effect */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-blur: blur(8px);
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
 
   /* Legacy mapping */
   --bg-app: var(--bg-background);
@@ -106,54 +111,62 @@ hr {
 /* --- COMPONENT STYLES --- */
 .modal-content {
   background-color: var(--bg-card) !important;
+  backdrop-filter: blur(12px);
   color: var(--text-foreground) !important;
+  border: 1px solid var(--border-border) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Quill / Rich Text Editor FIX para Modos Oscuros */
+.ql-toolbar.ql-snow {
+  background-color: var(--bg-muted) !important;
+  border-color: var(--border-border) !important;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+.ql-container.ql-snow {
+  background-color: var(--bg-input) !important;
+  border-color: var(--border-border) !important;
+  color: var(--text-foreground) !important;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+.ql-snow .ql-stroke { stroke: var(--text-foreground) !important; }
+.ql-snow .ql-fill { fill: var(--text-foreground) !important; }
+.ql-snow .ql-picker { color: var(--text-foreground) !important; }
+.ql-snow .ql-picker-options { 
+  background-color: var(--bg-card) !important; 
+  border-color: var(--border-border) !important; 
+  color: var(--text-foreground) !important;
+}
+
+/* Wiki Fix */
+.wiki-content {
+  color: var(--text-foreground) !important;
+}
+.wiki-card {
+  background-color: var(--bg-card) !important;
   border: 1px solid var(--border-border) !important;
 }
 
-/* Quill / Rich Text Editor Dark Mode Fix */
-.ql-toolbar.ql-snow, 
-.ql-container.ql-snow {
-  border-color: var(--border-border) !important;
+/* Table Sorting Styles */
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+  position: relative;
 }
-
-.ql-snow .ql-stroke {
-  stroke: var(--text-foreground) !important;
+.sortable-header:hover {
+  background-color: var(--primary-muted) !important;
 }
-
-.ql-snow .ql-fill {
-  fill: var(--text-foreground) !important;
+.sort-icon {
+  margin-left: 5px;
+  opacity: 0.5;
 }
-
-.ql-snow .ql-picker {
-  color: var(--text-foreground) !important;
-}
-
-.ql-snow .ql-picker-options {
-  background-color: var(--bg-card) !important;
-  border-color: var(--border-border) !important;
-}
-
-.ql-snow .ql-active .ql-stroke {
-  stroke: var(--primary) !important;
-}
-
-.ql-snow .ql-active .ql-fill {
-  fill: var(--primary) !important;
-}
-
-.ql-snow.ql-toolbar button:hover .ql-stroke,
-.ql-snow.ql-toolbar button:focus .ql-stroke {
-  stroke: var(--primary) !important;
-}
-
-.modal-header {
-  border-bottom: 1px solid var(--border-border) !important;
-  background-color: var(--bg-muted) !important;
-}
-
-.modal-footer {
-  border-top: 1px solid var(--border-border) !important;
-  background-color: var(--bg-muted) !important;
+.sort-icon.active {
+  opacity: 1;
+  color: var(--primary);
 }
 
 .modal-body {
@@ -172,10 +185,16 @@ hr {
 
 .card {
   background-color: var(--bg-card) !important;
+  backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border-border) !important;
   color: var(--text-foreground) !important;
-  border-radius: 12px !important;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  border-radius: 16px !important;
+  box-shadow: var(--card-shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
 }
 
 .table {

@@ -53,8 +53,8 @@ export default function NewTicketPage() {
  });
 
  const PLATFORMS = [
-  'Forti-EMS', 'ESET CLOUD', 'ESET BIENESTAR', 
-  'Forti-SIEM', 'Forti-ANALYZER', 'GDE', 'INTERNO'
+  'GENERAL', 'INTERNO', 'Forti-EMS', 'Forti-EDR', 'ESET CLOUD', 'ESET BIENESTAR', 
+  'Forti-SIEM', 'Forti-ANALYZER', 'GDE', 'OTRO'
  ];
 
  useEffect(() => {

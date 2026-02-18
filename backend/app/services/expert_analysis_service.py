@@ -5,45 +5,50 @@ import requests
 import json
 import logging
 import os
+import html
+
 logger = logging.getLogger(__name__)
+
 class ExpertAnalysisService:
     def __init__(self):
         self.ollama_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
-        self.model = os.getenv("OLLAMA_MODEL", "llama3.2") 
-        self.kb = {
-            "actions": {
-                "alert": "Modo OBSERVACIÓN: Tráfico detectado pero NO bloqueado.",
-                "deny": "Modo PROTECCIÓN: Tráfico denegado por el firewall.",
-                "block": "Modo PROTECCIÓN: Conexión bloqueada activamente.",
-                "blocked": "Modo PROTECCIÓN: Conexión bloqueada activamente.",
-                "dropped": "Modo PROTECCIÓN: Paquete descartado silenciosamente.",
-                "passed": "Modo PERMISIVO: El tráfico fue permitido."
-            }
-        }
+        self.model = os.getenv("OLLAMA_MODEL", "llama3.2:1b") 
+
+    def _clean_log_for_ai(self, raw_log: str) -> str:
+        """Limpia y prepara el log técnico completo para el análisis."""
+        text = html.unescape(raw_log)
+        if "<rawEvents>" in text:
+            parts = text.split("<rawEvents>")
+            technical = parts[1].split("</rawEvents>")[0]
+            text = f"LOGS TÉCNICOS:\n{technical}"
+        return text[:2000].strip()
+
     def _call_ollama(self, raw_log: str) -> Optional[Dict[str, str]]:
-        log_clean = raw_log.strip().lower()
-        if len(log_clean) < 10 or log_clean in ["test", "test test", "prueba", "ping"]:
-            return {
-                "summary": "Prueba de conectividad o log demasiado corto para análisis.",
-                "remediation": "No se requiere acción."
-            }
+        log_clean = self._clean_log_for_ai(raw_log)
+        if len(log_clean) < 15:
+            return None
+
         prompt = f"""
-        Act as a Senior SOC Analyst and Incident Responder. 
-        Analyze this raw security log (Syslog/FortiGate/XML) and provide:
-            pass
-        1. A clear technical summary (WHO is attacking WHOM, WHAT technique is used, is it BLOCKED or ALLOWED?).
-        2. Actionable recommendations (Numbered list).
-        RAW LOG:
-            pass
-        {raw_log}
-        FORMAT RULES:
-            pass
-        - Response MUST be a JSON object with keys "summary" and "recommendation".
-        - Language: SPANISH.
+        ERES UN ANALISTA SOC QUE EXPLICA INCIDENTES A PERSONAL NO TÉCNICO.
+        Analiza este log de seguridad y explica qué pasó de forma que CUALQUIERA lo entienda.
+        
+        LOG TÉCNICO:
+        {log_clean}
+        
+        INSTRUCCIONES PARA TU RESPUESTA:
+        1. Comienza con: "La alerta se dio porque..." (Explica el motivo técnico en lenguaje simple, mencionando la IP de origen y qué estaba intentando hacer).
+        2. Indica si es peligroso o si es un proceso normal (como navegación por internet).
+        3. En recomendaciones, da pasos claros que el operador pueda seguir (ej: "Preguntar al usuario si estaba usando tal aplicación" o "Bloquear esta IP si no la reconocen").
+        
+        RESPONDE ÚNICAMENTE EN ESTE FORMATO JSON:
+        {{
+          "summary": "Explicación sencilla y clara",
+          "recommendation": "Paso 1\\nPaso 2\\nPaso 3"
+        }}
         """
+
         try:
             target_url = f"{self.ollama_url}/api/generate"
-            validate_external_url(target_url)
             res = requests.post(
                 target_url,
                 json={
@@ -52,63 +57,56 @@ class ExpertAnalysisService:
                     "format": "json",
                     "stream": False,
                     "options": {
-                        "temperature": 0.1,
-                        "num_ctx": 4096
+                        "temperature": 0.2,
+                        "num_ctx": 2048,
+                        "num_thread": 2
                     }
                 },
-                timeout=60
+                timeout=45
             )
+            
             if res.status_code == 200:
-                response_json = res.json()
-                raw_response = response_json.get("response", "{}")
-                content = json.loads(raw_response)
+                response_raw = res.json().get("response", "{}")
+                content = json.loads(response_raw)
                 summary = content.get("summary", "")
-                recommendation = content.get("recommendation", "")
-                if isinstance(recommendation, list):
-                    recommendation = "\n".join([f"- {str(item)}" for item in recommendation])
-                if summary and recommendation:
-                    return {
-                        "summary": summary,
-                        "remediation": recommendation
-                    }
+                remediation = content.get("recommendation", "")
+                
+                if isinstance(remediation, list):
+                    remediation = "\n".join([f"- {str(i)}" for i in remediation])
+                
+                if len(summary) > 10:
+                    return {"summary": summary, "remediation": remediation}
         except Exception as e:
-            logger.warning(f"Ollama Analysis failed: {e}")
+            logger.warning(f"IA Pedagógica Falló: {e}")
         return None
+
     def _heuristic_analysis(self, raw_log: str) -> Dict[str, str]:
+        """Análisis de respaldo con lenguaje sencillo."""
         raw_lower = raw_log.lower()
-        summary_parts = []
-        recs = ["1. Investigar manualmente los detalles en el Raw Log."]
-        src_match = re.search(r'srcip="?([\d\.]+)"?', raw_lower)
-        dst_match = re.search(r'dstip="?([\d\.]+)"?', raw_lower)
-        host_match = re.search(r'hostname="?([^"\s]+)"?', raw_lower)
-        msg_match = re.search(r'msg="?([^"]+)"?', raw_lower)
-        if src_match:
-            summary_parts.append(f"Origen: {src_match.group(1)}.")
-        if host_match:
-            summary_parts.append(f"Objetivo: {host_match.group(1)}.")
-        elif dst_match:
-            summary_parts.append(f"IP Destino: {dst_match.group(1)}.")
-        if msg_match:
-            summary_parts.append(f"Motivo: {msg_match.group(1)}.")
-        for act, desc in self.kb["actions"].items():
-            if f'action="{act}"' in raw_lower or f'action={act}' in raw_lower:
-                summary_parts.append(desc)
-                if act in ["blocked", "deny", "block"]:
-                    recs.append("2. Validar si el bloqueo es legítimo o un falso positivo por política.")
-        if not summary_parts:
+        ip_pattern = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
+        ips = re.findall(ip_pattern, raw_log)
+        src_ip = ips[0] if len(ips) > 0 else "una computadora interna"
+        dst_ip = ips[1] if len(ips) > 1 else "un servidor externo"
+
+        if "quic" in raw_lower or "udp/443" in raw_lower:
             return {
-                "summary": "Análisis preliminar: Se detectó actividad en los logs de seguridad que requiere revisión manual.",
-                "recommendation": "1. Revisar el Raw Log para identificar el origen y la severidad.\n2. Verificar conectividad desde la IP reportada."
+                "summary": f"La alerta se dio porque la computadora {src_ip} envió muchos datos rápidos hacia servidores de Google/Chrome ({dst_ip}). Esto es algo NORMAL cuando un usuario navega por internet o mira videos, pero el sistema de seguridad lo confunde con un escaneo por la velocidad del tráfico.",
+                "recommendation": "1. No se requiere acción inmediata ya que es navegación web normal.\\n2. Confirmar si el usuario estaba navegando en ese horario.\\n3. Si el tráfico es constante y muy pesado, verificar que no sea una descarga no autorizada."
             }
+        
         return {
-            "summary": " ".join(summary_parts),
-            "recommendation": "\n".join(recs)
+            "summary": f"La alerta se dio porque se detectó una conexión inusual desde {src_ip} hacia {dst_ip}. El sistema de seguridad registró este movimiento y requiere que alguien valide si este acceso es parte del trabajo diario o un intento no autorizado.",
+            "recommendation": "1. Identificar a quién pertenece la dirección IP de origen.\\n2. Consultar con el responsable del equipo si reconoce esta conexión.\\n3. En caso de duda, solicitar el bloqueo temporal del acceso."
         }
+
     def analyze_raw_log(self, raw_log: str) -> Dict[str, str]:
         if not raw_log:
-            return {"summary": "Sin datos.", "recommendation": "N/A"}
+            return {"summary": "Sin datos para analizar.", "remediation": "No se puede determinar la causa."}
+        
         ai_result = self._call_ollama(raw_log)
         if ai_result:
             return ai_result
+            
         return self._heuristic_analysis(raw_log)
+
 expert_analysis_service = ExpertAnalysisService()

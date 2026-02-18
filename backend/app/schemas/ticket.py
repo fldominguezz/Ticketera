@@ -191,13 +191,21 @@ class Ticket(TicketInDBBase):
             sla_metric = safe_getattr(data, "sla_metric")
             created_by = safe_getattr(data, "created_by")
             
-            # LÓGICA ULTRA-ROBUSTA: Priorizar Nombre Real > Username > Sistema
+            # LÓGICA DE GRUPO: Priorizar Global, luego el grupo asignado, luego el propietario
+            group = safe_getattr(data, "group") or safe_getattr(data, "owner_group")
+            group_name = group.name if group else "SOPORTE"
+            
+            if data.is_global:
+                group_name = "GLOBAL"
+            
+            # LÓGICA UNIFICADA: Siempre priorizar Username para una visualización SOC limpia
             res_created_by_name = "Sistema"
             if created_by:
-                first = getattr(created_by, "first_name", "") or ""
-                last = getattr(created_by, "last_name", "") or ""
-                full_name = f"{first} {last}".strip()
-                res_created_by_name = full_name or getattr(created_by, "username", "Sistema")
+                res_created_by_name = getattr(created_by, "username", "Sistema")
+            
+            res_assigned_to_name = None
+            if assigned_to:
+                res_assigned_to_name = getattr(assigned_to, "username", None)
             
             attachments = safe_getattr(data, "attachments")
             watchers = safe_getattr(data, "watchers")
@@ -211,10 +219,10 @@ class Ticket(TicketInDBBase):
                 "priority": data.priority,
                 "platform": data.platform,
                 "ticket_type_id": data.ticket_type_id,
-                "ticket_type_name": ticket_type.name if ticket_type else None,
+                "ticket_type_name": ticket_type.name if ticket_type else "General",
                 "ticket_type": ticket_type if ticket_type else None,
-                "group_id": data.group_id,
-                "group_name": group.name if group else None,
+                "group_id": data.group_id or data.owner_group_id,
+                "group_name": group.name if group else "SOPORTE",
                 "group": group if group else None,
                 "asset_id": data.asset_id,
                 "asset": processed_asset,
@@ -227,7 +235,7 @@ class Ticket(TicketInDBBase):
                 "created_by_id": data.created_by_id,
                 "created_by_name": res_created_by_name,
                 "assigned_to_id": data.assigned_to_id,
-                "assigned_to_name": f"{assigned_to.first_name} {assigned_to.last_name}".strip() if assigned_to else None,
+                "assigned_to_name": res_assigned_to_name,
                 "assigned_to": assigned_to if assigned_to else None,
                 "parent_ticket_id": data.parent_ticket_id,
                 "sla_deadline": data.sla_deadline,

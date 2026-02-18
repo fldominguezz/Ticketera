@@ -10,7 +10,7 @@ class AIService:
     def __init__(self):
         env_url = os.getenv("OLLAMA_BASE_URL")
         self.base_url = env_url if env_url else "http://ollama:11434"
-        self.model = os.getenv("OLLAMA_MODEL", "llama3.1:latest")
+        self.model = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
         logger.info(f"AI Service initialized. Base URL: {self.base_url}, Model: {self.model}")
     def _heuristic_analysis(self, title: str, description: str) -> str:
         """Respaldo si la IA no está disponible."""

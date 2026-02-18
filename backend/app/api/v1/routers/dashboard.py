@@ -213,6 +213,12 @@ async def get_dashboard_stats(
         },
         "top_analysts": top_analysts
     }
+# --- Memoria de Caché para IA Dashboard ---
+CACHE_AI_INSIGHT = {
+    "content": None,
+    "expires_at": None
+}
+
 @router.post("/ai-insights")
 async def get_dashboard_insights(
     stats_data: dict,
@@ -220,9 +226,30 @@ async def get_dashboard_insights(
 ):
     """
     Usa IA para analizar los datos del dashboard y dar recomendaciones.
+    Implementa caché de 4 horas para no saturar el CPU.
     """
-    insight = await ai_service.predict_trends(stats_data)
-    return {"insight": insight}
+    global CACHE_AI_INSIGHT
+    
+    now = datetime.now()
+    
+    # 1. Verificar si hay caché válida
+    if CACHE_AI_INSIGHT["content"] and CACHE_AI_INSIGHT["expires_at"] > now:
+        return {"insight": CACHE_AI_INSIGHT["content"], "cached": True}
+
+    # 2. Si no hay caché, generar nuevo insight
+    try:
+        insight = await ai_service.predict_trends(stats_data)
+        
+        # Guardar en caché por 4 horas
+        CACHE_AI_INSIGHT["content"] = insight
+        CACHE_AI_INSIGHT["expires_at"] = now + timedelta(hours=4)
+        
+        return {"insight": insight, "cached": False}
+    except Exception as e:
+        # Si falla la IA, pero tenemos caché vieja, devolverla como fallback
+        if CACHE_AI_INSIGHT["content"]:
+            return {"insight": CACHE_AI_INSIGHT["content"], "cached": True, "note": "fallback_on_error"}
+        raise HTTPException(status_code=500, detail=f"Error generando insights: {str(e)}")
 # --- Config Management (Opcional si usas el nuevo sistema) ---
 @router.get("/config", response_model=DashboardConfig)
 async def get_my_dashboard_config(

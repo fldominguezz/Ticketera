@@ -177,6 +177,12 @@ async def read_tickets(
     priority: Optional[str] = None,
     group_id: Optional[UUID] = None,
     asset_id: Optional[UUID] = None,
+    platform: Optional[str] = None,
+    type_id: Optional[UUID] = None,
+    created_by_me: bool = Query(False),
+    assigned_to_me: bool = Query(False),
+    sort_by: str = Query("created_at"),
+    order: str = Query("desc"),
 ):
     """
     Retrieve tickets with dynamic permissions (Scopes).
@@ -187,8 +193,11 @@ async def read_tickets(
         selectinload(TicketModel.group),
         selectinload(TicketModel.assigned_to),
         selectinload(TicketModel.created_by),
+        selectinload(TicketModel.attachments),
     ]
-    query = select(TicketModel).options(*options)
+    # Join con Group para poder ordenar por nombre
+    from app.db.models.group import Group as GroupModel
+    query = select(TicketModel).outerjoin(GroupModel, TicketModel.group_id == GroupModel.id).options(*options)
     
     if q:
         query = query.filter(
@@ -198,6 +207,47 @@ async def read_tickets(
             )
         )
     
+    if status:
+        query = query.filter(TicketModel.status == status)
+    if priority:
+        query = query.filter(TicketModel.priority == priority)
+    if group_id:
+        # Filtrar por grupo seleccionado y todos sus descendientes
+        child_ids = await group_service.get_all_child_group_ids(db, group_id)
+        query = query.filter(
+            or_(
+                TicketModel.group_id.in_(child_ids),
+                TicketModel.owner_group_id.in_(child_ids)
+            )
+        )
+    if platform:
+        query = query.filter(TicketModel.platform == platform)
+    if type_id:
+        query = query.filter(TicketModel.ticket_type_id == type_id)
+    
+    if created_by_me:
+        query = query.filter(TicketModel.created_by_id == current_user.id)
+    
+    if assigned_to_me:
+        query = query.filter(TicketModel.assigned_to_id == current_user.id)
+    
+    # Ordenamiento Dinámico Robusto
+    sort_map = {
+        "id": TicketModel.id,
+        "title": TicketModel.title,
+        "status": TicketModel.status,
+        "platform": TicketModel.platform,
+        "priority": TicketModel.priority,
+        "group": GroupModel.name,
+        "created_at": TicketModel.created_at
+    }
+    
+    column = sort_map.get(sort_by.lower(), TicketModel.created_at)
+    if order.lower() == "asc":
+        query = query.order_by(column.asc())
+    else:
+        query = query.order_by(column.desc())
+
     # Permission Logic
     if current_user.is_superuser:
         pass # Full Access para admin
@@ -232,7 +282,7 @@ async def read_tickets(
     total_query = select(func.count()).select_from(query.subquery())
     total_res = await db.execute(total_query)
     total = total_res.scalar_one()
-    result = await db.execute(query.order_by(TicketModel.created_at.desc()).offset(skip).limit(size))
+    result = await db.execute(query.offset(skip).limit(size))
     items = result.scalars().all()
     import math
     return {

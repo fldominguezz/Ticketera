@@ -6,7 +6,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { 
  Monitor, Shield, Activity,
  RefreshCw, HardDrive, Trash2, Layers, CheckCircle2,
- XCircle, AlertTriangle, UploadCloud, Search, Plus, MapPin, Move, Filter, ChevronLeft, ChevronRight, Hash
+ XCircle, AlertTriangle, UploadCloud, Search, Plus, MapPin, Move, Filter, ChevronLeft, ChevronRight, Hash, ChevronUp, ChevronDown
 } from 'lucide-react';
 import { 
  Row, Col, Card, Table, Button, InputGroup, Form, Badge,
@@ -37,6 +37,20 @@ export default function InventoryPage() {
  const [deviceTypeFilter, setDeviceTypeFilter] = useState('');
  const [avProductFilter, setAvProductFilter] = useState('');
 
+ // Sorting
+ const [sortField, setSortField] = useState<string>('hostname');
+ const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+ const handleSort = (field: string) => {
+  if (sortField === field) {
+    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+  } else {
+    setSortField(field);
+    setSortOrder('asc');
+  }
+  setPage(1);
+ };
+
  const [showFilters, setShowFilters] = useState(false);
 
  const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
@@ -60,7 +74,9 @@ export default function InventoryPage() {
     search: searchTerm || undefined,
     status: statusFilter !== 'all' ? statusFilter : undefined,
     device_type: deviceTypeFilter || undefined,
-    av_product: avProductFilter || undefined
+    av_product: avProductFilter || undefined,
+    sort_by: sortField,
+    order: sortOrder
    };
    const res = await api.get('/assets', { params });
    setAssets(res.data.items);
@@ -90,7 +106,7 @@ export default function InventoryPage() {
     fetchAssets();
   }, 300);
   return () => clearTimeout(timer);
- }, [page, pageSize, searchTerm, statusFilter, showDecommissioned, deviceTypeFilter, avProductFilter]);
+ }, [page, pageSize, searchTerm, statusFilter, showDecommissioned, deviceTypeFilter, avProductFilter, sortField, sortOrder]);
 
  const toggleAssetSelection = (id: string) => {
    const newSet = new Set(selectedAssets);
@@ -232,11 +248,19 @@ export default function InventoryPage() {
                         }} 
                       />
                     </th>
-                    <th className="border-0" style={{ width: '30%' }}>DISPOSITIVO / HOSTNAME</th>
-                    <th className="border-0">ESTADO</th>
-                    <th className="border-0">DIRECCIÓN IP</th>
+                    <th className="border-0 sortable-header" style={{ width: '30%' }} onClick={() => handleSort('hostname')}>
+                      DISPOSITIVO / HOSTNAME {sortField === 'hostname' && (sortOrder === 'asc' ? <ChevronUp size={14} className="sort-icon active" /> : <ChevronDown size={14} className="sort-icon active" />)}
+                    </th>
+                    <th className="border-0 sortable-header" onClick={() => handleSort('status')}>
+                      ESTADO {sortField === 'status' && (sortOrder === 'asc' ? <ChevronUp size={14} className="sort-icon active" /> : <ChevronDown size={14} className="sort-icon active" />)}
+                    </th>
+                    <th className="border-0 sortable-header" onClick={() => handleSort('ip_address')}>
+                      DIRECCIÓN IP {sortField === 'ip_address' && (sortOrder === 'asc' ? <ChevronUp size={14} className="sort-icon active" /> : <ChevronDown size={14} className="sort-icon active" />)}
+                    </th>
                     <th className="border-0" style={{ width: '20%' }}>UBICACIÓN ACTUAL</th>
-                    <th className="border-0">PROTECCIÓN AV</th>
+                    <th className="border-0 sortable-header" onClick={() => handleSort('av_product')}>
+                      PROTECCIÓN AV {sortField === 'av_product' && (sortOrder === 'asc' ? <ChevronUp size={14} className="sort-icon active" /> : <ChevronDown size={14} className="sort-icon active" />)}
+                    </th>
                     <th className="pe-4 text-end border-0">ACCIONES</th>
                   </tr>
                 </thead>

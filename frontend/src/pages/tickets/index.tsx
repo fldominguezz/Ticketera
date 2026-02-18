@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/Layout';
 import { Container, Card, Table, Badge, Button, Form, InputGroup, Spinner, Row, Col } from 'react-bootstrap';
-import { Search, Filter, Plus, Clock, User, AlertCircle, Paperclip } from 'lucide-react';
+import { Search, Filter, Plus, Clock, User, AlertCircle, Paperclip, ChevronUp, ChevronDown, Globe } from 'lucide-react';
 import api from '../../lib/api';
 import { useRouter } from 'next/router';
+import { UserAvatar } from '../../components/UserAvatar';
 
 export default function TicketsPage() {
   const [tickets, setTickets] = useState<any[]>([]);
@@ -22,13 +23,35 @@ export default function TicketsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [groupFilter, setGroupFilter] = useState('');
+  const [platformFilter, setPlatformFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [viewTab, setViewTab] = useState<'all' | 'mine' | 'assigned'>('all');
+  const [ticketTypes, setTicketTypes] = useState<any[]>([]);
+
+  // Sorting
+  const [sortField, setSortField] = useState<string>('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const router = useRouter();
 
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('desc');
+    }
+    setPage(1);
+  };
+
   const fetchMetadata = useCallback(async () => {
     try {
-      const res = await api.get('/groups');
-      setGroups(res.data);
+      const [groupsRes, typesRes] = await Promise.all([
+        api.get('/groups'),
+        api.get('/ticket-types')
+      ]);
+      setGroups(groupsRes.data);
+      setTicketTypes(typesRes.data);
     } catch (e) {
       console.error(e);
     }
@@ -45,6 +68,12 @@ export default function TicketsPage() {
           status: statusFilter || undefined,
           priority: priorityFilter || undefined,
           group_id: groupFilter || undefined,
+          platform: platformFilter || undefined,
+          type_id: typeFilter || undefined,
+          created_by_me: viewTab === 'mine' ? true : undefined,
+          assigned_to_me: viewTab === 'assigned' ? true : undefined,
+          sort_by: sortField,
+          order: sortOrder
         },
       });
 
@@ -56,7 +85,7 @@ export default function TicketsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, searchTerm, statusFilter, priorityFilter, groupFilter]);
+  }, [page, pageSize, searchTerm, statusFilter, priorityFilter, groupFilter, platformFilter, typeFilter, viewTab, sortField, sortOrder]);
 
   useEffect(() => {
     fetchMetadata();
@@ -84,20 +113,12 @@ export default function TicketsPage() {
 
   const getPriorityBadge = (prio: string) => {
     const pStr = String(prio || '').toLowerCase();
-    
-    // Mapeo flexible para SOC
     const map: any = {
       critical: { class: 'prio-critical', label: 'CRÍTICA' },
-      critica: { class: 'prio-critical', label: 'CRÍTICA' },
       high: { class: 'prio-high', label: 'ALTA' },
-      alta: { class: 'prio-high', label: 'ALTA' },
       medium: { class: 'prio-medium', label: 'MEDIA' },
-      media: { class: 'prio-medium', label: 'MEDIA' },
-      normal: { class: 'prio-medium', label: 'MEDIA' },
       low: { class: 'prio-low', label: 'BAJA' },
-      baja: { class: 'prio-low', label: 'BAJA' },
     };
-    
     const p = map[pStr] || { class: 'prio-low', label: pStr.toUpperCase() };
     return (
       <div className={`priority-indicator ${p.class}`}>
@@ -110,6 +131,22 @@ export default function TicketsPage() {
   const getSLABadge = (ticket: any) => {
     if (ticket.status === 'closed' || ticket.status === 'resolved') return <span className="text-muted opacity-25">--</span>;
     return <div className="text-primary fw-bold small d-flex align-items-center"><Clock size={12} className="me-1 opacity-75" /> {ticket.sla_remaining || 'N/A'}</div>;
+  };
+
+  const getGroupBadge = (ticket: any) => {
+    if (ticket.is_global) {
+      return (
+        <Badge bg="info" className="bg-opacity-10 text-info border border-info border-opacity-50 x-small fw-black uppercase px-2 py-1 shadow-sm" style={{ fontSize: '9px' }}>
+          <Globe size={10} className="me-1" /> GLOBAL
+        </Badge>
+      );
+    }
+    if (!ticket.group) return <Badge bg="secondary" className="bg-opacity-10 text-muted border x-small fw-black px-2 py-1">SOPORTE</Badge>;
+    return (
+      <Badge bg="dark" className="bg-opacity-10 text-dark border border-secondary border-opacity-50 x-small fw-black uppercase px-2 py-1 shadow-sm" style={{ fontSize: '9px' }}>
+        {ticket.group.name}
+      </Badge>
+    );
   };
 
   return (
@@ -133,28 +170,58 @@ export default function TicketsPage() {
           </Button>
         </div>
 
+        {/* View Selection Tabs */}
+        <div className="d-flex bg-surface-muted p-1 rounded-pill mb-4 gap-1 border border-color shadow-inner" style={{ width: 'fit-content' }}>
+          <Button 
+            variant={viewTab === 'all' ? 'primary' : 'link'} 
+            size="sm" 
+            onClick={() => { setViewTab('all'); setPage(1); }} 
+            className={`rounded-pill px-4 x-small fw-black text-decoration-none ${viewTab !== 'all' ? 'text-muted' : 'text-white'}`}
+          >
+            TODOS LOS TICKETS
+          </Button>
+          <Button 
+            variant={viewTab === 'mine' ? 'primary' : 'link'} 
+            size="sm" 
+            onClick={() => { setViewTab('mine'); setPage(1); }} 
+            className={`rounded-pill px-4 x-small fw-black text-decoration-none ${viewTab !== 'mine' ? 'text-muted' : 'text-white'}`}
+          >
+            CREADOS POR MÍ
+          </Button>
+          <Button 
+            variant={viewTab === 'assigned' ? 'primary' : 'link'} 
+            size="sm" 
+            onClick={() => { setViewTab('assigned'); setPage(1); }} 
+            className={`rounded-pill px-4 x-small fw-black text-decoration-none ${viewTab !== 'assigned' ? 'text-muted' : 'text-white'}`}
+          >
+            ASIGNADOS A MÍ
+          </Button>
+        </div>
+
         {/* Filters Card */}
-        <Card className="border-0 shadow-sm mb-4">
+        <Card className="border-0 shadow-sm mb-4 bg-card rounded-4">
           <Card.Body className="p-3">
             <Row className="g-3">
-              <Col lg={4}>
-                <InputGroup className="bg-surface-muted rounded-3 border-0 overflow-hidden">
+              <Col lg={12}>
+                <InputGroup className="bg-surface-muted rounded-pill border-0 overflow-hidden shadow-inner">
                   <InputGroup.Text className="bg-transparent border-0 pe-0 text-muted">
                     <Search size={18} />
                   </InputGroup.Text>
                   <Form.Control 
-                    placeholder="Buscar por ID, título o descripción..."
+                    placeholder="Búsqueda global por asunto, descripción o ID..."
                     className="bg-transparent border-0 py-2 fw-medium shadow-none"
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
                   />
                 </InputGroup>
               </Col>
+              
               <Col sm={6} lg={2}>
                 <Form.Select 
-                  className="bg-surface-muted border-0 py-2 fw-bold text-main small shadow-none"
+                  size="sm"
+                  className="bg-surface-muted border-0 py-2 fw-bold text-main small shadow-none rounded-pill px-3"
                   value={statusFilter}
-                  onChange={e => setStatusFilter(e.target.value)}
+                  onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
                 >
                   <option value="">TODOS LOS ESTADOS</option>
                   <option value="open">ABIERTO</option>
@@ -164,11 +231,13 @@ export default function TicketsPage() {
                   <option value="closed">CERRADO</option>
                 </Form.Select>
               </Col>
+              
               <Col sm={6} lg={2}>
                 <Form.Select 
-                  className="bg-surface-muted border-0 py-2 fw-bold text-main small shadow-none"
+                  size="sm"
+                  className="bg-surface-muted border-0 py-2 fw-bold text-main small shadow-none rounded-pill px-3"
                   value={priorityFilter}
-                  onChange={e => setPriorityFilter(e.target.value)}
+                  onChange={e => { setPriorityFilter(e.target.value); setPage(1); }}
                 >
                   <option value="">TODAS LAS PRIORIDADES</option>
                   <option value="critical">CRÍTICA</option>
@@ -177,11 +246,13 @@ export default function TicketsPage() {
                   <option value="low">BAJA</option>
                 </Form.Select>
               </Col>
-              <Col sm={12} lg={4}>
+
+              <Col sm={6} lg={3}>
                 <Form.Select 
-                  className="bg-surface-muted border-0 py-2 fw-bold text-main small shadow-none"
+                  size="sm"
+                  className="bg-surface-muted border-0 py-2 fw-bold text-main small shadow-none rounded-pill px-3"
                   value={groupFilter}
-                  onChange={e => setGroupFilter(e.target.value)}
+                  onChange={e => { setGroupFilter(e.target.value); setPage(1); }}
                 >
                   <option value="">TODOS LOS GRUPOS</option>
                   {groups.map((g: any) => (
@@ -189,26 +260,79 @@ export default function TicketsPage() {
                   ))}
                 </Form.Select>
               </Col>
+
+              <Col sm={6} lg={2}>
+                <Form.Select 
+                  size="sm"
+                  className="bg-surface-muted border-0 py-2 fw-bold text-main small shadow-none rounded-pill px-3"
+                  value={typeFilter}
+                  onChange={e => { setTypeFilter(e.target.value); setPage(1); }}
+                >
+                  <option value="">TODOS LOS TIPOS</option>
+                  {ticketTypes.map((t: any) => (
+                    <option key={t.id} value={t.id}>{t.name.toUpperCase()}</option>
+                  ))}
+                </Form.Select>
+              </Col>
+
+              <Col sm={6} lg={3}>
+                <Form.Select 
+                  size="sm"
+                  className="bg-surface-muted border-0 py-2 fw-bold text-main small shadow-none rounded-pill px-3"
+                  value={platformFilter}
+                  onChange={e => { setPlatformFilter(e.target.value); setPage(1); }}
+                >
+                  <option value="">TODAS LAS PLATAFORMAS</option>
+                  <option value="GENERAL">GENERAL</option>
+                  <option value="INTERNO">INTERNO</option>
+                  <option value="Forti-EMS">FORTI-EMS</option>
+                  <option value="Forti-EDR">FORTI-EDR</option>
+                  <option value="ESET CLOUD">ESET CLOUD</option>
+                  <option value="ESET BIENESTAR">ESET BIENESTAR</option>
+                  <option value="Forti-SIEM">FORTI-SIEM</option>
+                  <option value="Forti-ANALYZER">FORTI-ANALYZER</option>
+                  <option value="GDE">GDE</option>
+                  <option value="OTRO">OTRO</option>
+                </Form.Select>
+              </Col>
             </Row>
           </Card.Body>
         </Card>
 
         {/* Tickets Table */}
-        <Card className="border-0 shadow-sm overflow-hidden bg-card">
+        <Card className="border-0 shadow-sm overflow-hidden bg-card rounded-4">
           <Card.Body className="p-0">
             <div className="table-responsive">
               <Table hover className="align-middle m-0 ticket-table border-0">
                 <thead>
                   <tr className="bg-surface-muted">
-                    <th className="ps-4 border-0">ID</th>
-                    <th className="border-0">ASUNTO / TÍTULO</th>
-                    <th className="border-0">ESTADO</th>
-                    <th className="border-0">PLATAFORMA</th>
-                    <th className="border-0">PRIORIDAD</th>
+                    <th className="ps-4 border-0 sortable-header" onClick={() => handleSort('id')}>
+                      ID {sortField === 'id' && (sortOrder === 'asc' ? <ChevronUp size={14} className="sort-icon active" /> : <ChevronDown size={14} className="sort-icon active" />)}
+                    </th>
+                    <th className="border-0 sortable-header" onClick={() => handleSort('title')}>
+                      ASUNTO / TÍTULO {sortField === 'title' && (sortOrder === 'asc' ? <ChevronUp size={14} className="sort-icon active" /> : <ChevronDown size={14} className="sort-icon active" />)}
+                    </th>
+                    <th className="border-0 sortable-header" onClick={() => handleSort('status')}>
+                      ESTADO {sortField === 'status' && (sortOrder === 'asc' ? <ChevronUp size={14} className="sort-icon active" /> : <ChevronDown size={14} className="sort-icon active" />)}
+                    </th>
+                    <th className="border-0 sortable-header" onClick={() => handleSort('platform')}>
+                      PLATAFORMA {sortField === 'platform' && (sortOrder === 'asc' ? <ChevronUp size={14} className="sort-icon active" /> : <ChevronDown size={14} className="sort-icon active" />)}
+                    </th>
+                    <th className="border-0 sortable-header" onClick={() => handleSort('type_id')}>
+                      TIPO {sortField === 'type_id' && (sortOrder === 'asc' ? <ChevronUp size={14} className="sort-icon active" /> : <ChevronDown size={14} className="sort-icon active" />)}
+                    </th>
+                    <th className="border-0 sortable-header" onClick={() => handleSort('priority')}>
+                      PRIORIDAD {sortField === 'priority' && (sortOrder === 'asc' ? <ChevronUp size={14} className="sort-icon active" /> : <ChevronDown size={14} className="sort-icon active" />)}
+                    </th>
+                    <th className="border-0 sortable-header" onClick={() => handleSort('group')}>
+                      GRUPO {sortField === 'group' && (sortOrder === 'asc' ? <ChevronUp size={14} className="sort-icon active" /> : <ChevronDown size={14} className="sort-icon active" />)}
+                    </th>
                     <th className="border-0">SLA</th>
                     <th className="border-0">CREADOR</th>
                     <th className="border-0">ASIGNACIÓN</th>
-                    <th className="pe-4 text-end border-0">FECHA</th>
+                    <th className="pe-4 text-end border-0 sortable-header" onClick={() => handleSort('created_at')}>
+                      FECHA {sortField === 'created_at' && (sortOrder === 'asc' ? <ChevronUp size={14} className="sort-icon active" /> : <ChevronDown size={14} className="sort-icon active" />)}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="border-0">
@@ -222,13 +346,12 @@ export default function TicketsPage() {
                         {t.id.split('-')[0].toUpperCase()}
                       </td>
                       <td>
-                        <div className="d-flex align-items-center gap-2">
-                          <div className="ticket-title text-main">{t.title}</div>
-                          {t.has_attachments && (
-                            <Paperclip size={14} className="text-primary opacity-50" />
+                        <div className="d-flex align-items-center gap-2 mb-1">
+                          {t.attachments && t.attachments.length > 0 && (
+                            <Paperclip size={16} className="text-warning fw-bold" style={{ flexShrink: 0 }} title={`${t.attachments.length} adjuntos`} />
                           )}
+                          <div className="ticket-title text-main">{t.title}</div>
                         </div>
-                        <div className="ticket-group">{t.group?.name || 'SOPORTE'}</div>
                       </td>
                       <td>{getStatusBadge(t.status)}</td>
                       <td>
@@ -240,20 +363,33 @@ export default function TicketsPage() {
                           <span className="text-muted opacity-50 small fw-bold">MANUAL</span>
                         )}
                       </td>
+                      <td>
+                        <Badge bg="info" className="bg-opacity-10 text-info border border-info border-opacity-25 x-small fw-black uppercase px-2 py-1">
+                          {t.ticket_type_name || 'General'}
+                        </Badge>
+                      </td>
                       <td>{getPriorityBadge(t.priority)}</td>
+                      <td>{getGroupBadge(t)}</td>
                       <td>{getSLABadge(t)}</td>
                       <td>
-                        <span className="creator-name text-main">{t.created_by_name}</span>
+                        <div className="d-flex align-items-center gap-2">
+                          <UserAvatar 
+                            user={t.created_by || { username: t.created_by_name }} 
+                            size={24} 
+                            fontSize="10px" 
+                          />
+                          <span className="creator-name text-main small fw-medium">{t.created_by_name || 'Sistema'}</span>
+                        </div>
                       </td>
                       <td>
                         <div className="d-flex align-items-center gap-2">
                           {t.assigned_to ? (
                             <>
-                              <div className="avatar-mini">{t.assigned_to.username.charAt(0).toUpperCase()}</div>
-                              <span className="assignee-name text-main">{t.assigned_to.username}</span>
+                              <UserAvatar user={t.assigned_to} size={24} fontSize="10px" />
+                              <span className="assignee-name text-main small fw-medium">{t.assigned_to.username}</span>
                             </>
                           ) : (
-                            <span className="unassigned-text text-muted">Sin asignar</span>
+                            <span className="unassigned-text text-muted x-small italic">Sin asignar</span>
                           )}
                         </div>
                       </td>

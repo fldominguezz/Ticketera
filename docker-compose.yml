@@ -113,6 +113,11 @@ services:
     container_name: ticketera-ollama
     image: ollama/ollama:latest
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
     volumes:
       - ollama_data:/root/.ollama
     networks: [app-network]
