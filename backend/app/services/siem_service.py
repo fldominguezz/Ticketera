@@ -3,7 +3,7 @@ import json
 import re
 import asyncio
 import defusedxml.ElementTree as ET
-import xml.dom.minidom as minidom
+import defusedxml.minidom as safe_minidom
 from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -22,7 +22,7 @@ class SIEMService:
     def _pretty_xml(self, xml_str: str) -> str:
         """Formatea un XML para que sea legible."""
         try:
-            reparsed = minidom.parseString(xml_str.strip())
+            reparsed = safe_minidom.parseString(xml_str.strip())
             return reparsed.toprettyxml(indent="  ")
         except Exception:
             return xml_str
