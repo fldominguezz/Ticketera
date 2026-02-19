@@ -18,3 +18,7 @@ from .settings import SystemSettings # noqa
 from .sla import SLAPolicy, SLAMetric # noqa
 from .integrations import SIEMRule, SIEMEvent, SIEMConfiguration # noqa
 from .alert import Alert # noqa
+from .wiki import WikiSpace, WikiPage, WikiPageHistory  # noqa
+from .dashboard import DashboardConfig  # noqa
+from .plugin import Plugin  # noqa
+from .views import SavedView  # noqa

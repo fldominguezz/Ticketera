@@ -143,7 +143,7 @@ export default function TicketsPage() {
     }
     if (!ticket.group) return <Badge bg="secondary" className="bg-opacity-10 text-muted border x-small fw-black px-2 py-1">SOPORTE</Badge>;
     return (
-      <Badge bg="dark" className="bg-opacity-10 text-dark border border-secondary border-opacity-50 x-small fw-black uppercase px-2 py-1 shadow-sm" style={{ fontSize: '9px' }}>
+      <Badge bg="primary" className="bg-opacity-10 text-primary border border-primary border-opacity-50 x-small fw-black uppercase px-2 py-1 shadow-sm" style={{ fontSize: '9px' }}>
         {ticket.group.name}
       </Badge>
     );

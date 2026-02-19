@@ -15,7 +15,7 @@ export default function EMLForensicsPage() {
  const [error, setError] = useState<string | null>(null);
  
  // VT Options
- const [checkVT, setCheckVT] = useState(false);
+ const [checkVT, setCheckVT] = useState(true);
  const [vtApiKey, setVtApiKey] = useState('');
 
  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,13 +48,21 @@ export default function EMLForensicsPage() {
   }
  };
 
- const getVerdictBadge = (verdict: string) => {
+ const getVerdictBadge = (vt_analysis: any, security: any) => {
+  const verdict = vt_analysis.verdict;
+  const hasHeuristicThreats = security.malicious_links.length > 0 || security.suspicious_attachments.length > 0;
+
   switch(verdict) {
    case 'MALICIOUS': return <Badge bg="danger" className="p-2 px-3 fw-black shadow-sm d-flex align-items-center gap-2"><ShieldX size={16}/> MALICIOSO</Badge>;
-   case 'SUSPICIOUS': return <Badge bg="warning" className="p-2 px-3 fw-black shadow-sm d-flex align-items-center gap-2"><AlertTriangle size={16}/> SOSPECHOSO</Badge>;
+   case 'SUSPICIOUS': return <Badge bg="warning" className="p-2 px-3 fw-black shadow-sm d-flex align-items-center gap-2 text-dark"><AlertTriangle size={16}/> SOSPECHOSO</Badge>;
    case 'CLEAN': return <Badge bg="success" className="p-2 px-3 fw-black shadow-sm d-flex align-items-center gap-2"><ShieldCheck size={16}/> LIMPIO</Badge>;
    case 'ERROR_NO_KEY': return <Badge bg="secondary" className="p-2 px-3 fw-black shadow-sm d-flex align-items-center gap-2"><Info size={16}/> FALTA API KEY</Badge>;
-   default: return <Badge bg="dark" className="p-2 px-3 fw-black shadow-sm border border-secondary opacity-50">SIN ESCANEAR</Badge>;
+   case 'SKIPPED': 
+    if (hasHeuristicThreats) {
+      return <Badge bg="warning" className="p-2 px-3 fw-black shadow-sm d-flex align-items-center gap-2 text-dark"><AlertTriangle size={16}/> RIESGO DETECTADO</Badge>;
+    }
+    return <Badge bg="info" className="p-2 px-3 fw-black shadow-sm bg-opacity-25 text-info border border-info border-opacity-25">SOLO HEURÍSTICA</Badge>;
+   default: return <Badge bg="secondary" className="p-2 px-3 fw-black shadow-sm bg-opacity-25 text-muted border border-subtle">SIN ESCANEAR</Badge>;
   }
  };
 
@@ -147,20 +155,20 @@ export default function EMLForensicsPage() {
      <Col lg={8}>
       <div className="d-flex flex-column gap-4">
        {/* Veredicto VT */}
-       <Card className="border-0 shadow-sm  overflow-hidden">
+       <Card className="border-0 shadow-sm overflow-hidden bg-card">
         <Card.Body className="p-4 d-flex justify-content-between align-items-center">
          <div>
           <h6 className="x-small fw-black text-muted text-uppercase mb-1 tracking-widest">Veredicto de Inteligencia</h6>
           <div className="d-flex align-items-center gap-3">
-           {getVerdictBadge(result.vt_analysis.verdict)}
+           {getVerdictBadge(result.vt_analysis, result.security)}
            <div className="vr opacity-25"></div>
            <div className="d-flex gap-4">
             <div className="text-center">
-             <div className="h4 m-0 fw-black">{result.iocs.urls.length}</div>
+             <div className="h4 m-0 fw-black text-main">{result.iocs.urls.length}</div>
              <div className="x-tiny text-muted uppercase">URLs</div>
             </div>
             <div className="text-center">
-             <div className="h4 m-0 fw-black">{result.attachments.length}</div>
+             <div className="h4 m-0 fw-black text-main">{result.attachments.length}</div>
              <div className="x-tiny text-muted uppercase">Adjuntos</div>
             </div>
            </div>
@@ -173,44 +181,44 @@ export default function EMLForensicsPage() {
        </Card>
 
        {/* Resumen de Cabeceras */}
-       <Card className="border-0 shadow-sm">
+       <Card className="border-0 shadow-sm bg-card">
         <Card.Body className="p-4">
          <div className="d-flex flex-column gap-2">
-          <div className="border-bottom pb-2 mb-2 d-flex justify-content-between align-items-center">
+          <div className="border-bottom border-subtle pb-2 mb-2 d-flex justify-content-between align-items-center">
            <h6 className="m-0 fw-bold small text-uppercase text-muted">Cabeceras del Correo</h6>
            <Badge bg="info" className="bg-opacity-10 text-info uppercase x-small">Original</Badge>
           </div>
-          <div><span className="fw-bold text-muted x-small text-uppercase">De:</span> <span className="small fw-bold">{result.summary.From}</span></div>
-          <div><span className="fw-bold text-muted x-small text-uppercase">Para:</span> <span className="small">{result.summary.To}</span></div>
+          <div><span className="fw-bold text-muted x-small text-uppercase">De:</span> <span className="small fw-bold text-main">{result.summary.From}</span></div>
+          <div><span className="fw-bold text-muted x-small text-uppercase">Para:</span> <span className="small text-main">{result.summary.To}</span></div>
           <div><span className="fw-bold text-muted x-small text-uppercase">Asunto:</span> <span className="small fw-bold text-primary">{result.summary.Subject}</span></div>
-          <div><span className="fw-bold text-muted x-small text-uppercase">Fecha:</span> <span className="small font-monospace">{result.summary.Date}</span></div>
+          <div><span className="fw-bold text-muted x-small text-uppercase">Fecha:</span> <span className="small font-monospace text-main">{result.summary.Date}</span></div>
          </div>
         </Card.Body>
        </Card>
 
        {/* Tabs Forenses */}
-       <Card className="border-0 shadow-sm overflow-hidden">
+       <Card className="border-0 shadow-sm overflow-hidden bg-card">
         <Card.Body className="p-0">
-         <Tabs defaultActiveKey="security" className="custom-tabs px-3 pt-2 ">
+         <Tabs defaultActiveKey="security" className="custom-tabs px-3 pt-2">
           <Tab eventKey="security" title="Análisis de Amenazas" className="p-4">
            <Row className="g-4">
             <Col md={12}>
              <h6 className="fw-bold small text-uppercase text-primary mb-3">VirusTotal: Resultados Detallados</h6>
              {result.vt_analysis.verdict === 'SKIPPED' ? (
-              <div className="p-4 text-center rounded border border-dashed">
+              <div className="p-4 text-center rounded border border-dashed border-subtle">
                <Info size={32} className="text-muted mb-2 opacity-50"/>
-               <p className="small text-muted m-0">No se realizó análisis de VirusTotal para este archivo.</p>
+               <p className="small text-muted m-0">Análisis de VirusTotal no ejecutado o pendiente.</p>
               </div>
              ) : (
-              <Table hover size="sm" className="x-small border">
-               <thead className="">
-                <tr><th>Tipo</th><th>Objetivo</th><th>Veredicto VT</th></tr>
+              <Table hover size="sm" className="x-small border border-subtle">
+               <thead className="bg-surface-muted">
+                <tr><th className="text-muted">Tipo</th><th className="text-muted">Objetivo</th><th className="text-muted">Veredicto VT</th></tr>
                </thead>
                <tbody>
                 {[...result.vt_analysis.urls, ...result.vt_analysis.attachments].map((item: any, i: number) => (
-                 <tr key={i}>
-                  <td><Badge bg="dark" className="uppercase x-tiny">{item.type === 'url' ? 'URL' : 'ADJUNTO'}</Badge></td>
-                  <td className="text-truncate" style={{maxWidth: '300px'}} title={item.target}>{item.target}</td>
+                 <tr key={i} className="border-bottom border-subtle">
+                  <td><Badge bg="primary" className="bg-opacity-10 text-primary uppercase x-tiny">{item.type === 'url' ? 'URL' : 'ADJUNTO'}</Badge></td>
+                  <td className="text-truncate text-main" style={{maxWidth: '300px'}} title={item.target}>{item.target}</td>
                   <td><VTResultSmall item={item}/></td>
                  </tr>
                 ))}
@@ -220,47 +228,47 @@ export default function EMLForensicsPage() {
             </Col>
             
             <Col md={6}>
-             <div className="p-3 border rounded bg-danger bg-opacity-10 h-100">
+             <div className="p-3 border border-danger border-opacity-25 rounded bg-danger bg-opacity-10 h-100">
               <h6 className="fw-bold x-small text-danger text-uppercase mb-2 d-flex align-items-center gap-2">
                <ShieldAlert size={14}/> Enlaces Maliciosos
               </h6>
               {result.security.malicious_links.length > 0 ? (
                result.security.malicious_links.map((l: string, i: number) => <div key={i} className="x-tiny text-danger mb-1 font-monospace">● {l}</div>)
-              ) : <div className="x-tiny text-muted italic">Ninguno detectado por heurística.</div>}
+              ) : <div className="x-tiny text-muted italic opacity-75">Ninguno detectado por heurística.</div>}
              </div>
             </Col>
             <Col md={6}>
-             <div className="p-3 border rounded bg-warning bg-opacity-10 h-100">
+             <div className="p-3 border border-warning border-opacity-25 rounded bg-warning bg-opacity-10 h-100">
               <h6 className="fw-bold x-small text-warning text-uppercase mb-2 d-flex align-items-center gap-2">
                <ShieldAlert size={14}/> Adjuntos Sospechosos
               </h6>
               {result.security.suspicious_attachments.length > 0 ? (
                result.security.suspicious_attachments.map((a: string, i: number) => <div key={i} className="x-tiny text-warning mb-1 font-monospace">● {a}</div>)
-              ) : <div className="x-tiny text-muted italic">Ninguno detectado por heurística.</div>}
+              ) : <div className="x-tiny text-muted italic opacity-75">Ninguno detectado por heurística.</div>}
              </div>
             </Col>
            </Row>
           </Tab>
 
           <Tab eventKey="body" title="Cuerpo del Mensaje" className="p-4">
-           <div className=" p-4 rounded shadow-inner" style={{ maxHeight: '500px', overflowY: 'auto' }}>
-            <pre className="small m-0 lh-base" style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{result.body}</pre>
+           <div className="p-4 rounded shadow-inner bg-surface-muted border border-subtle" style={{ maxHeight: '500px', overflowY: 'auto' }}>
+            <pre className="small m-0 lh-base text-main" style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{result.body}</pre>
            </div>
           </Tab>
 
           <Tab eventKey="attachments" title="Hashes de Adjuntos" className="p-4">
            {result.attachments.length > 0 ? (
             <div className="table-responsive">
-             <Table hover className="align-middle">
-              <thead className="">
-               <tr className="x-small text-uppercase"><th>Archivo</th><th>Tipo</th><th>SHA-256</th></tr>
+             <Table hover className="align-middle border border-subtle">
+              <thead className="bg-surface-muted">
+               <tr className="x-small text-uppercase text-muted"><th>Archivo</th><th>Tipo</th><th>SHA-256</th></tr>
               </thead>
               <tbody className="small">
                {result.attachments.map((a: any, i: number) => (
-                <tr key={i}>
-                 <td><div className="fw-bold"><Fingerprint size={14} className="me-2 text-primary" /> {a.filename}</div></td>
+                <tr key={i} className="border-bottom border-subtle">
+                 <td><div className="fw-bold text-main"><Fingerprint size={14} className="me-2 text-primary" /> {a.filename}</div></td>
                  <td className="x-small text-muted">{a.content_type}</td>
-                 <td><code className="x-small text-success px-2 py-1 rounded">{a.sha256}</code></td>
+                 <td><code className="x-small text-success bg-success bg-opacity-10 px-2 py-1 rounded">{a.sha256}</code></td>
                 </tr>
                ))}
               </tbody>
@@ -271,13 +279,13 @@ export default function EMLForensicsPage() {
 
           <Tab eventKey="headers" title="Encabezados Técnicos" className="p-0">
            <div className="table-responsive" style={{ maxHeight: '400px' }}>
-            <Table striped hover size="sm" className="mb-0 x-small font-monospace">
-             <thead className=" sticky-top">
-              <tr><th className="ps-3 py-2">Encabezado</th><th className="py-2">Valor</th></tr>
+            <Table striped hover size="sm" className="mb-0 x-small font-monospace border-0">
+             <thead className="sticky-top bg-surface-muted shadow-sm">
+              <tr><th className="ps-3 py-2 text-muted">Encabezado</th><th className="py-2 text-muted">Valor</th></tr>
              </thead>
              <tbody>
               {result.full_headers.map((h: any, i: number) => (
-               <tr key={i}><td className="fw-bold ps-3 text-primary">{h.key}</td><td className="text-muted text-break">{h.value}</td></tr>
+               <tr key={i} className="border-bottom border-subtle"><td className="fw-bold ps-3 text-primary">{h.key}</td><td className="text-muted text-break">{h.value}</td></tr>
               ))}
              </tbody>
             </Table>
@@ -296,7 +304,8 @@ export default function EMLForensicsPage() {
     .x-small { font-size: 0.75rem; }
     .x-tiny { font-size: 0.65rem; }
     .custom-tabs { border-bottom: none !important; }
-    .shadow-inner { box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5); }
+    .shadow-inner { box-shadow: inset 0 2px 6px 0 rgba(0, 0, 0, 0.05); }
+    [data-theme='dark'] .shadow-inner, [data-theme='soc'] .shadow-inner { box-shadow: inset 0 2px 6px 0 rgba(0, 0, 0, 0.5); }
    `}</style>
   </Layout>
  );

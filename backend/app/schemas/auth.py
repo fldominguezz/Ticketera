@@ -5,6 +5,7 @@ class LoginRequest(BaseModel):
     # User can login with either username or email
     identifier: str = Field(..., description="Username or email of the user.")
     password: str = Field(..., description="User's password.")
+    recaptcha_token: Optional[str] = Field(None, description="The Google reCAPTCHA token.")
 class LoginResponse(BaseModel):
     """
     Response after the first step of login (credential validation).

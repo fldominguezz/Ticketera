@@ -91,7 +91,7 @@ export default function WikiIndexPage() {
             <h4 className="fw-black m-0 uppercase tracking-tighter text-primary d-flex align-items-center gap-2">
               <Book className="text-primary" size={24} /> Wiki Corporativa
             </h4>
-            <small className="text-secondary fw-bold uppercase tracking-widest opacity-75">Gestión de Librerías y Procedimientos</small>
+            <small className="text-muted fw-bold uppercase tracking-widest">Gestión de Librerías y Procedimientos</small>
           </div>
           <Button variant="primary" onClick={() => handleOpenModal()} className="fw-black x-small px-4 rounded-pill shadow-sm">
             <Plus size={16} className="me-2" /> NUEVA LIBRERÍA
@@ -110,15 +110,15 @@ export default function WikiIndexPage() {
                 >
                   <Card.Body className="p-4 d-flex flex-column align-items-center text-center position-relative">
                     <div className="position-absolute top-0 end-0 p-2 d-flex gap-1">
-                       <Button variant="link" size="sm" className="p-1 text-secondary hover-text-primary" onClick={(e) => { e.stopPropagation(); handleOpenModal(space); }}><Edit3 size={14}/></Button>
-                       <Button variant="link" size="sm" className="p-1 text-secondary hover-text-danger" onClick={(e) => handleDelete(space, e)}><Trash2 size={14}/></Button>
+                       <Button variant="link" size="sm" className="p-1 text-muted hover-text-primary" onClick={(e) => { e.stopPropagation(); handleOpenModal(space); }}><Edit3 size={14}/></Button>
+                       <Button variant="link" size="sm" className="p-1 text-muted hover-text-danger" onClick={(e) => handleDelete(space, e)}><Trash2 size={14}/></Button>
                     </div>
 
                     <div className={`p-3 rounded-circle ${space.is_private ? 'bg-warning' : 'bg-primary'} bg-opacity-10 text-primary mb-3`}>
                       {space.is_private ? <Shield size={32} className="text-warning" /> : <Folder size={32} />}
                     </div>
                     <h6 className="fw-black text-uppercase text-primary m-0 mb-2">{space.name}</h6>
-                    <p className="small text-secondary mb-0 line-clamp-2">{space.description}</p>
+                    <p className="small text-muted mb-0 line-clamp-2">{space.description}</p>
                   </Card.Body>
                   <Card.Footer className="bg-surface-raised border-0 py-2 d-flex justify-content-between align-items-center">
                     <div className="d-flex align-items-center gap-1 x-tiny fw-bold uppercase text-tertiary">
@@ -170,7 +170,7 @@ export default function WikiIndexPage() {
                     label={formData.is_private ? "PRIVADO" : "PÚBLICO"}
                     checked={formData.is_private}
                     onChange={e => setFormData({...formData, is_private: e.target.checked})}
-                    className="fw-bold x-small text-secondary"
+                    className="fw-bold x-small text-muted"
                   />
                 </div>
                 <p className="x-tiny text-tertiary mb-3 italic">Si es privado, solo los miembros del grupo seleccionado podrán ver esta librería.</p>
@@ -190,7 +190,7 @@ export default function WikiIndexPage() {
             </Form>
           </Modal.Body>
           <Modal.Footer className="border-0 p-3 bg-surface-raised d-flex justify-content-end gap-2">
-            <Button variant="link" onClick={() => setShowModal(false)} className="text-secondary fw-bold text-decoration-none x-small uppercase">Cancelar</Button>
+            <Button variant="link" onClick={() => setShowModal(false)} className="text-muted fw-bold text-decoration-none x-small uppercase">Cancelar</Button>
             <Button variant="primary" onClick={handleSubmit} className="px-4 rounded-pill fw-black x-small shadow-sm">
               {editingSpace ? 'GUARDAR CAMBIOS' : 'CREAR LIBRERÍA'}
             </Button>

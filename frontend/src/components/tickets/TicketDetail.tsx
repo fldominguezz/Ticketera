@@ -413,12 +413,22 @@ const TicketDetail: React.FC<TicketDetailProps> = ({
        <Tab eventKey="comments" title={`Actividad (${comments.length})`}>
         <Card className="border-0 shadow-sm bg-card">
          <Card.Body className="p-4">
-          <RichCommentEditor 
-           onSubmit={handleCommentSubmit}
-           isSubmitting={submitting}
-           users={users}
-           placeholder="Escribe un comentario técnico o usa @ para mencionar..."
-          />
+          {ticket.status === 'closed' ? (
+            <Alert variant="info" className="bg-opacity-10 border-info text-info rounded-4 py-3 d-flex align-items-center gap-3 mb-4">
+              <Lock size={20} />
+              <div>
+                <div className="fw-black x-small uppercase tracking-widest">Ticket Cerrado</div>
+                <div className="small opacity-75">No se pueden añadir nuevos comentarios a un incidente finalizado.</div>
+              </div>
+            </Alert>
+          ) : (
+            <RichCommentEditor 
+             onSubmit={handleCommentSubmit}
+             isSubmitting={submitting}
+             users={users}
+             placeholder="Escribe un comentario técnico o usa @ para mencionar..."
+            />
+          )}
           {comments.map(c => (
            <div key={c.id} className={`d-flex gap-3 mb-4 p-3 rounded-4 border border-transparent transition-all ${c.is_internal ? 'bg-warning' : 'hover:bg-surface-muted'}`}>
             <UserAvatar 

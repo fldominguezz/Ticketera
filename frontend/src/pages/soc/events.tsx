@@ -17,7 +17,7 @@ const Section = ({ title, icon: Icon, items, color = 'primary', eventKey }: any)
         </div>
       </Accordion.Header>
       <Accordion.Body className="bg-surface-muted bg-opacity-50 border-top">
-        <Row className="g-3">{entries.map(([k, v]) => (<Col key={k} xs={12} md={6}><div className="d-flex flex-column"><span className="x-small text-muted fw-bold text-uppercase opacity-50 mb-1" style={{fontSize: '0.6rem'}}>{k}</span><span className="small font-monospace text-main text-break">{String(v)}</span></div></Col>))}</Row>
+        <Row className="g-3">{entries.map(([k, v]) => (<Col key={k} xs={12} md={6}><div className="d-flex flex-column"><span className="x-tiny text-label text-uppercase mb-1" style={{letterSpacing: '0.05em'}}>{k}</span><span className="small font-monospace text-main text-break">{String(v)}</span></div></Col>))}</Row>
       </Accordion.Body>
     </Accordion.Item>
   );
@@ -87,14 +87,13 @@ export default function SIEMEventsPage() {
   finally { setLoading(false); }
  }, [page, pageSize, sortField, sortOrder]);
 
- useEffect(() => {
-  fetchEvents();
-  const interval = setInterval(() => {
-    if (page === 1) fetchEvents();
-  }, 10000);
-  return () => clearInterval(interval);
- }, [fetchEvents, page]);
-
+   useEffect(() => {
+   fetchEvents();
+   const interval = setInterval(() => {
+     if (page === 1) fetchEvents();
+   }, 30000);
+   return () => clearInterval(interval);
+  }, [fetchEvents, page]);
  const handleReanalyze = async () => {
   if (!selectedTicket) return;
   setReanalyzing(true);
@@ -272,10 +271,10 @@ export default function SIEMEventsPage() {
     <div><h4 className="fw-black text-uppercase m-0">Monitor SIEM</h4><p className="text-muted small m-0 uppercase opacity-50">Intelligent Monitoring</p></div>
     <div className="d-flex gap-2">
       <Dropdown align="end">
-        <Dropdown.Toggle variant="outline-secondary" size="sm" className="rounded-pill px-3 x-small fw-black shadow-sm"><Settings size={14} className="me-2" /> VISTA</Dropdown.Toggle>
-        <Dropdown.Menu className="shadow-lg border-color p-3" style={{minWidth: '200px'}}>
+        <Dropdown.Toggle variant="outline-primary" size="sm" className="rounded-pill px-3 x-small fw-black shadow-sm border-opacity-25"><Settings size={14} className="me-2" /> VISTA</Dropdown.Toggle>
+        <Dropdown.Menu className="shadow-lg border-color p-3 bg-card" style={{minWidth: '200px'}}>
           {[ { id: 'source', label: 'IP Origen' }, { id: 'arrival', label: 'Llegada' }, { id: 'severity', label: 'Severidad' } ].map(col => (
-            <Form.Check key={col.id} type="switch" label={col.label} checked={visibleCols.includes(col.id)} onChange={() => setVisibleColumns(prev => prev.includes(col.id) ? prev.filter(c => c !== col.id) : [...prev, col.id])} className="x-small fw-bold mb-2" />
+            <Form.Check key={col.id} type="switch" label={<span className="text-main">{col.label}</span>} checked={visibleCols.includes(col.id)} onChange={() => setVisibleColumns(prev => prev.includes(col.id) ? prev.filter(c => c !== col.id) : [...prev, col.id])} className="x-small fw-bold mb-2" />
           ))}
         </Dropdown.Menu>
       </Dropdown>
@@ -408,13 +407,12 @@ export default function SIEMEventsPage() {
          <div className="d-flex gap-2 mb-4">
           <InputGroup size="sm" className="bg-surface-muted border-0 rounded-pill px-3 py-1 flex-grow-1 shadow-inner">
            <InputGroup.Text className="bg-transparent border-0 text-primary"><Search size={14} /></InputGroup.Text>
-           <Form.Control 
-            placeholder="Filtrar atributos o contenido del log..." 
-            className="bg-transparent border-0 shadow-none x-small fw-bold" 
-            value={rawSearchTerm} 
-            onChange={e => setRawSearchTerm(e.target.value)} 
-           />
-          </InputGroup>
+                         <Form.Control 
+                          placeholder="Filtrar atributos o contenido del log..." 
+                          className="bg-transparent border-0 shadow-none x-small fw-bold text-main" 
+                          value={rawSearchTerm} 
+                          onChange={e => setRawSearchTerm(e.target.value)} 
+                         />          </InputGroup>
           <Button variant="outline-primary" size="sm" className="rounded-pill px-3 x-small fw-black shadow-sm" onClick={downloadLog}>
            <DownloadIcon size={14} className="me-2" /> DESCARGAR
           </Button>

@@ -7,7 +7,7 @@ interface AuthContextType {
  isSuperuser: boolean;
  needs2FA: boolean;
  interimToken: string | null;
- login: (identifier: string, password: string) => Promise<any>;
+ login: (identifier: string, password: string, recaptchaToken?: string) => Promise<any>;
  verify2FA: (code: string, interimToken: string) => Promise<boolean>;
  logout: () => void;
  checkAuth: () => Promise<void>;
@@ -98,12 +98,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   initAuth();
  }, []);
 
- const login = async (identifier: string, password: string) => {
+ const login = async (identifier: string, password: string, recaptchaToken?: string) => {
   try {
    const res = await fetch('/api/v1/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ identifier, password })
+    body: JSON.stringify({ identifier, password, recaptcha_token: recaptchaToken })
    });
 
    if (res.ok) {

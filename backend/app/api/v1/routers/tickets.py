@@ -225,6 +225,10 @@ async def read_tickets(
     if type_id:
         query = query.filter(TicketModel.ticket_type_id == type_id)
     
+    if asset_id:
+        # Filtro por el ID del activo específico
+        query = query.filter(TicketModel.asset_id == asset_id)
+    
     if created_by_me:
         query = query.filter(TicketModel.created_by_id == current_user.id)
     
@@ -466,6 +470,13 @@ async def create_ticket_comment(
     """
     Create a comment on a ticket.
     """
+    # 1. Validar que el ticket no esté cerrado
+    if ticket.status == "closed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se pueden añadir comentarios a un ticket cerrado."
+        )
+
     comment = await crud_ticket.ticket.create_comment(
         db, ticket_id=ticket.id, user_id=current_user.id, obj_in=comment_in
     )

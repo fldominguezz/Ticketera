@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 
 export default function Login() {
  const [username, setUsername] = useState('');
@@ -16,6 +17,8 @@ export default function Login() {
  const [interimToken, setInterimToken] = useState('');
  const [mounted, setMounted] = useState(false);
  const [showPassword, setShowPassword] = useState(false);
+
+ const { executeRecaptcha } = useGoogleReCaptcha();
 
  const usernameRef = useRef<HTMLInputElement>(null);
  const passwordRef = useRef<HTMLInputElement>(null);
@@ -37,10 +40,18 @@ export default function Login() {
 
  const handleLoginSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
+  
+  if (!executeRecaptcha) {
+    setError('Sistema de seguridad no inicializado. Intente de nuevo.');
+    return;
+  }
+
   setLoading(true);
   setError(null);
   try {
-   const result = await login(username, password);
+   const recaptchaToken = await executeRecaptcha('login');
+   
+   const result = await login(username, password, recaptchaToken);
    if (result === true) {
     router.push('/');
     return;
@@ -218,6 +229,14 @@ export default function Login() {
                 <>INICIAR SESIÓN <ArrowRight size={20} strokeWidth={3} /></>
               )}
             </Button>
+
+            <div className="mt-3 text-center">
+              <p className="x-tiny text-muted opacity-50 mb-0">
+                Este sitio está protegido por reCAPTCHA y se aplican la 
+                <a href="https://policies.google.com/privacy" className="mx-1">Privacidad</a> y 
+                <a href="https://policies.google.com/terms" className="mx-1">Términos</a> de Google.
+              </p>
+            </div>
           </Form>
         ) : (
           <Form onSubmit={handle2FASubmit}>

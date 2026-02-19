@@ -9,6 +9,7 @@ from slugify import slugify
 from app.api.deps import get_db, get_current_active_user
 from app.db.models.user import User
 from app.db.models.wiki import WikiSpace, WikiPage, WikiPageHistory
+from app.db.models.group import Group
 from app.schemas.wiki import (
     WikiSpace as WikiSpaceSchema, WikiSpaceCreate, WikiSpaceUpdate, WikiSpaceWithPages,
     WikiPage as WikiPageSchema, WikiPageCreate, WikiPageUpdate,
@@ -16,6 +17,18 @@ from app.schemas.wiki import (
 )
 
 router = APIRouter()
+
+# --- HELPER ---
+async def get_descendant_group_ids(db: AsyncSession, group_id: UUID) -> List[UUID]:
+    """
+    Obtiene recursivamente todos los IDs de los grupos hijos.
+    """
+    descendants = [group_id]
+    result = await db.execute(select(Group.id).where(Group.parent_id == group_id))
+    child_ids = result.scalars().all()
+    for cid in child_ids:
+        descendants.extend(await get_descendant_group_ids(db, cid))
+    return descendants
 
 # --- SPACES ---
 
@@ -26,13 +39,18 @@ async def read_spaces(
 ):
     """
     Lista todos los espacios visibles para el usuario.
+    Regla: Públicos O (mi grupo O grupos hijos si soy padre).
     """
     query = select(WikiSpace)
     if not current_user.is_superuser:
-        # Mostrar públicos O privados donde el usuario es del grupo dueño
+        # Condiciones básicas: Públicos
         conditions = [WikiSpace.is_private == False]
+        
         if current_user.group_id:
-            conditions.append(WikiSpace.owner_group_id == current_user.group_id)
+            # Obtener todos mis grupos (el mío y mis descendientes)
+            allowed_group_ids = await get_descendant_group_ids(db, current_user.group_id)
+            conditions.append(WikiSpace.owner_group_id.in_(allowed_group_ids))
+            
         query = query.filter(or_(*conditions))
     
     result = await db.execute(query)

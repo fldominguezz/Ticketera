@@ -16,6 +16,7 @@ export default function AdminUsersPage() {
  const [groups, setGroups] = useState<any[]>([]);
  const [loading, setLoading] = useState(true);
  const [searchTerm, setSearchTerm] = useState('');
+ const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' | null }>({ key: 'last_name', direction: 'asc' });
  
  const [showModal, setShowModal] = useState(false);
  const [editingUserId, setEditingUserId] = useState<string | null>(null);
@@ -109,11 +110,50 @@ export default function AdminUsersPage() {
   }));
  };
 
+ const requestSort = (key: string) => {
+  let direction: 'asc' | 'desc' = 'asc';
+  if (sortConfig.key === key && sortConfig.direction === 'asc') {
+   direction = 'desc';
+  }
+  setSortConfig({ key, direction });
+ };
+
+ const getSortedUsers = (userList: any[]) => {
+  if (!sortConfig.key || !sortConfig.direction) return userList;
+  return [...userList].sort((a, b) => {
+   let aVal = '';
+   let bVal = '';
+   
+   if (sortConfig.key === 'identity') {
+    aVal = `${a.last_name || ''} ${a.first_name || ''}`;
+    bVal = `${b.last_name || ''} ${b.first_name || ''}`;
+   } else if (sortConfig.key === 'group') {
+    aVal = a.group?.name || a.group_name || '';
+    bVal = b.group?.name || b.group_name || '';
+   } else {
+    aVal = (a[sortConfig.key] || '').toString();
+    bVal = (b[sortConfig.key] || '').toString();
+   }
+
+   if (aVal.toLowerCase() < bVal.toLowerCase()) return sortConfig.direction === 'asc' ? -1 : 1;
+   if (aVal.toLowerCase() > bVal.toLowerCase()) return sortConfig.direction === 'asc' ? 1 : -1;
+   return 0;
+  });
+ };
+
  const filteredUsers = users.filter(u => 
   u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
   u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
   `${u.first_name} ${u.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
  );
+
+ const activeUsers = getSortedUsers(filteredUsers.filter(u => u.is_active));
+ const inactiveUsers = getSortedUsers(filteredUsers.filter(u => !u.is_active));
+
+ const SortIcon = ({ column }: { column: string }) => {
+  if (sortConfig.key !== column) return <span className="ms-1 opacity-20">↕</span>;
+  return sortConfig.direction === 'asc' ? <span className="ms-1 text-primary">↑</span> : <span className="ms-1 text-primary">↓</span>;
+ };
 
  return (
   <Layout title="Gestión de Identidades">
@@ -128,16 +168,17 @@ export default function AdminUsersPage() {
      </Button>
     </div>
 
-    <Card className="border-0 shadow-2xl rounded-xl overflow-hidden">
-     <div className="p-3 bg-surface-muted border-bottom">
+    <Card className="border-0 shadow-2xl rounded-xl overflow-hidden mb-5">
+     <div className="p-3 bg-surface-muted border-bottom d-flex justify-content-between align-items-center">
+       <div className="fw-black x-small text-success uppercase tracking-widest"><ShieldCheck size={14} className="me-2"/>Cuentas Activas ({activeUsers.length})</div>
        <Form.Group controlId="user-search">
-        <InputGroup style={{ maxWidth: '400px' }}>
+        <InputGroup style={{ maxWidth: '300px' }}>
          <InputGroup.Text className="bg-transparent border-0 text-muted ps-0"><Search size={18}/></InputGroup.Text>
          <Form.Control 
            id="user-search"
            name="searchTerm"
            className="bg-transparent border-0 shadow-none small" 
-           placeholder="Filtrar por nombre, usuario o email..." 
+           placeholder="Buscar identidad..." 
            value={searchTerm}
            onChange={e => setSearchTerm(e.target.value)}
          />
@@ -146,19 +187,20 @@ export default function AdminUsersPage() {
      </div>
      <Table hover responsive className="align-middle mb-0 custom-user-table">
       <thead>
-       <tr className="x-small text-muted uppercase tracking-widest border-bottom">
-        <th className="ps-4 py-3">IDENTIDAD</th>
-        <th>USUARIO</th>
+       <tr className="x-small text-muted uppercase tracking-widest border-bottom bg-surface">
+        <th className="ps-4 py-3 cursor-pointer" onClick={() => requestSort('identity')}>IDENTIDAD <SortIcon column="identity"/></th>
+        <th className="cursor-pointer" onClick={() => requestSort('username')}>USUARIO <SortIcon column="username"/></th>
         <th>NIVEL / ROLES</th>
-        <th>GRUPO / ÁREA</th>
-        <th>ESTADO</th>
+        <th className="cursor-pointer" onClick={() => requestSort('group')}>GRUPO / ÁREA <SortIcon column="group"/></th>
         <th className="text-end pe-4">GESTIÓN</th>
        </tr>
       </thead>
       <tbody>
        {loading ? (
-        <tr><td colSpan={6} className="text-center py-5"><Spinner animation="border" variant="primary" size="sm" /></td></tr>
-       ) : filteredUsers.map(u => (
+        <tr><td colSpan={5} className="text-center py-5"><Spinner animation="border" variant="primary" size="sm" /></td></tr>
+       ) : activeUsers.length === 0 ? (
+        <tr><td colSpan={5} className="text-center py-4 text-muted small">No hay usuarios activos que coincidan</td></tr>
+       ) : activeUsers.map(u => (
         <tr key={u.id} className="border-bottom">
          <td className="ps-4 py-3">
           <div className="d-flex align-items-center gap-3">
@@ -181,11 +223,6 @@ export default function AdminUsersPage() {
           </div>
          </td>
          <td className="small text-muted">{u.group?.name || u.group_name || '-'}</td>
-         <td>
-          <Badge bg={u.is_active ? 'success' : 'secondary'} className="x-small uppercase fw-bold">
-            {u.is_active ? 'ACTIVO' : 'INACTIVO'}
-          </Badge>
-         </td>
          <td className="text-end pe-4">
           <div className="d-flex justify-content-end gap-2">
             <Button variant="link" size="sm" onClick={() => handleOpenModal(u)} className="text-primary hover-opacity-100 p-0"><Edit size={16} /></Button>
@@ -197,6 +234,48 @@ export default function AdminUsersPage() {
       </tbody>
      </Table>
     </Card>
+
+    {inactiveUsers.length > 0 && (
+      <Card className="border-0 shadow-lg rounded-xl overflow-hidden opacity-80 mb-5">
+       <div className="p-3 bg-surface-muted border-bottom">
+         <div className="fw-black x-small text-muted uppercase tracking-widest d-flex align-items-center">
+          <EyeOff size={14} className="me-2"/> Usuarios Inactivos / Deshabilitados ({inactiveUsers.length})
+         </div>
+       </div>
+       <Table hover responsive className="align-middle mb-0 custom-user-table bg-surface-muted bg-opacity-50">
+        <thead>
+         <tr className="x-small text-muted uppercase tracking-widest border-bottom">
+          <th className="ps-4 py-3 cursor-pointer" onClick={() => requestSort('identity')}>IDENTIDAD <SortIcon column="identity"/></th>
+          <th className="cursor-pointer" onClick={() => requestSort('username')}>USUARIO <SortIcon column="username"/></th>
+          <th>ESTADO</th>
+          <th className="text-end pe-4">GESTIÓN</th>
+         </tr>
+        </thead>
+        <tbody>
+         {inactiveUsers.map(u => (
+          <tr key={u.id} className="border-bottom grayscale">
+           <td className="ps-4 py-3">
+            <div className="d-flex align-items-center gap-3">
+             <div className="avatar bg-secondary bg-opacity-10 text-secondary rounded-circle d-flex align-items-center justify-content-center" style={{width:32, height:32}}>
+              <UserIcon size={16} />
+             </div>
+             <div>
+              <div className="fw-bold small text-muted text-decoration-line-through">{u.first_name} {u.last_name}</div>
+              <div className="x-small text-muted">{u.email}</div>
+             </div>
+            </div>
+           </td>
+           <td><code className="small text-muted">@{u.username}</code></td>
+           <td><Badge bg="secondary" className="x-small fw-bold">DESHABILITADO</Badge></td>
+           <td className="text-end pe-4">
+            <Button variant="outline-primary" size="sm" onClick={() => handleOpenModal(u)} className="x-small fw-black py-1 px-3">REACTIVAR</Button>
+           </td>
+          </tr>
+         ))}
+        </tbody>
+       </Table>
+      </Card>
+    )}
    </Container>
 
    <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered contentClassName="shadow-2xl bg-surface border-0">

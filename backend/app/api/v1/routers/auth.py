@@ -23,6 +23,8 @@ from app.core.security import (
 from app.core.config import settings
 from app.db.models import User
 from app.services.auth.ldap_service import ldap_service # Added LDAP Service
+from app.services.auth.recaptcha_service import recaptcha_service
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 async def authenticate_user_local(
@@ -113,6 +115,13 @@ async def login(
     First step of the login process.
     Validates credentials. Handles mandatory changes (password/2FA).
     """
+    # 0. Validar reCAPTCHA Token
+    if not await recaptcha_service.verify_token(login_data.recaptcha_token, remote_ip=request.client.host):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verificación de seguridad fallida. Por favor, intente de nuevo."
+        )
+
     user = await authenticate_user_unified( # Use the new unified function
         db, crud_user, identifier=login_data.identifier, password=login_data.password
     )

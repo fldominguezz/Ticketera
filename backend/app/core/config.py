@@ -22,5 +22,8 @@ class Settings(BaseSettings):
     IMAP_USER: str = ""
     IMAP_PASSWORD: str = ""
     IMAP_ENABLED: bool = False
+    
+    RECAPTCHA_SECRET_KEY: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 settings = Settings()

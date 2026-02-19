@@ -2,23 +2,23 @@
 
 :root {
   /* --- SEMANTIC TOKENS (LIGHT REFINED) --- */
-  --bg-background: #f3f4f6;       /* Fondo suave grisáceo */
-  --bg-card: rgba(255, 255, 255, 0.95); /* Blanco con ligerísima opacidad */
-  --bg-muted: #e5e7eb;            /* Áreas secundarias */
+  --bg-background: #f8fafc;       /* Fondo más claro y limpio */
+  --bg-card: #ffffff;             /* Blanco puro para cards */
+  --bg-muted: #f1f5f9;            /* Áreas secundarias sutiles */
   --bg-input: #ffffff;
-  --text-foreground: #111827;
-  --text-muted-foreground: #4b5563;
-  --border-border: rgba(0, 0, 0, 0.06); /* Bordes muy suaves */
-  --primary: #3b82f6;
-  --primary-muted: rgba(59, 130, 246, 0.1);
-  --color-danger: #ef4444;
-  --color-warning: #f59e0b;
-  --color-success: #10b981;
+  --text-foreground: #0f172a;     /* Slate 900 para texto principal */
+  --text-muted-foreground: #64748b; /* Slate 500 para texto secundario */
+  --border-border: #e2e8f0;       /* Bordes definidos pero suaves */
+  --primary: #2563eb;             /* Azul más vibrante */
+  --primary-muted: rgba(37, 99, 235, 0.08);
+  --color-danger: #dc2626;
+  --color-warning: #d97706;
+  --color-success: #16a34a;
 
   /* Glassmorphism Effect */
-  --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-blur: blur(8px);
-  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-blur: blur(12px);
+  --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
 
   /* Legacy mapping */
   --bg-app: var(--bg-background);
@@ -97,13 +97,42 @@ html, body {
 
 hr {
   border-color: var(--border-border) !important;
-  opacity: 0.2;
+  opacity: 0.15;
+}
+
+/* Mejora de visibilidad de líneas verticales en tablas */
+.table td, .table th {
+  border-right: 1px solid var(--border-border);
+  border-right-width: 1px !important;
+}
+.table td:last-child, .table th:last-child {
+  border-right: none;
+}
+
+[data-theme='light'] .table td, [data-theme='light'] .table th {
+  border-right-color: rgba(0, 0, 0, 0.12) !important; /* Más oscuro para que se note */
+  border-right-width: 1px !important;
 }
 
 /* Legacy mappings */
 .text-main { color: var(--text-foreground) !important; }
 .text-muted { color: var(--text-muted-foreground) !important; }
+.text-label { color: var(--text-muted-foreground) !important; font-weight: 700; }
+.text-tertiary { color: var(--text-muted-foreground) !important; opacity: 0.7; }
 .bg-surface-legacy { background-color: var(--bg-card) !important; }
+
+/* Interactive Cards */
+.interactive-card {
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease !important;
+  border: 1px solid var(--border-border) !important;
+}
+
+.interactive-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1) !important;
+  border-color: var(--primary) !important;
+}
 
 /* Icons */
 .lucide, svg { stroke: currentColor; }
@@ -208,7 +237,7 @@ hr {
 }
 
 .table thead th {
-  color: var(--text-muted-foreground) !important;
+  color: var(--text-foreground) !important;
   font-weight: 800 !important;
   text-transform: uppercase !important;
   font-size: 0.7rem !important;
@@ -223,11 +252,12 @@ hr {
 
 .table-hover tbody tr:hover > * {
   background-color: var(--bg-muted) !important;
+  color: var(--text-foreground) !important;
 }
 
 .form-control, .form-select {
   background-color: var(--bg-input) !important;
-  color: var(--text-foreground);
+  color: var(--text-foreground) !important;
   border: 1px solid var(--border-border) !important;
   border-radius: 8px !important;
   transition: all 0.2s ease;

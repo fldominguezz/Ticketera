@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 from uuid import UUID
 from app.api.deps import get_db, require_permission, get_current_active_user
 from sqlalchemy import func, case
-from app.db.models import Group, User, Ticket, SLAMetric
+from app.db.models import Group, User, Ticket, SLAMetric, WikiSpace
 from app.schemas.group import Group as GroupSchema, GroupCreate, GroupUpdate
 router = APIRouter()
 def build_tree(items: List[Any], stats_map: Dict[UUID, Dict[str, Any]], parent_id: Optional[UUID] = None) -> List[Dict[str, Any]]:
@@ -110,6 +110,20 @@ async def create_group(
 ):
     db_group = Group(**group_in.model_dump())
     db.add(db_group)
+    await db.flush() # Ensure we have db_group.id
+    
+    # Crear automáticamente una librería (WikiSpace) para el grupo
+    wiki_space = WikiSpace(
+        name=f"Librería {db_group.name}",
+        description=f"Espacio de documentación y partes informativos para el grupo {db_group.name}",
+        owner_group_id=db_group.id,
+        is_private=True,
+        creator_id=current_user.id,
+        icon="library",
+        color="indigo"
+    )
+    db.add(wiki_space)
+    
     await db.commit()
     await db.refresh(db_group)
     return db_group

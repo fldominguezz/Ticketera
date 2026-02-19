@@ -110,8 +110,8 @@ export default function Dashboard() {
           <span className="x-small fw-bold text-muted uppercase">Analizando tendencias en tiempo real...</span>
         </div>
       ) : (
-        <div className="bg-black bg-opacity-25 p-3 rounded border border-secondary border-opacity-25">
-          <p className="small m-0 font-monospace text-success italic" style={{ whiteSpace: 'pre-wrap' }}>
+        <div className="bg-surface-muted p-3 rounded border border-subtle">
+          <p className="small m-0 font-monospace text-main italic" style={{ whiteSpace: 'pre-wrap' }}>
             {aiInsight || 'Iniciando motores de análisis...'}
           </p>
         </div>
@@ -204,7 +204,7 @@ export default function Dashboard() {
                 <Table borderless size="sm" className="m-0">
                   <tbody>
                     {categoriesData.map((c: any, i: number) => (
-                      <tr key={i} className="border-bottom border-subtle">
+                      <tr key={i} className="border-bottom border-subtle interactive-item" onClick={() => navigateTo(`/soc/events?search=${encodeURIComponent(c.name)}&status=all`)}>
                         <td className="py-3 px-0">
                           <div className="fw-black text-main small uppercase tracking-tighter">{c.name}</div>
                           <div className="progress mt-2" style={{ height: '6px', backgroundColor: 'var(--bg-muted)' }}>
@@ -240,7 +240,7 @@ export default function Dashboard() {
           <div className="flex-grow-1">
             {devicesData.length > 0 ? (
               devicesData.map((d: any, i: number) => (
-                <div key={i} className="mb-3 p-3 bg-muted bg-opacity-50 rounded-3 border-start border-4 border-danger d-flex justify-content-between align-items-center">
+                <div key={i} className="mb-3 p-3 bg-muted bg-opacity-50 rounded-3 border-start border-4 border-danger d-flex justify-content-between align-items-center interactive-item" onClick={() => navigateTo(`/soc/events?search=${encodeURIComponent(d.name)}&status=all`)}>
                   <div>
                     <div className="fw-black text-main small font-monospace">{d.name}</div>
                     <div className="x-tiny text-muted uppercase fw-bold tracking-wider">Dispositivo FortiGate</div>
@@ -308,7 +308,7 @@ export default function Dashboard() {
           <div className="flex-grow-1">
             {stats.top_analysts && stats.top_analysts.length > 0 ? (
               stats.top_analysts.map((analyst: any, idx: number) => (
-                <div key={idx} className="mb-3 p-3 bg-muted bg-opacity-50 rounded border border-color">
+                <div key={idx} className="mb-3 p-3 bg-muted bg-opacity-50 rounded border border-color interactive-item" onClick={() => navigateTo(`/tickets?assignee=${encodeURIComponent(analyst.name)}`)}>
                   <div className="d-flex justify-content-between align-items-center mb-2">
                     <div className="d-flex align-items-center gap-2">
                       <div className="avatar-xs" style={{ background: COLORS[idx % COLORS.length], color: '#fff', width: '28px', height: '28px', fontSize: '12px', fontWeight: '900', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -345,7 +345,7 @@ export default function Dashboard() {
           <div className="flex-grow-1">
             {stats.assets?.top_affected && stats.assets.top_affected.length > 0 ? (
               stats.assets.top_affected.map((asset: any, idx: number) => (
-                <div key={idx} className="d-flex justify-content-between align-items-center mb-2 p-2 bg-muted bg-opacity-50 rounded border border-color ">
+                <div key={idx} className="d-flex justify-content-between align-items-center mb-2 p-2 bg-muted bg-opacity-50 rounded border border-color interactive-item" onClick={() => navigateTo(`/soc/events?search=${encodeURIComponent(asset.name)}&status=all`)}>
                   <span className="small fw-black font-monospace text-main uppercase">{asset.name}</span>
                   <Badge bg="transparent" className="text-warning border border-warning px-2 py-1 x-small fw-black">
                     {asset.count} EVENTOS

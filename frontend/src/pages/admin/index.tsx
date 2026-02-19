@@ -66,7 +66,7 @@ const AdminDashboard = () => {
           </div>
           <div>
             <h6 className="fw-black mb-1 text-primary text-uppercase small">{title}</h6>
-            <p className="small text-secondary mb-0">{desc}</p>
+            <p className="small text-muted mb-0">{desc}</p>
           </div>
         </Card.Body>
       </Card>
@@ -99,12 +99,12 @@ const AdminDashboard = () => {
         <h4 className="fw-black text-uppercase m-0 d-flex align-items-center gap-2 text-primary">
           <Settings className="text-primary" size={24}/> Administración del Sistema
         </h4>
-        <p className="text-secondary small m-0 text-uppercase tracking-widest fw-bold opacity-75">
+        <p className="text-muted small m-0 text-uppercase tracking-widest fw-bold">
           Control Centralizado de Infraestructura y Procesos SOC
         </p>
       </div>
 
-      <h6 className="fw-black text-uppercase mb-4 x-small tracking-widest text-primary d-flex align-items-center gap-2 opacity-75">
+      <h6 className="fw-black text-uppercase mb-4 x-small tracking-widest text-primary d-flex align-items-center gap-2">
         <Server size={18} /> Módulos de Gestión Técnica
       </h6>
       <Row className="g-4 mb-5">
@@ -124,7 +124,7 @@ const AdminDashboard = () => {
         <AdminCard title="Integración SIEM" desc="Configurar FortiSIEM y Webhooks" icon={ShieldAlert} href="/admin/integrations/siem" color="danger" perm="admin:settings:manage"/>
       </Row>
 
-      <h6 className="fw-black text-uppercase mb-4 x-small tracking-widest text-primary d-flex align-items-center gap-2 opacity-75">
+      <h6 className="fw-black text-uppercase mb-4 x-small tracking-widest text-primary d-flex align-items-center gap-2">
         <Palette size={18} /> Personalización y Marca (White Label)
       </h6>
       <Card className="border-subtle shadow-sm bg-surface">
@@ -159,7 +159,7 @@ const AdminDashboard = () => {
               <Col md={3}>
                 <Form.Group controlId="require-2fa-global" className="d-flex flex-column h-100 justify-content-end pb-2">
                   <Form.Check 
-                    className="x-small fw-black text-secondary uppercase"
+                    className="x-small fw-black text-muted uppercase"
                     id="require-2fa-global"
                     name="require_2fa_all_users"
                     type="switch"

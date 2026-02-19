@@ -7,6 +7,7 @@ import { WebSocketProvider } from '../context/WebSocketContext';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '../i18n';
 import { useRouter } from 'next/router';
+import { GoogleReCaptchaProvider } from 'react-google-recaptcha-v3';
 
 // 1. Estilos base
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -85,17 +86,19 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 export default function App({ Component, pageProps }: AppProps) {
  return (
   <I18nextProvider i18n={i18n}>
-   <AuthProvider>
-    <ThemeProvider>
-     <SettingsProvider> 
-      <WebSocketProvider>
-       <AuthGuard>
-        <Component {...pageProps} />
-       </AuthGuard>
-      </WebSocketProvider>
-     </SettingsProvider> 
-    </ThemeProvider>
-   </AuthProvider>
+   <GoogleReCaptchaProvider reCaptchaKey="6Lcqg3AsAAAAACX1rJ4FYm8SW8j0DpE2dsW8nlNg">
+    <AuthProvider>
+     <ThemeProvider>
+      <SettingsProvider> 
+       <WebSocketProvider>
+        <AuthGuard>
+         <Component {...pageProps} />
+        </AuthGuard>
+       </WebSocketProvider>
+      </SettingsProvider> 
+     </ThemeProvider>
+    </AuthProvider>
+   </GoogleReCaptchaProvider>
   </I18nextProvider>
  );
 }

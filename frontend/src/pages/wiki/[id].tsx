@@ -260,15 +260,15 @@ export default function WikiSpacePage() {
             <FileText size={14} className="text-tertiary" />
           )}
 
-          <span className={`small flex-grow-1 text-truncate ${isSelected ? 'fw-black text-primary' : 'fw-semibold text-secondary'}`} style={{ fontSize: '12px' }}>
+          <span className={`small flex-grow-1 text-truncate ${isSelected ? 'fw-black text-primary' : 'fw-semibold text-muted'}`} style={{ fontSize: '12px' }}>
             {page.title}
           </span>
 
           <div className="wiki-item-actions d-none gap-1">
-            <Button variant="link" size="sm" className="p-0 text-secondary" onClick={(e) => { e.stopPropagation(); setActionPage(page); setNewName(page.title); setShowRenameModal(true); }}>
+            <Button variant="link" size="sm" className="p-0 text-muted" onClick={(e) => { e.stopPropagation(); setActionPage(page); setNewName(page.title); setShowRenameModal(true); }}>
               <Edit3 size={12} />
             </Button>
-            <Button variant="link" size="sm" className="p-0 text-secondary" onClick={(e) => { e.stopPropagation(); setActionPage(page); setTargetFolderId(page.parent_id || "root"); setShowMoveModal(true); }}>
+            <Button variant="link" size="sm" className="p-0 text-muted" onClick={(e) => { e.stopPropagation(); setActionPage(page); setTargetFolderId(page.parent_id || "root"); setShowMoveModal(true); }}>
               <Maximize2 size={12} />
             </Button>
             <Button variant="link" size="sm" className="p-0 text-danger" onClick={(e) => { e.stopPropagation(); handleDeletePage(page.id); }}>
@@ -304,7 +304,7 @@ export default function WikiSpacePage() {
                   </div>
                 </div>
                 <InputGroup size="sm" className="mb-2 shadow-sm rounded-pill overflow-hidden border-subtle bg-surface-raised">
-                  <InputGroup.Text className="bg-transparent border-0 pe-0"><Search size={14} className="text-tertiary"/></InputGroup.Text>
+                  <InputGroup.Text className="bg-transparent border-0 pe-0"><Search size={14} className="text-muted"/></InputGroup.Text>
                   <Form.Control 
                     className="bg-transparent border-0 x-small fw-bold text-primary shadow-none" 
                     placeholder="Buscar..." 
@@ -327,7 +327,7 @@ export default function WikiSpacePage() {
                 <div className="d-flex align-items-center gap-3">
                   <Button 
                     variant="link" 
-                    className="p-0 text-tertiary hover-text-primary transition-all d-flex align-items-center" 
+                    className="p-0 text-muted hover-text-primary transition-all d-flex align-items-center" 
                     onClick={() => setIsNavCollapsed(!isNavCollapsed)}
                     title={isNavCollapsed ? "Mostrar Navegación" : "Ocultar Navegación"}
                   >
@@ -338,7 +338,7 @@ export default function WikiSpacePage() {
                     <h6 className="m-0 fw-black text-uppercase text-truncate tracking-tighter text-primary" style={{ maxWidth: '400px' }}>{selectedPage.title}</h6>
                     <div className="d-flex align-items-center gap-2">
                       <div className={`indicator-dot ${officeMode === 'edit' ? 'bg-danger pulse' : 'bg-success'}`}></div>
-                      <span className="x-tiny text-tertiary fw-black uppercase tracking-widest">
+                      <span className="x-tiny text-muted fw-black uppercase tracking-widest">
                         {officeConfig ? (officeMode === 'edit' ? 'Escritura Habilitada' : 'Vista Lectura') : 'Estático'}
                       </span>
                     </div>
@@ -388,7 +388,7 @@ export default function WikiSpacePage() {
                 <Book size={100} className="text-primary opacity-25" />
               </div>
               <h4 className="fw-black uppercase tracking-widest text-primary">Repositorio SSI</h4>
-              <p className="small fw-bold text-secondary">Selecciona un procedimiento para comenzar.</p>
+              <p className="small fw-bold text-muted">Selecciona un procedimiento para comenzar.</p>
             </div>
           )}
         </main>
@@ -434,7 +434,7 @@ export default function WikiSpacePage() {
               />
             </Form.Group>
             <div className="d-flex gap-2 justify-content-end">
-              <Button variant="light" className="rounded-pill px-4 fw-bold text-secondary" onClick={() => setShowFolderModal(false)}>CANCELAR</Button>
+              <Button variant="light" className="rounded-pill px-4 fw-bold text-muted" onClick={() => setShowFolderModal(false)}>CANCELAR</Button>
               <Button variant="primary" className="rounded-pill px-4 fw-black" onClick={handleCreateFolder}>CREAR</Button>
             </div>
           </div>
@@ -447,7 +447,7 @@ export default function WikiSpacePage() {
           <div className="bg-surface p-4 rounded-4 shadow-lg animate-slide-up border border-subtle" style={{width: '400px'}}>
             <h5 className="fw-black uppercase small tracking-widest text-primary mb-3">Cambiar Nombre</h5>
             <Form.Group className="mb-3">
-              <Form.Label className="x-tiny fw-bold text-tertiary">Nombre Actual: {actionPage?.title}</Form.Label>
+              <Form.Label className="x-tiny fw-bold text-muted">Nombre Actual: {actionPage?.title}</Form.Label>
               <Form.Control 
                 type="text" 
                 value={newName} 
@@ -456,7 +456,7 @@ export default function WikiSpacePage() {
               />
             </Form.Group>
             <div className="d-flex gap-2 justify-content-end">
-              <Button variant="light" className="rounded-pill px-4 fw-bold text-secondary" onClick={() => setShowRenameModal(false)}>CANCELAR</Button>
+              <Button variant="light" className="rounded-pill px-4 fw-bold text-muted" onClick={() => setShowRenameModal(false)}>CANCELAR</Button>
               <Button variant="primary" className="rounded-pill px-4 fw-black" onClick={handleRename}>GUARDAR</Button>
             </div>
           </div>
@@ -482,7 +482,7 @@ export default function WikiSpacePage() {
               </Form.Select>
             </Form.Group>
             <div className="d-flex gap-2 justify-content-end">
-              <Button variant="light" className="rounded-pill px-4 fw-bold text-secondary" onClick={() => setShowMoveModal(false)}>CANCELAR</Button>
+              <Button variant="light" className="rounded-pill px-4 fw-bold text-muted" onClick={() => setShowMoveModal(false)}>CANCELAR</Button>
               <Button variant="primary" className="rounded-pill px-4 fw-black" onClick={handleMove}>MOVER</Button>
             </div>
           </div>
@@ -496,12 +496,12 @@ export default function WikiSpacePage() {
             <h5 className="fw-black uppercase small tracking-widest text-success mb-3">Importar Manual</h5>
             <div className="border-2 border-dashed border-subtle p-5 rounded-4 text-center mb-4 cursor-pointer hover-bg-muted transition-all" onClick={() => fileInputRef.current?.click()}>
               <Upload size={40} className="text-success opacity-50 mb-2" />
-              <div className="fw-bold text-secondary">Click para seleccionar archivo</div>
-              <div className="x-tiny text-tertiary uppercase mt-1">Soporta .docx, .doc, .pdf</div>
+              <div className="fw-bold text-muted">Click para seleccionar archivo</div>
+              <div className="x-tiny text-muted uppercase mt-1">Soporta .docx, .doc, .pdf</div>
               <input type="file" ref={fileInputRef} className="d-none" accept=".docx,.doc,.pdf" onChange={handleUploadFile} />
             </div>
             <div className="d-flex justify-content-center">
-              <Button variant="light" className="rounded-pill px-4 fw-bold text-secondary" onClick={() => setShowUploadModal(false)}>CERRAR</Button>
+              <Button variant="light" className="rounded-pill px-4 fw-bold text-muted" onClick={() => setShowUploadModal(false)}>CERRAR</Button>
             </div>
           </div>
         </div>
