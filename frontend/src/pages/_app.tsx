@@ -86,7 +86,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 export default function App({ Component, pageProps }: AppProps) {
  return (
   <I18nextProvider i18n={i18n}>
-   <GoogleReCaptchaProvider reCaptchaKey="6Lcqg3AsAAAAACX1rJ4FYm8SW8j0DpE2dsW8nlNg">
+   <GoogleReCaptchaProvider reCaptchaKey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || ""}>
     <AuthProvider>
      <ThemeProvider>
       <SettingsProvider> 

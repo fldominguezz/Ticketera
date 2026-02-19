@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 class TurnstileService:
     def __init__(self):
         self.verify_url = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
-        self.secret_key = getattr(settings, "TURNSTILE_SECRET_KEY", "1x000000000000000000000000000000AA")
+        self.secret_key = getattr(settings, "TURNSTILE_SECRET_KEY", "")
 
     async def verify_token(self, token: str, remote_ip: str = None) -> bool:
         """
@@ -16,9 +16,10 @@ class TurnstileService:
         if not token:
             return False
             
-        # Si estamos en modo de prueba o sin llave configurada, permitimos tokens de prueba
-        if self.secret_key == "1x000000000000000000000000000000AA" and token == "XXXX.DUMMY.TOKEN.XXXX":
-            return True
+        # Si no hay llave configurada, loguear y rechazar
+        if not self.secret_key:
+            logger.warning("TURNSTILE_SECRET_KEY not configured.")
+            return False
 
         try:
             async with httpx.AsyncClient() as client:
